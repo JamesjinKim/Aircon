@@ -200,7 +200,7 @@ class AutoSpeedManager:
             
             # 로깅
             if self.SendData_textEdit:
-                self.SendData_textEdit.append(f"{command}")
+                self.SendData_textEdit.append(f"{command.rstrip()}")
                 self.SendData_textEdit.verticalScrollBar().setValue(
                     self.SendData_textEdit.verticalScrollBar().maximum()
                 )
