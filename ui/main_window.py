@@ -17,7 +17,7 @@ from managers.auto_manager import AutoSpeedManager
 from ui.constants import BUTTON_ON_STYLE, BUTTON_OFF_STYLE
 from ui.helpers import get_file_path, configure_display_settings
 from ui.ui_components import (create_group_box, create_button_row, create_port_selection_section,
-                            create_message_section, create_speed_buttons, create_fan_speed_control,
+                            create_speed_buttons, create_fan_speed_control,
                             create_auto_control_tab, create_speed_buttons_with_text)
 from ui.setup_buttons import setup_button_groups
 
@@ -44,6 +44,12 @@ class ControlWindow(QtWidgets.QMainWindow):
         
         # UI 요소 생성
         self.setup_ui()
+        
+        # 메시지 텍스트 에디터 더미 생성 (메시지 기능 제거로 인한 None 처리)
+        self.SendData_textEdit = None
+        self.ReceiveData_textEdit = None
+        self.send_clear = None
+        self.receive_clear = None
         
         # SendData_textEdit 설정 (UI 생성 후)
         self.auto_speed_manager.SendData_textEdit = self.SendData_textEdit
@@ -110,9 +116,7 @@ class ControlWindow(QtWidgets.QMainWindow):
         # 상태 표시기 초기화
         self.update_status_indicator("disconnected")
         
-        # 클리어 버튼 연결
-        self.send_clear.clicked.connect(self.send_clear_text_edit)
-        self.receive_clear.clicked.connect(self.receive_clear_text_edit)
+        # 클리어 버튼 연결 제거 (메시지 기능 제거로 인함)
         
         # 버튼 그룹 설정 - 마지막에 실행 (SPD 버튼 제외)
         setup_button_groups(self)
@@ -138,25 +142,29 @@ class ControlWindow(QtWidgets.QMainWindow):
     def ensure_uniform_button_sizes(self):
         """모든 버튼 크기를 동일하게 설정"""
         # 스피드 버튼 크기 맞추기
-        fan_buttons = [self.spdButton_2, self.spdButton_3, self.spdButton_4]
-        con_fan_buttons = [self.spdButton_6, self.spdButton_7, self.spdButton_8]
+        speed_fan_buttons = [self.spdButton_2, self.spdButton_3, self.spdButton_4]
+        speed_con_fan_buttons = [self.spdButton_6, self.spdButton_7, self.spdButton_8]
         
-        # 모든 스피드 버튼에 동일한 크기 설정
-        for button in fan_buttons + con_fan_buttons:
-            button.setFixedSize(40, 30)
+        # 모든 스피드 버튼에 동일한 크기 설정 - 크기 증가
+        for button in speed_fan_buttons + speed_con_fan_buttons:
+            button.setFixedSize(50, 45)
         
-        # 일반 버튼들 (Fan, Con Fan 등)에 동일한 크기 설정
-        normal_buttons = [
-            self.pushButton_1, self.pushButton_5,  # Fan, Con Fan
+        # Fan, Con Fan 버튼들 - 스피드 버튼과 동일한 너비 (166px)
+        main_fan_buttons = [self.pushButton_1, self.pushButton_5]  # Fan, Con Fan
+        for button in main_fan_buttons:
+            button.setFixedSize(166, 45)
+        
+        # 나머지 일반 버튼들 - 기본 크기
+        other_buttons = [
             self.pushButton_9, self.pushButton_10, self.pushButton_11, self.pushButton_12,  # DMP 버튼들
             self.pushButton_13, self.pushButton_14,  # INVERTER, CLUCH
             self.pushButton_15, self.pushButton_16, self.pushButton_17,  # Desiccant 버튼들
             self.pushButton_18, self.pushButton_19, self.pushButton_20, self.pushButton_21  # Valve 버튼들
         ]
         
-        # 모든 일반 버튼에 동일한 크기 설정
-        for button in normal_buttons:
-            button.setFixedSize(130, 30)
+        # 나머지 버튼들에 기본 크기 설정
+        for button in other_buttons:
+            button.setFixedSize(140, 45)
             
     def setup_ui(self):
         """UI 요소 생성 - 800x480 크기에 최적화된 그리드 레이아웃"""
@@ -195,20 +203,20 @@ class ControlWindow(QtWidgets.QMainWindow):
         font.setBold(True)
         self.tab_widget.setFont(font)
         
-        # 첫 번째 탭 - 메뉴얼 모드 (기존 UI)
-        self.manual_tab = QWidget()
-        self.setup_manual_tab()
-        self.tab_widget.addTab(self.manual_tab, "MANUAL")
+        # 첫 번째 탭 - AIRCON
+        self.aircon_tab = QWidget()
+        self.setup_aircon_tab()
+        self.tab_widget.addTab(self.aircon_tab, "AIRCON")
         
-        # 두 번째 탭 - AUTO 모드
+        # 두 번째 탭 - DESICCANT
+        self.desiccant_tab = QWidget()
+        self.setup_desiccant_tab()
+        self.tab_widget.addTab(self.desiccant_tab, "DESICCANT")
+        
+        # 세 번째 탭 - AUTO 모드
         self.auto_tab = QWidget()
         self.setup_auto_tab()
         self.tab_widget.addTab(self.auto_tab, "AUTO")
-        
-        # 세 번째 탭 - 예약 (미래 확장용)
-        self.schedule_tab = QWidget()
-        self.setup_schedule_tab()
-        self.tab_widget.addTab(self.schedule_tab, "SCHEDULE")
         
         # 메인 레이아웃에 모든 영역 추가
         self.main_layout.addLayout(top_layout)
@@ -217,56 +225,78 @@ class ControlWindow(QtWidgets.QMainWindow):
         # 상태바 추가
         self.statusBar()
     
-    def setup_manual_tab(self):
-        """메뉴얼 모드 탭 설정 - 그리드 레이아웃 기반"""
-        # 메뉴얼 탭 레이아웃 - 그리드로 변경
-        main_grid = QGridLayout(self.manual_tab)
-        main_grid.setContentsMargins(5, 5, 5, 5)
-        main_grid.setSpacing(5)
+    def setup_aircon_tab(self):
+        """AIRCON 탭 설정 - 2컬럼 레이아웃"""
+        # AIRCON 탭 메인 레이아웃
+        main_grid = QGridLayout(self.aircon_tab)
+        main_grid.setContentsMargins(10, 10, 10, 10)  # 마진 증가
+        main_grid.setSpacing(15)  # 그룹 간 간격 증가
         
-        # 왼쪽 컨트롤 영역 (Aircon)
-        aircon_group, aircon_layout = create_group_box("AIRCON")
-        aircon_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        # 왼쪽 그룹: Fan Controls - 여백 조정
+        left_group, left_layout = create_group_box("FAN CONTROLS", margins=(15, 30, 15, 15))
+        left_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
-        # Aircon Fan
-        self.pushButton_1 = create_button_row("Fan", QPushButton("OFF"), aircon_layout)
+        # Aircon Fan - 스피드 버튼과 동일한 너비 (50*3 + 8*2 = 166)
+        self.pushButton_1 = create_button_row("Fan", QPushButton("OFF"), left_layout, button_width=166)
         
         # Aircon Fan Speed 
         self.spdButton_2, self.spdButton_3, self.spdButton_4 = create_speed_buttons_with_text(
-            aircon_layout, "Fan SPD", "<", "0", ">"
+            left_layout, "Fan SPD", "<", "0", ">"
         )
         
-        # Aircon Con Fan
-        self.pushButton_5 = create_button_row("Con Fan", QPushButton("OFF"), aircon_layout)
+        # Aircon Con Fan - 스피드 버튼과 동일한 너비 (50*3 + 8*2 = 166)
+        self.pushButton_5 = create_button_row("Con Fan", QPushButton("OFF"), left_layout, button_width=166)
         
-        # Aircon Con Fan Speed - 텍스트 변경: 1,2,3 -> <,현재값,>
+        # Aircon Con Fan Speed
         self.spdButton_6, self.spdButton_7, self.spdButton_8 = create_speed_buttons_with_text(
-            aircon_layout, "Con Fan SPD", "<", "0", ">"
+            left_layout, "Con Fan SPD", "<", "0", ">"
         )
+        
+        # 왼쪽 그룹 여백 최소화
+        left_layout.addStretch(1)  # 최소 여백만 추가
+        
+        # 오른쪽 그룹: DMP & Other Controls - 여백 조정
+        right_group, right_layout = create_group_box("DMP CONTROLS", margins=(15, 30, 15, 15))
+        right_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
         # Aircon Left Top DMP
-        self.pushButton_9 = create_button_row("Left Top DMP", QPushButton("CLOSE"), aircon_layout)
+        self.pushButton_9 = create_button_row("Left Top DMP", QPushButton("CLOSE"), right_layout)
         
         # Aircon Left Bottom DMP
-        self.pushButton_10 = create_button_row("Left Bottom DMP", QPushButton("CLOSE"), aircon_layout)
+        self.pushButton_10 = create_button_row("Left Bottom DMP", QPushButton("CLOSE"), right_layout)
         
         # Aircon Right Top DMP
-        self.pushButton_11 = create_button_row("Right Top DMP", QPushButton("CLOSE"), aircon_layout)
+        self.pushButton_11 = create_button_row("Right Top DMP", QPushButton("CLOSE"), right_layout)
         
         # Aircon Right Bottom DMP
-        self.pushButton_12 = create_button_row("Right Bottom DMP", QPushButton("CLOSE"), aircon_layout)
+        self.pushButton_12 = create_button_row("Right Bottom DMP", QPushButton("CLOSE"), right_layout)
         
         # Inverter
-        self.pushButton_13 = create_button_row("INVERTER", QPushButton("OFF"), aircon_layout)
+        self.pushButton_13 = create_button_row("INVERTER", QPushButton("OFF"), right_layout)
         
         # CLUCH
-        self.pushButton_14 = create_button_row("CLUCH", QPushButton("OFF"), aircon_layout)
+        self.pushButton_14 = create_button_row("CLUCH", QPushButton("OFF"), right_layout)
         
-        # 여백 추가
-        aircon_layout.addStretch()
+        # 오른쪽 그룹 여백 최소화
+        right_layout.addStretch(1)  # 최소 여백만 추가
         
-        # 중앙 컨트롤 영역 (Desiccant)Dehumidifier
-        desiccant_group, desiccant_layout = create_group_box("DEHUMIDIFIER")
+        # 2컬럼 그리드에 위젯 배치 (왼쪽:오른쪽 = 1:1)
+        main_grid.addWidget(left_group, 0, 0)
+        main_grid.addWidget(right_group, 0, 1)
+        
+        # 컬럼 너비 비율 설정 (1:1)
+        main_grid.setColumnStretch(0, 1)
+        main_grid.setColumnStretch(1, 1)
+    
+    def setup_desiccant_tab(self):
+        """DESICCANT 탭 설정"""
+        # DESICCANT 탭 레이아웃
+        desiccant_grid = QGridLayout(self.desiccant_tab)
+        desiccant_grid.setContentsMargins(5, 5, 5, 5)
+        desiccant_grid.setSpacing(5)
+        
+        # DESICCANT 컨트롤 영역
+        desiccant_group, desiccant_layout = create_group_box("DESICCANT")
         desiccant_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
         # Desiccant Fan
@@ -293,19 +323,8 @@ class ControlWindow(QtWidgets.QMainWindow):
         # 여백 추가
         desiccant_layout.addStretch()
         
-        # 메시지 영역 생성 (오른쪽에 배치)
-        message_group, self.SendData_textEdit, self.ReceiveData_textEdit, self.send_clear, self.receive_clear = create_message_section()
-        message_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        
-        # 그리드에 위젯 배치 (3x1 그리드)
-        main_grid.addWidget(aircon_group, 0, 0)
-        main_grid.addWidget(desiccant_group, 0, 1)
-        main_grid.addWidget(message_group, 0, 2)
-        
-        # 각 컬럼의 너비 비율 설정 (1:1:1)
-        main_grid.setColumnStretch(0, 1)
-        main_grid.setColumnStretch(1, 1)
-        main_grid.setColumnStretch(2, 1)
+        # 그리드에 위젯 배치
+        desiccant_grid.addWidget(desiccant_group, 0, 0)
     
     def setup_auto_tab(self):
         """AUTO 모드 탭 설정 - 그리드 레이아웃 기반"""
@@ -334,28 +353,6 @@ class ControlWindow(QtWidgets.QMainWindow):
         # 버튼 저장
         self.auto_mode_button = auto_control_widget.auto_mode_button
 
-    def setup_schedule_tab(self):
-        """Schedule 탭 설정 - 그리드 레이아웃 기반"""
-        # 스케줄 탭 레이아웃 - 그리드로 설정
-        schedule_grid = QGridLayout(self.schedule_tab)
-        schedule_grid.setContentsMargins(5, 5, 5, 5)
-        schedule_grid.setSpacing(5)
-        
-        # 임시 메시지
-        temp_label = QLabel("Schedule 기능은 향후 업데이트에서 제공됩니다.")
-        temp_label.setAlignment(Qt.AlignCenter)
-        temp_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #888;")
-        
-        # 그리드에 위젯 배치 (1x1 그리드)
-        schedule_grid.addWidget(temp_label, 0, 0, Qt.AlignCenter)
-
-    def send_clear_text_edit(self):
-        """텍스트 에디터 초기화"""
-        self.SendData_textEdit.clear()
-        
-    def receive_clear_text_edit(self):
-        """텍스트 에디터 초기화"""
-        self.ReceiveData_textEdit.clear()
 
     def update_status_time(self):
         """상태바 시간 업데이트"""
@@ -470,19 +467,13 @@ class ControlWindow(QtWidgets.QMainWindow):
             if data:
                 print(f"수신된 데이터: {data}")
                 self.saved_data_to_file(data)
-                self.ReceiveData_textEdit.append(f"{data}")
-                self.ReceiveData_textEdit.verticalScrollBar().setValue(
-                    self.ReceiveData_textEdit.verticalScrollBar().maximum()
-                )
+                # 메시지 텍스트 에디터 제거로 인한 로그만 유지
         except IOError as e:
             self.update_status_indicator("disconnected")
             # 연결이 끊어진 경우 버튼 상태 업데이트
             self.update_button_states()
             print(f"시리얼 데이터 읽기 오류: {e}")
-            self.ReceiveData_textEdit.append(f"시리얼 데이터 읽기 오류: {e}")
-            self.ReceiveData_textEdit.verticalScrollBar().setValue(
-                self.ReceiveData_textEdit.verticalScrollBar().maximum()
-            )
+            # 메시지 텍스트 에디터 제거로 인한 로그만 유지
 
     def saved_data_to_file(self, data):
         """수신된 데이터 파일에 저장"""

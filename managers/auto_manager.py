@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import QLabel, QSlider, QPushButton, QLayout
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QColor
 import random
+from ui.constants import CMD_PREFIX, TERMINATOR, AIR_SYSTEM, FSPD_CMD, AUTO_CMD, TEMP_CMD, ON_STATE, OFF_STATE
 
 class AutoSpeedManager:
     """AUTO 모드의 풍량 및 온도 설정을 처리하는 매니저 클래스"""
@@ -187,11 +188,8 @@ class AutoSpeedManager:
             print(f"속도 값 범위 오류: {speed_value}")
             return
             
-        # 0인 경우 None으로 전송 (꺼짐)
-        if speed_value == 0:
-            command = "$CMD,FSPD,None\r"
-        else:
-            command = f"$CMD,FSPD,{speed_value}\r"
+        # 0인 경우 0으로 전송 (꺼짐)
+        command = f"{CMD_PREFIX},{AIR_SYSTEM},{FSPD_CMD},{speed_value}{TERMINATOR}"
         
         if self.serial_manager.is_connected():
             # 시리얼 전송
@@ -473,7 +471,7 @@ class AutoSpeedManager:
     
     def set_auto_mode_active(self, is_active):
         """AUTO 모드 활성화/비활성화"""
-        command = "$CMD,AUTO,ON\r" if is_active else "$CMD,AUTO,OFF\r"
+        command = f"{CMD_PREFIX},{AUTO_CMD},{ON_STATE}{TERMINATOR}" if is_active else f"{CMD_PREFIX},{AUTO_CMD},{OFF_STATE}{TERMINATOR}"
         
         if self.serial_manager.is_connected():
             # 시리얼 전송
@@ -507,7 +505,7 @@ class AutoSpeedManager:
             print(f"온도 값 범위 오류: {temperature}")
             return
             
-        command = f"$CMD,TEMP,{temperature}\r"
+        command = f"{CMD_PREFIX},{TEMP_CMD},{temperature}{TERMINATOR}"
         
         if self.serial_manager.is_connected():
             # 시리얼 전송

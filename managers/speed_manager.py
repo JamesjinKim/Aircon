@@ -1,3 +1,5 @@
+from ui.constants import CMD_PREFIX, TERMINATOR, AIR_SYSTEM, FSPD_CMD, CON_SPD_CMD, OFF_STATE
+
 class SpeedButtonManager:
     def __init__(self, serial_manager, SendData_textEdit):
         self.serial_manager = serial_manager
@@ -38,21 +40,21 @@ class SpeedButtonManager:
         # 시그널 연결 - 왼쪽 버튼 (감소)
         left_button.clicked.connect(lambda: self.handle_decrease_button(
             button=center_button,
-            command_prefix="$CMD,FSPD,",
+            command_prefix=f"{CMD_PREFIX},{AIR_SYSTEM},{FSPD_CMD},",
             speed_var_name="current_fan_speed"
         ))
         
         # 시그널 연결 - 중앙 버튼 (0으로 리셋)
         center_button.clicked.connect(lambda: self.handle_reset_button(
             button=center_button,
-            command_prefix="$CMD,FSPD,",
+            command_prefix=f"{CMD_PREFIX},{AIR_SYSTEM},{FSPD_CMD},",
             speed_var_name="current_fan_speed"
         ))
         
         # 시그널 연결 - 오른쪽 버튼 (증가)
         right_button.clicked.connect(lambda: self.handle_increase_button(
             button=center_button,
-            command_prefix="$CMD,FSPD,",
+            command_prefix=f"{CMD_PREFIX},{AIR_SYSTEM},{FSPD_CMD},",
             speed_var_name="current_fan_speed"
         ))
             
@@ -71,21 +73,21 @@ class SpeedButtonManager:
         # 시그널 연결 - 왼쪽 버튼 (감소)
         left_button.clicked.connect(lambda: self.handle_decrease_button(
             button=center_button,
-            command_prefix="$CMD,CON_SPD,",
+            command_prefix=f"{CMD_PREFIX},{AIR_SYSTEM},{CON_SPD_CMD},",
             speed_var_name="current_con_fan_speed"
         ))
         
         # 시그널 연결 - 중앙 버튼 (0으로 리셋)
         center_button.clicked.connect(lambda: self.handle_reset_button(
             button=center_button,
-            command_prefix="$CMD,CON_SPD,",
+            command_prefix=f"{CMD_PREFIX},{AIR_SYSTEM},{CON_SPD_CMD},",
             speed_var_name="current_con_fan_speed"
         ))
         
         # 시그널 연결 - 오른쪽 버튼 (증가)
         right_button.clicked.connect(lambda: self.handle_increase_button(
             button=center_button,
-            command_prefix="$CMD,CON_SPD,",
+            command_prefix=f"{CMD_PREFIX},{AIR_SYSTEM},{CON_SPD_CMD},",
             speed_var_name="current_con_fan_speed"
         ))
     
@@ -95,11 +97,11 @@ class SpeedButtonManager:
         from PyQt5.QtWidgets import QSizePolicy
         
         for button in buttons:
-            # 크기 설정
-            button.setMinimumWidth(40)
-            button.setMinimumHeight(30)
-            button.setMaximumWidth(60)
-            button.setFixedSize(40, 30)  # 모든 버튼의 크기를 완전히 동일하게 설정
+            # 크기 설정 - 크기 증가
+            button.setMinimumWidth(50)
+            button.setMinimumHeight(45)
+            button.setMaximumWidth(70)
+            button.setFixedSize(50, 45)  # 모든 버튼의 크기를 완전히 동일하게 설정
             
             # 크기 정책 설정
             button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
@@ -167,11 +169,8 @@ class SpeedButtonManager:
             # 버튼 텍스트 업데이트
             button.setText(str(current_speed))
             
-            # 명령 전송 (0인 경우 None으로 전송)
-            if current_speed == 0:
-                command = f"{command_prefix}None\r"
-            else:
-                command = f"{command_prefix}{current_speed}\r"
+            # 명령 전송 (0인 경우 0으로 전송)
+            command = f"{command_prefix}{current_speed}{TERMINATOR}"
                 
             self.send_command(command)
             
@@ -212,7 +211,7 @@ class SpeedButtonManager:
             button.setText(str(current_speed))
             
             # 명령 전송 - 항상 새로운 값을 즉시 전송
-            command = f"{command_prefix}{current_speed}\r"
+            command = f"{command_prefix}{current_speed}{TERMINATOR}"
             self.send_command(command)
             
             # 팬 속도 변경 시 AUTO 탭과 동기화
@@ -246,8 +245,8 @@ class SpeedButtonManager:
         # 버튼 텍스트 업데이트
         button.setText("0")
         
-        # None 명령 전송
-        command = f"{command_prefix}None\r"
+        # 0 명령 전송
+        command = f"{command_prefix}0{TERMINATOR}"
         self.send_command(command)
         
         # 팬 속도 변경 시 AUTO 탭과 동기화
@@ -313,8 +312,8 @@ class SpeedButtonManager:
         if self.center_button:
             self.center_button.setText("0")
         
-        # None 명령어 전송
-        command = "$CMD,FSPD,None\r"
+        # 0 명령어 전송
+        command = f"{CMD_PREFIX},{AIR_SYSTEM},{FSPD_CMD},0{TERMINATOR}"
         if self.serial_manager.is_connected():
             self.serial_manager.shinho_serial_connection.write(command.encode())
             print(f"Fan SPD 초기화 명령 전송: {command}")
@@ -340,8 +339,8 @@ class SpeedButtonManager:
             center_button = self.con_fan_speed_buttons[1]  # 중앙 버튼 (인덱스 1)
             center_button.setText("0")
         
-        # None 명령어 전송
-        command = "$CMD,CON_SPD,None\r"
+        # OFF 명령어 전송
+        command = f"{CMD_PREFIX},{AIR_SYSTEM},{CON_SPD_CMD},{OFF_STATE}{TERMINATOR}"
         if self.serial_manager.is_connected():
             self.serial_manager.shinho_serial_connection.write(command.encode())
             print(f"Con Fan SPD 초기화 명령 전송: {command}")

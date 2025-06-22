@@ -1,3 +1,5 @@
+from ui.constants import CMD_PREFIX, TERMINATOR
+
 class ButtonManager:
     def __init__(self, serial_manager, SendData_textEdit, ReceiveData_textEdit):
         self.serial_manager = serial_manager 
@@ -110,7 +112,7 @@ class ButtonManager:
         """명령어 전송"""
         try:
             if self.serial_manager.is_connected():
-                self.serial_manager.shinho_serial_connection.write(f"{command}\r".encode())
+                self.serial_manager.shinho_serial_connection.write(f"{command}{TERMINATOR}".encode())
                 print(f"명령 전송: {command}")
                 
                 if hasattr(self, 'SendData_textEdit') and self.SendData_textEdit:

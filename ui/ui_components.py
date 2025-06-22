@@ -8,21 +8,31 @@ from PyQt5.QtGui import QFont, QIcon, QPalette, QColor
 def create_group_box(title, background_color="#f0f0f0", margins=(10, 25, 10, 10)):
     """그룹박스 생성 헬퍼 함수"""
     group = QGroupBox(title)
-    group.setStyleSheet(f"QGroupBox {{ background-color: {background_color}; border-radius: 5px; }}")
+    group.setStyleSheet(f"""
+        QGroupBox {{ 
+            background-color: {background_color}; 
+            border-radius: 5px; 
+            font-size: 16px; 
+            font-weight: bold; 
+        }}
+    """)
     layout = QVBoxLayout(group)
     layout.setContentsMargins(*margins)
     return group, layout
 
-def create_button_row(label_text, button, layout, button_width=120):
+def create_button_row(label_text, button, layout, button_width=140):
     """버튼 행 생성 헬퍼 함수"""
     row_layout = QHBoxLayout()
+    row_layout.setContentsMargins(5, 8, 5, 8)  # 상하 마진 증가
+    
     label = QLabel(label_text)
-    label.setMinimumWidth(80)  # 레이블 최소 너비 설정
-    label.setStyleSheet("font-size: 13px;")
+    label.setMinimumWidth(100)  # 레이블 최소 너비 증가
+    label.setStyleSheet("font-size: 15px; font-weight: bold;")  # 폰트 크기와 굵기 증가
 
-    # 모든 버튼에 동일한 고정 크기 적용
-    button.setFixedSize(button_width, 30)  # 너비와 높이를 고정
+    # 모든 버튼에 동일한 고정 크기 적용 - 크기 증가
+    button.setFixedSize(button_width, 45)  # 너비와 높이 증가
     button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+    button.setStyleSheet("font-size: 14px; font-weight: bold;")  # 버튼 폰트 크기 증가
     
     row_layout.addWidget(label)
     row_layout.addStretch()
@@ -156,23 +166,26 @@ def create_speed_buttons(layout, label_text):
 def create_speed_buttons_with_text(layout, label_text, left_text, center_text, right_text):
     """스피드 버튼 영역 생성 - 사용자 지정 텍스트"""
     speed_layout = QHBoxLayout()
+    speed_layout.setContentsMargins(5, 8, 5, 8)  # 상하 마진 증가
+    
     speed_label = QLabel(label_text)
+    speed_label.setMinimumWidth(100)  # 레이블 최소 너비 증가
+    speed_label.setStyleSheet("font-size: 15px; font-weight: bold;")  # 폰트 크기와 굵기 증가
     speed_layout.addWidget(speed_label)
-    speed_label.setStyleSheet("font-size: 13px;")  # 폰트 크기를 12px로 설정
     speed_layout.addStretch()
     
     buttons_layout = QHBoxLayout()
-    buttons_layout.setSpacing(5)  # 버튼 사이 간격 설정
+    buttons_layout.setSpacing(8)  # 버튼 사이 간격 증가
     
     # 버튼 생성 - 사용자 정의 텍스트 사용
     button1 = QPushButton(left_text)
     button2 = QPushButton(center_text)
     button3 = QPushButton(right_text)
     
-    # 초기 크기 설정 (SpeedButtonManager에서 재설정됨)
+    # 초기 크기 설정 - 크기 증가
     for button in [button1, button2, button3]:
-        button.setStyleSheet("background-color: rgb(186,186,186);")
-        button.setFixedSize(40, 30)  # 고정 크기로 설정
+        button.setStyleSheet("background-color: rgb(186,186,186); font-size: 14px; font-weight: bold;")
+        button.setFixedSize(50, 45)  # 크기 증가
     
     buttons_layout.addWidget(button1)
     buttons_layout.addWidget(button2)
@@ -277,7 +290,14 @@ def create_fan_speed_control(min_value=1, max_value=10, default_value=1):
 def create_group_box(title, background_color="#f0f0f0", margins=(10, 25, 10, 10)):
     """그룹박스 생성 헬퍼 함수"""
     group = QGroupBox(title)
-    group.setStyleSheet(f"QGroupBox {{ background-color: {background_color}; border-radius: 5px; }}")
+    group.setStyleSheet(f"""
+        QGroupBox {{ 
+            background-color: {background_color}; 
+            border-radius: 5px; 
+            font-size: 16px; 
+            font-weight: bold; 
+        }}
+    """)
     layout = QVBoxLayout(group)
     layout.setContentsMargins(*margins)
     return group, layout
@@ -627,18 +647,15 @@ def create_auto_control_tab(parent):
     def toggle_outdoor_vent(checked):
         if checked:
             print("외기유입 모드 활성화")
-            # 명령어 예: "$CMD,VENT,OUTDOOR,ON\r\n"
+
         else:
             print("외기유입 모드 비활성화")
-            # 명령어 예: "$CMD,VENT,OUTDOOR,OFF\r\n"
     
     def toggle_indoor_vent(checked):
         if checked:
             print("내기순환 모드 활성화")
-            # 명령어 예: "$CMD,VENT,INDOOR,ON\r\n"
         else:
             print("내기순환 모드 비활성화")
-            # 명령어 예: "$CMD,VENT,INDOOR,OFF\r\n"
     
     # 버튼에 토글 이벤트 연결
     outdoor_button.toggled.connect(toggle_outdoor_vent)
