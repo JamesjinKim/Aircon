@@ -1,4 +1,4 @@
-[AIRCON]
+[AIRCON]=================================================
 $CMD,AIR,FAN,ON
 $CMD,AIR,FAN,OFF
 $CMD,AIR,FSPD,0
@@ -19,7 +19,8 @@ $CMD,AIR,ARBDMP,OPEN
 $CMD,AIR,INVERTER,ON
 $CMD,AIR,CLUCH,ON
 
-[Desiccant]
+
+[DESICCANT]================================================
 $CMD,DSCT,FAN1,ON
 $CMD,DSCT,FAN1,OFF
 $CMD,DSCT,FAN1,SPD,1~10
@@ -35,8 +36,9 @@ $CMD,DSCT,FAN3,SPD,1~10
 $CMD,DSCT,FAN4,ON
 $CMD,DSCT,FAN4,OFF
 $CMD,DSCT,FAN4,SPD,1~10
+
 ------------------------------------------
- 댐퍼 OPEN/CLOSE 위치 1~10% 설정
+ 댐퍼 OPEN/CLOSE 위치 1~10% 값설정
 ------------------------------------------
 $CMD,DSCT,DMP1_OPEN,1~10
 $CMD,DSCT,DMP1_CLOSE,1~10
@@ -49,6 +51,9 @@ $CMD,DSCT,DMP3_CLOSE,1~10
 
 $CMD,DSCT,DMP4_OPEN,1~10
 $CMD,DSCT,DMP4_CLOSE,1~10
+
+------------------------------------------
+PUMPER _& SOL 
 ------------------------------------------
 $CMD,DSCT,PUMP1,ON
 $CMD,DSCT,PUMP1,OFF
@@ -69,3 +74,41 @@ $CMD,DSCT,SOL3,OFF
 
 $CMD,DSCT,SOL4,ON
 $CMD,DSCT,SOL4,OFF
+
+
+
+
+DESICCANT CONTROLS
+  ┌─────────────────────────────────┐
+  │ FAN1  [ON/OFF]  [<] [0] [>]     │
+  │ FAN2  [ON/OFF]  [<] [0] [>]     │
+  │ FAN3  [ON/OFF]  [<] [0] [>]     │
+  │ FAN4  [ON/OFF]  [<] [0] [>]     │
+  └─────────────────────────────────┘
+
+
+DAMPER CONTROLS
+  ┌─────────────────────────────────────────────┐
+  │ DMP1 [CLOSE] [<] [5] [>]  [OPEN]            │
+  │ DMP2 [CLOSE] [<] [3] [>]  [OPEN]            │
+  └─────────────────────────────────────────────┘
+
+
+    PUMPER & SOL CONTROLS
+  ┌─────────────────────────────────────────────┐
+  │ PUMPER CONTROLS                             │
+  │ PUMP1  [OFF]  [<] [0] [>]                   │
+  │ PUMP2  [OFF]  [<] [0] [>]                   │
+  │                                             │
+  │ SOL CONTROLS                                │
+  │ SOL1  [OFF]      SOL2  [OFF]                │
+  │ SOL3  [OFF]      SOL4  [OFF]                │
+  └─────────────────────────────────────────────┘
+
+    ┌───────────────────────────────────────────────
+    │ PUMPER CONTROLS               SOL CONTROLS                
+    │ PUMP1  [OFF]  [<] [0] [>]     SOL1   [OFF]          
+    │ PUMP2  [OFF]  [<] [0] [>]     SOL2   [OFF]         
+    │                               SOL3   [OFF]             
+    │                               SOL4   [OFF]
+    └───────────────────────────────────────────────┘

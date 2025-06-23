@@ -1,4 +1,8 @@
-from ui.constants import CMD_PREFIX, TERMINATOR, AIR_SYSTEM, FSPD_CMD, CON_SPD_CMD, OFF_STATE
+from ui.constants import (CMD_PREFIX, TERMINATOR, AIR_SYSTEM, DSCT_SYSTEM, FSPD_CMD, CON_SPD_CMD, OFF_STATE, 
+                         FAN1_CMD, FAN2_CMD, FAN3_CMD, FAN4_CMD, SPD_CMD,
+                         DMP1_OPEN_CMD, DMP1_CLOSE_CMD, DMP2_OPEN_CMD, DMP2_CLOSE_CMD,
+                         DMP3_OPEN_CMD, DMP3_CLOSE_CMD, DMP4_OPEN_CMD, DMP4_CLOSE_CMD,
+                         PUMP1_CMD, PUMP2_CMD)
 
 class SpeedButtonManager:
     def __init__(self, serial_manager, SendData_textEdit):
@@ -7,6 +11,22 @@ class SpeedButtonManager:
         self.button_groups = {}
         self.current_fan_speed = 0  # 현재 팬 속도 값 저장
         self.current_con_fan_speed = 0  # 현재 Con 팬 속도 값 저장
+        
+        # DESICCANT FAN 속도 값들
+        self.current_dsct_fan1_speed = 0
+        self.current_dsct_fan2_speed = 0
+        self.current_dsct_fan3_speed = 0
+        self.current_dsct_fan4_speed = 0
+        
+        # DAMPER 위치 값들 (단일 위치값)
+        self.current_dmp1_pos = 0
+        self.current_dmp2_pos = 0
+        self.current_dmp3_pos = 0
+        self.current_dmp4_pos = 0
+        
+        # PUMPER 속도 값들
+        self.current_pump1_speed = 0
+        self.current_pump2_speed = 0
         self.auto_speed_manager = None  # AUTO 매니저 참조 추가
         self.is_updating = False  # 동기화 중 무한 루프 방지용 플래그
         self.center_button = None  # 중앙 버튼(팬 속도 표시) 저장
@@ -271,6 +291,196 @@ class SpeedButtonManager:
                 self.SendData_textEdit.verticalScrollBar().setValue(
                     self.SendData_textEdit.verticalScrollBar().maximum()
                 )
+
+    def create_dsct_fan_speed_buttons(self, parent, fan_num, left_button, center_button, right_button):
+        """DESICCANT FAN 스피드 버튼 설정"""
+        fan_commands = {
+            1: FAN1_CMD,
+            2: FAN2_CMD,
+            3: FAN3_CMD,
+            4: FAN4_CMD
+        }
+        
+        fan_cmd = fan_commands.get(fan_num)
+        if not fan_cmd:
+            return
+            
+        speed_var_name = f"current_dsct_fan{fan_num}_speed"
+        command_prefix = f"{CMD_PREFIX},{DSCT_SYSTEM},{fan_cmd},{SPD_CMD},"
+        
+        # 감소 버튼 (< 버튼)
+        left_button.clicked.connect(
+            lambda: self.handle_dsct_decrease_button(center_button, command_prefix, speed_var_name, fan_num)
+        )
+        
+        # 중앙 버튼 (값 표시/리셋 버튼)
+        center_button.clicked.connect(
+            lambda: self.handle_dsct_reset_button(center_button, command_prefix, speed_var_name, fan_num)
+        )
+        
+        # 증가 버튼 (> 버튼)
+        right_button.clicked.connect(
+            lambda: self.handle_dsct_increase_button(center_button, command_prefix, speed_var_name, fan_num)
+        )
+
+    def handle_dsct_decrease_button(self, button, command_prefix, speed_var_name, fan_num):
+        """DSCT FAN 감소 버튼 핸들러"""
+        if not self._can_operate_dsct_fan_buttons(fan_num):
+            self._log_dsct_blocked_message(fan_num)
+            return
+            
+        current_speed = getattr(self, speed_var_name)
+        if current_speed > 0:
+            current_speed -= 1
+            setattr(self, speed_var_name, current_speed)
+            button.setText(str(current_speed))
+            command = f"{command_prefix}{current_speed}{TERMINATOR}"
+            self.send_command(command)
+
+    def handle_dsct_increase_button(self, button, command_prefix, speed_var_name, fan_num):
+        """DSCT FAN 증가 버튼 핸들러"""
+        if not self._can_operate_dsct_fan_buttons(fan_num):
+            self._log_dsct_blocked_message(fan_num)
+            return
+            
+        current_speed = getattr(self, speed_var_name)
+        if current_speed < 10:
+            current_speed += 1
+            setattr(self, speed_var_name, current_speed)
+            button.setText(str(current_speed))
+            command = f"{command_prefix}{current_speed}{TERMINATOR}"
+            self.send_command(command)
+
+    def handle_dsct_reset_button(self, button, command_prefix, speed_var_name, fan_num):
+        """DSCT FAN 리셋 버튼 핸들러"""
+        if not self._can_operate_dsct_fan_buttons(fan_num):
+            self._log_dsct_blocked_message(fan_num)
+            return
+            
+        setattr(self, speed_var_name, 0)
+        button.setText("0")
+        command = f"{command_prefix}0{TERMINATOR}"
+        self.send_command(command)
+
+    def _can_operate_dsct_fan_buttons(self, fan_num):
+        """DSCT FAN 버튼 작동 가능 여부 확인"""
+        if not self.main_window or not self.serial_manager or not self.serial_manager.is_connected():
+            return False
+            
+        fan_button_name = f"pushButton_dsct_fan{fan_num}"
+        fan_button = getattr(self.main_window, fan_button_name, None)
+        if not fan_button:
+            return False
+            
+        return fan_button.text() == "ON"
+
+    def _log_dsct_blocked_message(self, fan_num):
+        """DSCT FAN 버튼 차단 메시지 로깅"""
+        message = f"FAN{fan_num}이 OFF 상태이거나 시리얼 포트가 연결되지 않음 - FAN{fan_num} SPD 버튼 동작 차단"
+        print(message)
+        if self.SendData_textEdit:
+            self.SendData_textEdit.append(message)
+            self.SendData_textEdit.verticalScrollBar().setValue(
+                self.SendData_textEdit.verticalScrollBar().maximum()
+            )
+
+    def reset_dsct_fan_speed_buttons(self, fan_num):
+        """DSCT FAN 스피드 버튼 초기화"""
+        speed_var_name = f"current_dsct_fan{fan_num}_speed"
+        button_name = f"spdButton_dsct_fan{fan_num}_val"
+        
+        # 속도 값 초기화
+        setattr(self, speed_var_name, 0)
+        
+        # 중앙 버튼 텍스트 초기화
+        if self.main_window and hasattr(self.main_window, button_name):
+            button = getattr(self.main_window, button_name)
+            button.setText("0")
+            
+        print(f"DSCT FAN{fan_num} 스피드 버튼 초기화됨")
+
+    def create_damper_position_buttons(self, parent, dmp_num, left_button, center_button, right_button):
+        """DAMPER 위치 버튼 설정"""
+        pos_var_name = f"current_dmp{dmp_num}_pos"
+        
+        # 감소 버튼 (< 버튼)
+        left_button.clicked.connect(
+            lambda: self.handle_damper_decrease_button(center_button, pos_var_name, dmp_num)
+        )
+        
+        # 중앙 버튼 (값 표시/리셋 버튼)
+        center_button.clicked.connect(
+            lambda: self.handle_damper_reset_button(center_button, pos_var_name, dmp_num)
+        )
+        
+        # 증가 버튼 (> 버튼)
+        right_button.clicked.connect(
+            lambda: self.handle_damper_increase_button(center_button, pos_var_name, dmp_num)
+        )
+
+    def handle_damper_decrease_button(self, button, pos_var_name, dmp_num):
+        """DAMPER 감소 버튼 핸들러"""
+        # 시리얼 포트 연결 상태 확인
+        if not self.serial_manager or not self.serial_manager.is_connected():
+            self._log_damper_blocked_message(dmp_num)
+            return
+            
+        current_pos = getattr(self, pos_var_name)
+        if current_pos > 0:
+            current_pos -= 1
+            setattr(self, pos_var_name, current_pos)
+            button.setText(str(current_pos))
+            self._send_damper_command(dmp_num, current_pos)
+
+    def handle_damper_increase_button(self, button, pos_var_name, dmp_num):
+        """DAMPER 증가 버튼 핸들러"""
+        # 시리얼 포트 연결 상태 확인
+        if not self.serial_manager or not self.serial_manager.is_connected():
+            self._log_damper_blocked_message(dmp_num)
+            return
+            
+        current_pos = getattr(self, pos_var_name)
+        if current_pos < 10:
+            current_pos += 1
+            setattr(self, pos_var_name, current_pos)
+            button.setText(str(current_pos))
+            self._send_damper_command(dmp_num, current_pos)
+
+    def handle_damper_reset_button(self, button, pos_var_name, dmp_num):
+        """DAMPER 리셋 버튼 핸들러"""
+        # 시리얼 포트 연결 상태 확인
+        if not self.serial_manager or not self.serial_manager.is_connected():
+            self._log_damper_blocked_message(dmp_num)
+            return
+            
+        setattr(self, pos_var_name, 0)
+        button.setText("0")
+        self._send_damper_command(dmp_num, 0)
+    
+    def _send_damper_command(self, dmp_num, position):
+        """DAMPER 명령 전송 - 항상 CLOSE 명령만 전송"""
+        # CLOSE 명령만 전송
+        dmp_commands = {
+            1: DMP1_CLOSE_CMD,
+            2: DMP2_CLOSE_CMD,
+            3: DMP3_CLOSE_CMD,
+            4: DMP4_CLOSE_CMD
+        }
+        
+        dmp_cmd = dmp_commands.get(dmp_num)
+        if dmp_cmd:
+            command = f"{CMD_PREFIX},{DSCT_SYSTEM},{dmp_cmd},{position}{TERMINATOR}"
+            self.send_command(command)
+
+    def _log_damper_blocked_message(self, dmp_num):
+        """DAMPER 버튼 차단 메시지 로깅"""
+        message = f"시리얼 포트가 연결되지 않음 - DMP{dmp_num} 위치값 버튼 동작 차단"
+        print(message)
+        if self.SendData_textEdit:
+            self.SendData_textEdit.append(message)
+            self.SendData_textEdit.verticalScrollBar().setValue(
+                self.SendData_textEdit.verticalScrollBar().maximum()
+            )
                 
     # AUTO 탭과 동기화하는 메서드
     def sync_to_auto_tab(self, fan_speed):
@@ -326,6 +536,111 @@ class SpeedButtonManager:
         
         # AUTO 탭과 동기화
         self.sync_to_auto_tab(0)
+
+    def create_pumper_speed_buttons(self, parent, pump_num, left_button, center_button, right_button):
+        """PUMPER 스피드 버튼 설정"""
+        pump_commands = {
+            1: PUMP1_CMD,
+            2: PUMP2_CMD
+        }
+        
+        pump_cmd = pump_commands.get(pump_num)
+        if not pump_cmd:
+            return
+            
+        speed_var_name = f"current_pump{pump_num}_speed"
+        command_prefix = f"{CMD_PREFIX},{DSCT_SYSTEM},{pump_cmd},{SPD_CMD},"
+        
+        # 감소 버튼 (< 버튼)
+        left_button.clicked.connect(
+            lambda: self.handle_pumper_decrease_button(center_button, command_prefix, speed_var_name, pump_num)
+        )
+        
+        # 중앙 버튼 (값 표시/리셋 버튼)
+        center_button.clicked.connect(
+            lambda: self.handle_pumper_reset_button(center_button, command_prefix, speed_var_name, pump_num)
+        )
+        
+        # 증가 버튼 (> 버튼)
+        right_button.clicked.connect(
+            lambda: self.handle_pumper_increase_button(center_button, command_prefix, speed_var_name, pump_num)
+        )
+
+    def handle_pumper_decrease_button(self, button, command_prefix, speed_var_name, pump_num):
+        """PUMPER 감소 버튼 핸들러"""
+        if not self._can_operate_pumper_buttons(pump_num):
+            self._log_pumper_blocked_message(pump_num)
+            return
+            
+        current_speed = getattr(self, speed_var_name)
+        if current_speed > 0:
+            current_speed -= 1
+            setattr(self, speed_var_name, current_speed)
+            button.setText(str(current_speed))
+            command = f"{command_prefix}{current_speed}{TERMINATOR}"
+            self.send_command(command)
+
+    def handle_pumper_increase_button(self, button, command_prefix, speed_var_name, pump_num):
+        """PUMPER 증가 버튼 핸들러"""
+        if not self._can_operate_pumper_buttons(pump_num):
+            self._log_pumper_blocked_message(pump_num)
+            return
+            
+        current_speed = getattr(self, speed_var_name)
+        if current_speed < 10:
+            current_speed += 1
+            setattr(self, speed_var_name, current_speed)
+            button.setText(str(current_speed))
+            command = f"{command_prefix}{current_speed}{TERMINATOR}"
+            self.send_command(command)
+
+    def handle_pumper_reset_button(self, button, command_prefix, speed_var_name, pump_num):
+        """PUMPER 리셋 버튼 핸들러"""
+        if not self._can_operate_pumper_buttons(pump_num):
+            self._log_pumper_blocked_message(pump_num)
+            return
+            
+        setattr(self, speed_var_name, 0)
+        button.setText("0")
+        command = f"{command_prefix}0{TERMINATOR}"
+        self.send_command(command)
+
+    def _can_operate_pumper_buttons(self, pump_num):
+        """PUMPER 버튼 작동 가능 여부 확인"""
+        if not self.main_window or not self.serial_manager or not self.serial_manager.is_connected():
+            return False
+            
+        pump_button_name = f"pushButton_pump{pump_num}"
+        pump_button = getattr(self.main_window, pump_button_name, None)
+        if not pump_button:
+            return False
+            
+        return pump_button.text() == "ON"
+
+    def _log_pumper_blocked_message(self, pump_num):
+        """PUMPER 버튼 차단 메시지 로깅"""
+        message = f"PUMP{pump_num}이 OFF 상태이거나 시리얼 포트가 연결되지 않음 - PUMP{pump_num} SPD 버튼 동작 차단"
+        print(message)
+        if self.SendData_textEdit:
+            self.SendData_textEdit.append(message)
+            self.SendData_textEdit.verticalScrollBar().setValue(
+                self.SendData_textEdit.verticalScrollBar().maximum()
+            )
+
+    def reset_pumper_speed_buttons(self, pump_num):
+        """PUMPER 스피드 버튼 초기화"""
+        speed_var_name = f"current_pump{pump_num}_speed"
+        button_name = f"spdButton_pump{pump_num}_val"
+        
+        # 속도 값 초기화
+        setattr(self, speed_var_name, 0)
+        
+        # 중앙 버튼 텍스트 초기화
+        if self.main_window and hasattr(self.main_window, button_name):
+            button = getattr(self.main_window, button_name)
+            button.setText("0")
+            
+        print(f"PUMP{pump_num} 스피드 버튼 초기화됨")
     
     def reset_con_fan_speed_buttons(self):
         """Con Fan이 OFF될 때 Con Fan SPD 버튼들 초기화"""

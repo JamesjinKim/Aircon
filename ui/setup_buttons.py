@@ -3,7 +3,9 @@ from ui.constants import (
     ON_STATE, OFF_STATE, OPEN_STATE, CLOSE_STATE,
     FAN_CMD, CON_F_CMD, ALTDMP_CMD, ALBDMP_CMD, ARTDMP_CMD, ARBDMP_CMD,
     INVERTER_CMD, CLUCH_CMD, DSCT_FAN_CMD, LDMP_CMD, RDMP_CMD,
-    LHOT_CMD, LCOOL_CMD, RHOT_CMD, RCOOL_CMD
+    LHOT_CMD, LCOOL_CMD, RHOT_CMD, RCOOL_CMD,
+    FAN1_CMD, FAN2_CMD, FAN3_CMD, FAN4_CMD, SPD_CMD,
+    PUMP1_CMD, PUMP2_CMD, SOL1_CMD, SOL2_CMD, SOL3_CMD, SOL4_CMD
 )
 
 def setup_button_groups(window):
@@ -72,59 +74,88 @@ def setup_button_groups(window):
         }
     })
 
-    #-----------DESICCANT BUTTONS-----------#
-    # 제습기 팬 | Desiccant FAN
-    window.button_manager.add_group('Desiccant_FAN', {
-        window.pushButton_15: {
-            'on': f'{CMD_PREFIX},{DSCT_SYSTEM},{DSCT_FAN_CMD},{ON_STATE}{TERMINATOR}',
-            'off': f'{CMD_PREFIX},{DSCT_SYSTEM},{DSCT_FAN_CMD},{OFF_STATE}{TERMINATOR}'
+
+    #-----------NEW DESICCANT FAN BUTTONS-----------#
+    # DSCT FAN1 토글 버튼
+    window.button_manager.add_group('dsct_fan1', {
+        window.pushButton_dsct_fan1: {
+            'on': f'{CMD_PREFIX},{DSCT_SYSTEM},{FAN1_CMD},{ON_STATE}{TERMINATOR}',
+            'off': f'{CMD_PREFIX},{DSCT_SYSTEM},{FAN1_CMD},{OFF_STATE}{TERMINATOR}'
         }
     })
 
-    # 제습기 댐퍼 왼쪽 
-    window.button_manager.add_group('Desiccant_Damper_LEFT', {
-        window.pushButton_16: {
-            'on': f'{CMD_PREFIX},{DSCT_SYSTEM},{LDMP_CMD},{OPEN_STATE}{TERMINATOR}',
-            'off': f'{CMD_PREFIX},{DSCT_SYSTEM},{LDMP_CMD},{CLOSE_STATE}{TERMINATOR}'
+    # DSCT FAN2 토글 버튼
+    window.button_manager.add_group('dsct_fan2', {
+        window.pushButton_dsct_fan2: {
+            'on': f'{CMD_PREFIX},{DSCT_SYSTEM},{FAN2_CMD},{ON_STATE}{TERMINATOR}',
+            'off': f'{CMD_PREFIX},{DSCT_SYSTEM},{FAN2_CMD},{OFF_STATE}{TERMINATOR}'
         }
     })
 
-    # 제습기 댐퍼 오른쪽 
-    window.button_manager.add_group('Desiccant_Damper_RIGHT', {
-        window.pushButton_17: {
-            'on': f'{CMD_PREFIX},{DSCT_SYSTEM},{RDMP_CMD},{OPEN_STATE}{TERMINATOR}',
-            'off': f'{CMD_PREFIX},{DSCT_SYSTEM},{RDMP_CMD},{CLOSE_STATE}{TERMINATOR}'
+    # DSCT FAN3 토글 버튼
+    window.button_manager.add_group('dsct_fan3', {
+        window.pushButton_dsct_fan3: {
+            'on': f'{CMD_PREFIX},{DSCT_SYSTEM},{FAN3_CMD},{ON_STATE}{TERMINATOR}',
+            'off': f'{CMD_PREFIX},{DSCT_SYSTEM},{FAN3_CMD},{OFF_STATE}{TERMINATOR}'
         }
     })
 
-    # 제습기 왼쪽 핫 밸브 
-    window.button_manager.add_group('Desiccant_LEFT_HOT_VaLve', {
-        window.pushButton_18: {
-            'on': f'{CMD_PREFIX},{DSCT_SYSTEM},{LHOT_CMD},{OPEN_STATE}{TERMINATOR}',
-            'off': f'{CMD_PREFIX},{DSCT_SYSTEM},{LHOT_CMD},{CLOSE_STATE}{TERMINATOR}'
+    # DSCT FAN4 토글 버튼
+    window.button_manager.add_group('dsct_fan4', {
+        window.pushButton_dsct_fan4: {
+            'on': f'{CMD_PREFIX},{DSCT_SYSTEM},{FAN4_CMD},{ON_STATE}{TERMINATOR}',
+            'off': f'{CMD_PREFIX},{DSCT_SYSTEM},{FAN4_CMD},{OFF_STATE}{TERMINATOR}'
         }
     })
 
-    # 제습기 왼쪽 쿨 밸브 
-    window.button_manager.add_group('Desiccant_LEFT_COOL_VaLve', {
-        window.pushButton_19: {
-            'on': f'{CMD_PREFIX},{DSCT_SYSTEM},{LCOOL_CMD},{OPEN_STATE}{TERMINATOR}',
-            'off': f'{CMD_PREFIX},{DSCT_SYSTEM},{LCOOL_CMD},{CLOSE_STATE}{TERMINATOR}'
+    #-----------DAMPER는 라벨만 있고 토글 버튼 없음-----------#
+    # DAMPER 위치값 버튼만 동작하며, 항상 CLOSE 명령 전송
+
+    #-----------NEW PUMPER & SOL BUTTONS-----------#
+    # PUMP1 토글 버튼
+    window.button_manager.add_group('pump1', {
+        window.pushButton_pump1: {
+            'on': f'{CMD_PREFIX},{DSCT_SYSTEM},{PUMP1_CMD},{ON_STATE}{TERMINATOR}',
+            'off': f'{CMD_PREFIX},{DSCT_SYSTEM},{PUMP1_CMD},{OFF_STATE}{TERMINATOR}'
         }
     })
 
-    # 제습기 오른쪽 핫 밸브 
-    window.button_manager.add_group('Desiccant_RIGHT_HOT_VaLve', {
-        window.pushButton_20: {
-            'on': f'{CMD_PREFIX},{DSCT_SYSTEM},{RHOT_CMD},{OPEN_STATE}{TERMINATOR}',
-            'off': f'{CMD_PREFIX},{DSCT_SYSTEM},{RHOT_CMD},{CLOSE_STATE}{TERMINATOR}'
+    # PUMP2 토글 버튼
+    window.button_manager.add_group('pump2', {
+        window.pushButton_pump2: {
+            'on': f'{CMD_PREFIX},{DSCT_SYSTEM},{PUMP2_CMD},{ON_STATE}{TERMINATOR}',
+            'off': f'{CMD_PREFIX},{DSCT_SYSTEM},{PUMP2_CMD},{OFF_STATE}{TERMINATOR}'
         }
     })
 
-    # 제습기 오른쪽 쿨 밸브 
-    window.button_manager.add_group('Desiccant_RIGHT_COOL_VaLve', {
-        window.pushButton_21: {
-            'on': f'{CMD_PREFIX},{DSCT_SYSTEM},{RCOOL_CMD},{OPEN_STATE}{TERMINATOR}',
-            'off': f'{CMD_PREFIX},{DSCT_SYSTEM},{RCOOL_CMD},{CLOSE_STATE}{TERMINATOR}'
+    # SOL1 토글 버튼
+    window.button_manager.add_group('sol1', {
+        window.pushButton_sol1: {
+            'on': f'{CMD_PREFIX},{DSCT_SYSTEM},{SOL1_CMD},{ON_STATE}{TERMINATOR}',
+            'off': f'{CMD_PREFIX},{DSCT_SYSTEM},{SOL1_CMD},{OFF_STATE}{TERMINATOR}'
+        }
+    })
+
+    # SOL2 토글 버튼
+    window.button_manager.add_group('sol2', {
+        window.pushButton_sol2: {
+            'on': f'{CMD_PREFIX},{DSCT_SYSTEM},{SOL2_CMD},{ON_STATE}{TERMINATOR}',
+            'off': f'{CMD_PREFIX},{DSCT_SYSTEM},{SOL2_CMD},{OFF_STATE}{TERMINATOR}'
+        }
+    })
+
+    # SOL3 토글 버튼
+    window.button_manager.add_group('sol3', {
+        window.pushButton_sol3: {
+            'on': f'{CMD_PREFIX},{DSCT_SYSTEM},{SOL3_CMD},{ON_STATE}{TERMINATOR}',
+            'off': f'{CMD_PREFIX},{DSCT_SYSTEM},{SOL3_CMD},{OFF_STATE}{TERMINATOR}'
+        }
+    })
+
+    # SOL4 토글 버튼
+    window.button_manager.add_group('sol4', {
+        window.pushButton_sol4: {
+            'on': f'{CMD_PREFIX},{DSCT_SYSTEM},{SOL4_CMD},{ON_STATE}{TERMINATOR}',
+            'off': f'{CMD_PREFIX},{DSCT_SYSTEM},{SOL4_CMD},{OFF_STATE}{TERMINATOR}'
         }
     })

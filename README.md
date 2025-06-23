@@ -5,9 +5,11 @@ AIRCON은 PyQt5를 기반으로 한 에어컨 및 제습기 원격 제어 시스
 ## 주요 기능
 
 ### 🎛️ 제어 모드
-- **MANUAL 모드**: 개별 장비 수동 제어
-- **AUTO 모드**: 온도 및 풍량 자동 제어
-- **SCHEDULE 모드**: 예약 제어 (향후 업데이트 예정)
+- **AIRCON 탭**: 에어컨 시스템 수동 제어
+- **DESICCANT 탭**: 제습기 시스템 제어
+- **DAMPER 탭**: 댐퍼 위치 제어
+- **PUMPER & SOL 탭**: 펌프 및 솔레노이드 밸브 제어
+- **AUTO 탭**: 온도 및 풍량 자동 제어
 
 ### 🌡️ 에어컨 제어
 - 팬 온/오프 및 속도 조절 (0-10단계)
@@ -16,10 +18,20 @@ AIRCON은 PyQt5를 기반으로 한 에어컨 및 제습기 원격 제어 시스
 - 인버터 및 클러치 제어
 - 온도 설정 (16-30°C)
 
-### 💨 제습기(Dehumidifier) 제어
-- 팬 온/오프
-- 좌우 댐퍼 제어
-- 핫/쿨 밸브 제어
+### 💨 제습기(DESICCANT) 제어
+- FAN1~FAN4 개별 온/오프 및 속도 조절 (0-10단계)
+- 각 팬별 독립적인 속도 제어
+- 팬 OFF 시 자동 속도 리셋
+
+### 🌬️ 댐퍼(DAMPER) 제어
+- DMP1~DMP4 위치값 제어 (0-10 범위)
+- CLOSE 명령 기반 위치 설정
+- 시리얼 연결 상태 검증
+
+### 🔧 펌프 및 솔레노이드(PUMPER & SOL) 제어
+- PUMP1/PUMP2 온/오프 및 속도 조절 (0-10단계)
+- SOL1~SOL4 솔레노이드 밸브 온/오프
+- 펌프 OFF 시 자동 속도 리셋
 
 ### 🔄 환기 시스템
 - 외기유입 모드
@@ -83,19 +95,37 @@ Aircon/
 3. "연결" 버튼 클릭
 4. 연결 상태가 "Connected"로 변경되면 제어 가능
 
-### 2. MANUAL 모드 사용
-- **AIRCON 그룹**: 에어컨 관련 제어
-  - Fan: 팬 온/오프
+### 2. 탭별 사용법
+
+#### AIRCON 탭
+- **FAN CONTROLS 그룹**:
+  - Fan: 메인 팬 온/오프
   - Fan SPD: 팬 속도 조절 (&lt;, 현재값, &gt; 버튼)
   - Con Fan: 콘덴서 팬 온/오프
   - Con Fan SPD: 콘덴서 팬 속도 조절
-  - DMP 버튼들: 각종 댐퍼 열기/닫기
+- **DMP CONTROLS 그룹**:
+  - Left/Right Top/Bottom DMP: 댐퍼 열기/닫기
   - INVERTER/CLUCH: 인버터 및 클러치 제어
 
-- **DEHUMIDIFIER 그룹**: 제습기 관련 제어
-  - Fan: 제습기 팬 온/오프
-  - Damper Left/Right: 좌우 댐퍼 제어
-  - Hot/Cool Valve: 온수/냉수 밸브 제어
+#### DESICCANT 탭
+- **FAN1~FAN4 제어**:
+  - 각 팬별 개별 온/오프 토글
+  - 속도 조절 버튼 (&lt;, 현재값, &gt;)
+  - 팬 OFF 시 속도 자동 리셋
+
+#### DAMPER 탭
+- **DMP1~DMP4 위치 제어**:
+  - CLOSE/OPEN 라벨 표시
+  - 위치값 조절 버튼 (&lt;, 현재값, &gt;)
+  - 0-10 범위 위치 설정
+
+#### PUMPER & SOL 탭
+- **PUMPER CONTROLS 그룹**:
+  - PUMP1/PUMP2: 펌프 온/오프
+  - 속도 조절 버튼 (&lt;, 현재값, &gt;)
+  - 펌프 OFF 시 속도 자동 리셋
+- **SOL CONTROLS 그룹**:
+  - SOL1~SOL4: 솔레노이드 밸브 온/오프
 
 ### 3. AUTO 모드 사용
 1. AUTO 탭으로 전환
@@ -117,11 +147,26 @@ $CMD,<DEVICE>,<VALUE>\r
 ```
 
 ### 주요 명령어 예시
+
+#### AIRCON 시스템
 - 팬 제어: `$CMD,AIR,FAN,ON` / `$CMD,AIR,FAN,OFF`
 - 속도 제어: `$CMD,AIR,FSPD,5` (0-10 범위)
-- 온도 제어: `$CMD,TEMP,22`
+- 콘덴서 팬: `$CMD,AIR,CON_F,ON` / `$CMD,AIR,CON_F,OFF`
+- 댐퍼 제어: `$CMD,AIR,ALTDMP,OPEN` / `$CMD,AIR,ALTDMP,CLOSE`
+
+#### DESICCANT 시스템
+- 팬 제어: `$CMD,DSCT,FAN1,ON` / `$CMD,DSCT,FAN1,OFF`
+- 팬 속도: `$CMD,DSCT,FAN1,SPD,5` (1-10 범위)
+- 댐퍼 위치: `$CMD,DSCT,DMP1_CLOSE,3` (1-10 범위)
+
+#### PUMPER & SOL 시스템
+- 펌프 제어: `$CMD,DSCT,PUMP1,ON` / `$CMD,DSCT,PUMP1,OFF`
+- 펌프 속도: `$CMD,DSCT,PUMP1,SPD,7` (1-10 범위)
+- 솔레노이드: `$CMD,DSCT,SOL1,ON` / `$CMD,DSCT,SOL1,OFF`
+
+#### AUTO 모드
 - AUTO 모드: `$CMD,AUTO,ON` / `$CMD,AUTO,OFF`
-- 댐퍼 제어: `$CMD,DMP1,OPEN` / `$CMD,DMP1,CLOSE`
+- 온도 제어: `$CMD,TEMP,22`
 
 ## 화면 해상도 최적화
 
@@ -134,13 +179,16 @@ $CMD,<DEVICE>,<VALUE>\r
 ### 🔒 안전 기능
 - 시리얼 포트 연결 상태 실시간 모니터링
 - 연결 해제 시 모든 버튼 자동 리셋
+- 팬/펌프 OFF 시 속도 버튼 자동 초기화
+- 시리얼 연결 없이는 제어 버튼 동작 차단
 - 명령 전송 실패 시 에러 로깅
 
 ### 🎨 사용자 친화적 UI
-- 직관적인 버튼 레이아웃
-- 실시간 상태 표시
-- 탭 기반 모드 전환
-- 시각적 피드백 (버튼 색상 변경)
+- 탭 기반 인터페이스 (AIRCON | DESICCANT | DAMPER | PUMPER & SOL | AUTO)
+- 직관적인 2컬럼 레이아웃 설계
+- 실시간 상태 표시 및 버튼 색상 피드백
+- 균일한 버튼 크기와 간격으로 터치 친화적
+- 시각적 그룹화로 기능별 구분
 
 ### ⚡ 고성능
 - 비동기 시리얼 통신
@@ -168,6 +216,22 @@ $CMD,<DEVICE>,<VALUE>\r
 ### 로그 파일
 - 수신 데이터는 `serial_data_log.txt`에 자동 저장됩니다.
 
+## 업데이트 내역
+
+### v2.0 (2024년 최신)
+- **NEW**: DESICCANT 탭 추가 - FAN1~FAN4 개별 제어
+- **NEW**: DAMPER 탭 추가 - DMP1~DMP4 위치값 제어
+- **NEW**: PUMPER & SOL 탭 추가 - 펌프 및 솔레노이드 밸브 제어
+- **IMPROVED**: 탭 기반 UI 재설계로 사용성 향상
+- **IMPROVED**: 2컬럼 레이아웃으로 화면 공간 효율성 증대
+- **ENHANCED**: 시리얼 연결 상태 기반 안전 제어 강화
+- **ENHANCED**: 팬/펌프 OFF 시 자동 속도 리셋 기능
+
+### v1.0 (초기 버전)
+- 기본 AIRCON 시스템 제어
+- AUTO 모드 구현
+- 시리얼 통신 기본 기능
+
 ---
 
-**개발자 노트**: 이 시스템은 산업용 공조 장비 제어를 위해 설계되었으며, 안정성과 사용 편의성을 최우선으로 고려하여 개발되었습니다.
+**개발자 노트**: 이 시스템은 산업용 공조 장비 제어를 위해 설계되었으며, 모듈화된 탭 인터페이스와 강력한 안전 기능을 통해 안정성과 사용 편의성을 최우선으로 고려하여 개발되었습니다.

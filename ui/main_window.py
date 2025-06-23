@@ -78,6 +78,7 @@ class ControlWindow(QtWidgets.QMainWindow):
             self, self.spdButton_6, self.spdButton_7, self.spdButton_8
         )
         
+        
         # AUTO 탭 컨트롤 연결
         self.connect_auto_controls()
         
@@ -115,11 +116,58 @@ class ControlWindow(QtWidgets.QMainWindow):
 
         # 상태 표시기 초기화
         self.update_status_indicator("disconnected")
+        self.update_connect_button("disconnected")
         
         # 클리어 버튼 연결 제거 (메시지 기능 제거로 인함)
         
         # 버튼 그룹 설정 - 마지막에 실행 (SPD 버튼 제외)
         setup_button_groups(self)
+        
+        # DESICCANT FAN 스피드 버튼 생성 및 연결 (UI 설정 후에 연결)
+        if hasattr(self, 'spdButton_dsct_fan1_dec'):
+            self.speed_button_manager.create_dsct_fan_speed_buttons(
+                self, 1, self.spdButton_dsct_fan1_dec, self.spdButton_dsct_fan1_val, self.spdButton_dsct_fan1_inc
+            )
+            self.speed_button_manager.create_dsct_fan_speed_buttons(
+                self, 2, self.spdButton_dsct_fan2_dec, self.spdButton_dsct_fan2_val, self.spdButton_dsct_fan2_inc
+            )
+            self.speed_button_manager.create_dsct_fan_speed_buttons(
+                self, 3, self.spdButton_dsct_fan3_dec, self.spdButton_dsct_fan3_val, self.spdButton_dsct_fan3_inc
+            )
+            self.speed_button_manager.create_dsct_fan_speed_buttons(
+                self, 4, self.spdButton_dsct_fan4_dec, self.spdButton_dsct_fan4_val, self.spdButton_dsct_fan4_inc
+            )
+        
+        # DAMPER 위치 버튼 생성 및 연결 (UI 설정 후에 연결)
+        if hasattr(self, 'dmpButton_pos_1_dec'):
+            # DMP1 위치값 버튼들
+            self.speed_button_manager.create_damper_position_buttons(
+                self, 1, self.dmpButton_pos_1_dec, self.dmpButton_pos_1_val, self.dmpButton_pos_1_inc
+            )
+            
+            # DMP2 위치값 버튼들
+            self.speed_button_manager.create_damper_position_buttons(
+                self, 2, self.dmpButton_pos_2_dec, self.dmpButton_pos_2_val, self.dmpButton_pos_2_inc
+            )
+            
+            # DMP3 위치값 버튼들
+            self.speed_button_manager.create_damper_position_buttons(
+                self, 3, self.dmpButton_pos_3_dec, self.dmpButton_pos_3_val, self.dmpButton_pos_3_inc
+            )
+            
+            # DMP4 위치값 버튼들
+            self.speed_button_manager.create_damper_position_buttons(
+                self, 4, self.dmpButton_pos_4_dec, self.dmpButton_pos_4_val, self.dmpButton_pos_4_inc
+            )
+        
+        # PUMPER 스피드 버튼 생성 및 연결 (UI 설정 후에 연결)
+        if hasattr(self, 'spdButton_pump1_dec'):
+            self.speed_button_manager.create_pumper_speed_buttons(
+                self, 1, self.spdButton_pump1_dec, self.spdButton_pump1_val, self.spdButton_pump1_inc
+            )
+            self.speed_button_manager.create_pumper_speed_buttons(
+                self, 2, self.spdButton_pump2_dec, self.spdButton_pump2_val, self.spdButton_pump2_inc
+            )
         
         # 모든 스피드 버튼의 크기를 균일하게 맞추기 위한 추가 코드
         QTimer.singleShot(100, self.ensure_uniform_button_sizes)
@@ -145,9 +193,41 @@ class ControlWindow(QtWidgets.QMainWindow):
         speed_fan_buttons = [self.spdButton_2, self.spdButton_3, self.spdButton_4]
         speed_con_fan_buttons = [self.spdButton_6, self.spdButton_7, self.spdButton_8]
         
+        # DSCT FAN 스피드 버튼들
+        dsct_speed_buttons = []
+        if hasattr(self, 'spdButton_dsct_fan1_dec'):
+            dsct_speed_buttons.extend([
+                self.spdButton_dsct_fan1_dec, self.spdButton_dsct_fan1_val, self.spdButton_dsct_fan1_inc,
+                self.spdButton_dsct_fan2_dec, self.spdButton_dsct_fan2_val, self.spdButton_dsct_fan2_inc,
+                self.spdButton_dsct_fan3_dec, self.spdButton_dsct_fan3_val, self.spdButton_dsct_fan3_inc,
+                self.spdButton_dsct_fan4_dec, self.spdButton_dsct_fan4_val, self.spdButton_dsct_fan4_inc
+            ])
+        
+        # DAMPER 위치 버튼들
+        damper_buttons = []
+        if hasattr(self, 'dmpButton_pos_1_dec'):
+            damper_buttons.extend([
+                self.dmpButton_pos_1_dec, self.dmpButton_pos_1_val, self.dmpButton_pos_1_inc,
+                self.dmpButton_pos_2_dec, self.dmpButton_pos_2_val, self.dmpButton_pos_2_inc,
+                self.dmpButton_pos_3_dec, self.dmpButton_pos_3_val, self.dmpButton_pos_3_inc,
+                self.dmpButton_pos_4_dec, self.dmpButton_pos_4_val, self.dmpButton_pos_4_inc
+            ])
+        
+        # PUMPER 스피드 버튼들
+        pumper_speed_buttons = []
+        if hasattr(self, 'spdButton_pump1_dec'):
+            pumper_speed_buttons.extend([
+                self.spdButton_pump1_dec, self.spdButton_pump1_val, self.spdButton_pump1_inc,
+                self.spdButton_pump2_dec, self.spdButton_pump2_val, self.spdButton_pump2_inc
+            ])
+        
         # 모든 스피드 버튼에 동일한 크기 설정 - 크기 증가
-        for button in speed_fan_buttons + speed_con_fan_buttons:
+        for button in speed_fan_buttons + speed_con_fan_buttons + dsct_speed_buttons + pumper_speed_buttons:
             button.setFixedSize(50, 45)
+            
+        # DAMPER 버튼들은 조금 작게 설정 (이미 create_damper_row에서 설정됨)
+        for button in damper_buttons:
+            button.setFixedSize(40, 45)
         
         # Fan, Con Fan 버튼들 - 스피드 버튼과 동일한 너비 (166px)
         main_fan_buttons = [self.pushButton_1, self.pushButton_5]  # Fan, Con Fan
@@ -158,9 +238,25 @@ class ControlWindow(QtWidgets.QMainWindow):
         other_buttons = [
             self.pushButton_9, self.pushButton_10, self.pushButton_11, self.pushButton_12,  # DMP 버튼들
             self.pushButton_13, self.pushButton_14,  # INVERTER, CLUCH
-            self.pushButton_15, self.pushButton_16, self.pushButton_17,  # Desiccant 버튼들
-            self.pushButton_18, self.pushButton_19, self.pushButton_20, self.pushButton_21  # Valve 버튼들
         ]
+        
+        # DSCT FAN 버튼들 추가 (존재하는 경우)
+        if hasattr(self, 'pushButton_dsct_fan1'):
+            other_buttons.extend([
+                self.pushButton_dsct_fan1, self.pushButton_dsct_fan2, 
+                self.pushButton_dsct_fan3, self.pushButton_dsct_fan4
+            ])
+        
+        # PUMPER & SOL 버튼들 추가 (존재하는 경우)
+        if hasattr(self, 'pushButton_pump1'):
+            other_buttons.extend([
+                self.pushButton_pump1, self.pushButton_pump2
+            ])
+        if hasattr(self, 'pushButton_sol1'):
+            other_buttons.extend([
+                self.pushButton_sol1, self.pushButton_sol2, 
+                self.pushButton_sol3, self.pushButton_sol4
+            ])
         
         # 나머지 버튼들에 기본 크기 설정
         for button in other_buttons:
@@ -213,7 +309,17 @@ class ControlWindow(QtWidgets.QMainWindow):
         self.setup_desiccant_tab()
         self.tab_widget.addTab(self.desiccant_tab, "DESICCANT")
         
-        # 세 번째 탭 - AUTO 모드
+        # 세 번째 탭 - DAMPER
+        self.damper_tab = QWidget()
+        self.setup_damper_tab()
+        self.tab_widget.addTab(self.damper_tab, "DAMPER")
+        
+        # 네 번째 탭 - PUMPER & SOL
+        self.pumper_sol_tab = QWidget()
+        self.setup_pumper_sol_tab()
+        self.tab_widget.addTab(self.pumper_sol_tab, "PUMPER & SOL")
+        
+        # 다섯 번째 탭 - AUTO 모드
         self.auto_tab = QWidget()
         self.setup_auto_tab()
         self.tab_widget.addTab(self.auto_tab, "AUTO")
@@ -289,42 +395,81 @@ class ControlWindow(QtWidgets.QMainWindow):
         main_grid.setColumnStretch(1, 1)
     
     def setup_desiccant_tab(self):
-        """DESICCANT 탭 설정"""
+        """DESICCANT 탭 설정 - 가로 배치 레이아웃"""
         # DESICCANT 탭 레이아웃
         desiccant_grid = QGridLayout(self.desiccant_tab)
         desiccant_grid.setContentsMargins(5, 5, 5, 5)
         desiccant_grid.setSpacing(5)
         
         # DESICCANT 컨트롤 영역
-        desiccant_group, desiccant_layout = create_group_box("DESICCANT")
+        desiccant_group, desiccant_layout = create_group_box("DESICCANT CONTROLS", margins=(15, 30, 15, 15))
         desiccant_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
-        # Desiccant Fan
-        self.pushButton_15 = create_button_row("Fan", QPushButton("OFF"), desiccant_layout)
+        # FAN1 제어 - 가로 배치
+        self.create_dsct_fan_row(desiccant_layout, 1)
         
-        # Desiccant Damper Left
-        self.pushButton_16 = create_button_row("Damper Left", QPushButton("CLOSE"), desiccant_layout)
+        # FAN2 제어 - 가로 배치
+        self.create_dsct_fan_row(desiccant_layout, 2)
         
-        # Desiccant Damper Right
-        self.pushButton_17 = create_button_row("Damper Right", QPushButton("CLOSE"), desiccant_layout)
+        # FAN3 제어 - 가로 배치
+        self.create_dsct_fan_row(desiccant_layout, 3)
         
-        # Desiccant Left Hot VaLve
-        self.pushButton_18 = create_button_row("Left Hot VaLve", QPushButton("CLOSE"), desiccant_layout)
-        
-        # Desiccant Left Cool VaLve
-        self.pushButton_19 = create_button_row("Left Cool VaLve", QPushButton("CLOSE"), desiccant_layout)
-        
-        # Desiccant Right Hot VaLve
-        self.pushButton_20 = create_button_row("Right Hot VaLve", QPushButton("CLOSE"), desiccant_layout)
-        
-        # Desiccant Right Cool VaLve
-        self.pushButton_21 = create_button_row("Right Cool VaLve", QPushButton("CLOSE"), desiccant_layout)
+        # FAN4 제어 - 가로 배치
+        self.create_dsct_fan_row(desiccant_layout, 4)
         
         # 여백 추가
         desiccant_layout.addStretch()
         
         # 그리드에 위젯 배치
         desiccant_grid.addWidget(desiccant_group, 0, 0)
+    
+    def create_dsct_fan_row(self, parent_layout, fan_num):
+        """DESICCANT FAN 행 생성 - 가로 배치"""
+        # 행 레이아웃 생성
+        row_layout = QHBoxLayout()
+        row_layout.setContentsMargins(5, 8, 5, 8)
+        row_layout.setSpacing(10)  # 버튼 간 간격
+        
+        # FAN 라벨
+        fan_label = QLabel(f"FAN{fan_num}")
+        fan_label.setFixedWidth(60)
+        fan_label.setStyleSheet("font-size: 15px; font-weight: bold;")
+        fan_label.setAlignment(Qt.AlignCenter)
+        
+        # ON/OFF 토글 버튼
+        toggle_button = QPushButton("OFF")
+        toggle_button.setFixedSize(80, 45)
+        toggle_button.setStyleSheet("font-size: 14px; font-weight: bold; background-color: rgb(186,186,186); color: rgb(0,0,0);")
+        
+        # 버튼을 self에 저장
+        setattr(self, f"pushButton_dsct_fan{fan_num}", toggle_button)
+        
+        # SPD 버튼들 생성
+        dec_button = QPushButton("<")
+        val_button = QPushButton("0")
+        inc_button = QPushButton(">")
+        
+        # SPD 버튼 스타일 및 크기 설정
+        for button in [dec_button, val_button, inc_button]:
+            button.setFixedSize(50, 45)
+            button.setStyleSheet("background-color: rgb(186,186,186); font-size: 14px; font-weight: bold;")
+        
+        # 버튼들을 self에 저장
+        setattr(self, f"spdButton_dsct_fan{fan_num}_dec", dec_button)
+        setattr(self, f"spdButton_dsct_fan{fan_num}_val", val_button)
+        setattr(self, f"spdButton_dsct_fan{fan_num}_inc", inc_button)
+        
+        # 행에 위젯들 추가
+        row_layout.addWidget(fan_label)
+        row_layout.addWidget(toggle_button)
+        row_layout.addSpacing(15)  # 토글 버튼과 SPD 버튼 사이 간격
+        row_layout.addWidget(dec_button)
+        row_layout.addWidget(val_button)
+        row_layout.addWidget(inc_button)
+        row_layout.addStretch()  # 오른쪽 여백
+        
+        # 부모 레이아웃에 행 추가
+        parent_layout.addLayout(row_layout)
     
     def setup_auto_tab(self):
         """AUTO 모드 탭 설정 - 그리드 레이아웃 기반"""
@@ -353,6 +498,183 @@ class ControlWindow(QtWidgets.QMainWindow):
         # 버튼 저장
         self.auto_mode_button = auto_control_widget.auto_mode_button
 
+    def setup_damper_tab(self):
+        """DAMPER 탭 설정 - 이중 위치값 방식"""
+        # DAMPER 탭 레이아웃
+        damper_grid = QGridLayout(self.damper_tab)
+        damper_grid.setContentsMargins(5, 5, 5, 5)
+        damper_grid.setSpacing(5)
+        
+        # DAMPER 컨트롤 영역
+        damper_group, damper_layout = create_group_box("DAMPER CONTROLS", margins=(15, 30, 15, 15))
+        damper_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        
+        # DMP1 제어 - 이중 위치값
+        self.create_damper_row(damper_layout, 1)
+        
+        # DMP2 제어 - 이중 위치값
+        self.create_damper_row(damper_layout, 2)
+        
+        # DMP3 제어 - 이중 위치값
+        self.create_damper_row(damper_layout, 3)
+        
+        # DMP4 제어 - 이중 위치값
+        self.create_damper_row(damper_layout, 4)
+        
+        # 여백 추가
+        damper_layout.addStretch()
+        
+        # 그리드에 위젯 배치
+        damper_grid.addWidget(damper_group, 0, 0)
+    
+    def create_damper_row(self, parent_layout, dmp_num):
+        """DAMPER 행 생성 - 라벨 방식"""
+        # 행 레이아웃 생성
+        row_layout = QHBoxLayout()
+        row_layout.setContentsMargins(5, 8, 5, 8)
+        row_layout.setSpacing(8)  # 버튼 간 간격
+        
+        # DMP 라벨
+        dmp_label = QLabel(f"DMP{dmp_num}")
+        dmp_label.setFixedWidth(60)
+        dmp_label.setStyleSheet("font-size: 15px; font-weight: bold;")
+        dmp_label.setAlignment(Qt.AlignCenter)
+        
+        # CLOSE 라벨 (클릭 불가능)
+        close_label = QLabel("CLOSE")
+        close_label.setFixedWidth(60)
+        close_label.setStyleSheet("font-size: 12px; font-weight: bold; color: rgb(0,0,0);")
+        close_label.setAlignment(Qt.AlignCenter)
+        
+        # 위치값 버튼들 생성
+        pos_dec_button = QPushButton("<")
+        pos_val_button = QPushButton("0")
+        pos_inc_button = QPushButton(">")
+        
+        # 위치값 버튼 스타일 및 크기 설정
+        for button in [pos_dec_button, pos_val_button, pos_inc_button]:
+            button.setFixedSize(40, 45)
+            button.setStyleSheet("background-color: rgb(186,186,186); font-size: 12px; font-weight: bold;")
+        
+        # OPEN 라벨 (클릭 불가능)
+        open_label = QLabel("OPEN")
+        open_label.setFixedWidth(60)
+        open_label.setStyleSheet("font-size: 12px; font-weight: bold; color: rgb(0,0,0);")
+        open_label.setAlignment(Qt.AlignCenter)
+        
+        # 버튼들을 self에 저장 (위치값 버튼만)
+        setattr(self, f"dmpButton_pos_{dmp_num}_dec", pos_dec_button)
+        setattr(self, f"dmpButton_pos_{dmp_num}_val", pos_val_button)
+        setattr(self, f"dmpButton_pos_{dmp_num}_inc", pos_inc_button)
+        
+        # 행에 위젯들 추가
+        row_layout.addWidget(dmp_label)
+        row_layout.addSpacing(8)
+        row_layout.addWidget(close_label)
+        row_layout.addSpacing(10)  # CLOSE와 위치값 버튼 사이 간격
+        row_layout.addWidget(pos_dec_button)
+        row_layout.addWidget(pos_val_button)
+        row_layout.addWidget(pos_inc_button)
+        row_layout.addSpacing(10)  # 위치값 버튼과 OPEN 사이 간격
+        row_layout.addWidget(open_label)
+        row_layout.addStretch()  # 오른쪽 여백
+        
+        # 부모 레이아웃에 행 추가
+        parent_layout.addLayout(row_layout)
+
+    def setup_pumper_sol_tab(self):
+        """PUMPER & SOL 탭 설정 - 2컬럼 레이아웃"""
+        # PUMPER & SOL 탭 메인 레이아웃
+        main_grid = QGridLayout(self.pumper_sol_tab)
+        main_grid.setContentsMargins(10, 10, 10, 10)
+        main_grid.setSpacing(15)
+        
+        # 왼쪽 그룹: PUMPER CONTROLS
+        left_group, left_layout = create_group_box("PUMPER CONTROLS", margins=(15, 30, 15, 15))
+        left_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        
+        # PUMP1 제어 - FAN과 동일한 패턴
+        self.create_pumper_row(left_layout, 1)
+        
+        # PUMP2 제어 - FAN과 동일한 패턴
+        self.create_pumper_row(left_layout, 2)
+        
+        # 왼쪽 그룹 여백
+        left_layout.addStretch(1)
+        
+        # 오른쪽 그룹: SOL CONTROLS
+        right_group, right_layout = create_group_box("SOL CONTROLS", margins=(15, 30, 15, 15))
+        right_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        
+        # SOL1 제어
+        self.pushButton_sol1 = create_button_row("SOL1", QPushButton("OFF"), right_layout)
+        
+        # SOL2 제어
+        self.pushButton_sol2 = create_button_row("SOL2", QPushButton("OFF"), right_layout)
+        
+        # SOL3 제어
+        self.pushButton_sol3 = create_button_row("SOL3", QPushButton("OFF"), right_layout)
+        
+        # SOL4 제어
+        self.pushButton_sol4 = create_button_row("SOL4", QPushButton("OFF"), right_layout)
+        
+        # 오른쪽 그룹 여백
+        right_layout.addStretch(1)
+        
+        # 2컬럼 그리드에 위젯 배치 (왼쪽:오른쪽 = 1:1)
+        main_grid.addWidget(left_group, 0, 0)
+        main_grid.addWidget(right_group, 0, 1)
+        
+        # 컬럼 너비 비율 설정 (1:1)
+        main_grid.setColumnStretch(0, 1)
+        main_grid.setColumnStretch(1, 1)
+
+    def create_pumper_row(self, parent_layout, pump_num):
+        """PUMPER 행 생성 - DSCT FAN과 동일한 패턴"""
+        # 행 레이아웃 생성
+        row_layout = QHBoxLayout()
+        row_layout.setContentsMargins(5, 8, 5, 8)
+        row_layout.setSpacing(10)  # 버튼 간 간격
+        
+        # PUMP 라벨
+        pump_label = QLabel(f"PUMP{pump_num}")
+        pump_label.setFixedWidth(80)
+        pump_label.setStyleSheet("font-size: 15px; font-weight: bold;")
+        pump_label.setAlignment(Qt.AlignCenter)
+        
+        # PUMP ON/OFF 토글 버튼
+        pump_button = QPushButton("OFF")
+        pump_button.setFixedSize(140, 45)
+        pump_button.setStyleSheet("background-color: rgb(186,186,186); color: rgb(0,0,0); font-weight: normal;")
+        
+        # 스피드 버튼들 생성
+        spd_dec_button = QPushButton("<")
+        spd_val_button = QPushButton("0")
+        spd_inc_button = QPushButton(">")
+        
+        # 스피드 버튼 스타일 및 크기 설정 (DSCT FAN과 동일)
+        for button in [spd_dec_button, spd_val_button, spd_inc_button]:
+            button.setFixedSize(50, 45)
+            button.setStyleSheet("background-color: rgb(186,186,186); font-size: 12px; font-weight: bold;")
+        
+        # 버튼들을 self에 저장
+        setattr(self, f"pushButton_pump{pump_num}", pump_button)
+        setattr(self, f"spdButton_pump{pump_num}_dec", spd_dec_button)
+        setattr(self, f"spdButton_pump{pump_num}_val", spd_val_button)
+        setattr(self, f"spdButton_pump{pump_num}_inc", spd_inc_button)
+        
+        # 행에 위젯들 추가
+        row_layout.addWidget(pump_label)
+        row_layout.addSpacing(8)
+        row_layout.addWidget(pump_button)
+        row_layout.addSpacing(15)  # ON/OFF와 스피드 버튼 사이 간격
+        row_layout.addWidget(spd_dec_button)
+        row_layout.addWidget(spd_val_button)
+        row_layout.addWidget(spd_inc_button)
+        row_layout.addStretch()  # 오른쪽 여백
+        
+        # 부모 레이아웃에 행 추가
+        parent_layout.addLayout(row_layout)
 
     def update_status_time(self):
         """상태바 시간 업데이트"""
@@ -386,7 +708,16 @@ class ControlWindow(QtWidgets.QMainWindow):
             self.port_combobox.blockSignals(False)
 
     def connect_serial(self):
-        """시리얼 연결"""
+        """시리얼 연결/해제 토글"""
+        if self.serial_manager.is_connected():
+            # 현재 연결되어 있으면 해제
+            self.disconnect_serial()
+        else:
+            # 현재 연결되지 않았으면 연결 시도
+            self.attempt_connection()
+    
+    def attempt_connection(self):
+        """시리얼 연결 시도"""
         if self.port_combobox.currentText():
             selected_port = self.port_combobox.currentText().split(" - ")[0]
             selected_baudrate = int(self.baudrate_combobox.currentText())
@@ -394,11 +725,13 @@ class ControlWindow(QtWidgets.QMainWindow):
             try:
                 if self.serial_manager.connect_serial(selected_port, selected_baudrate):
                     self.update_status_indicator("connected")
+                    self.update_connect_button("connected")
                     # 시리얼 연결 성공 시 버튼 상태 업데이트
                     self.update_button_states()
                     QMessageBox.information(self, "연결 성공", f"포트 {selected_port}에 연결되었습니다.")
                 else:
                     self.update_status_indicator("disconnected")
+                    self.update_connect_button("disconnected")
                     # 시리얼 연결 실패 시 버튼 상태 업데이트
                     self.update_button_states()
                     QMessageBox.warning(self, "연결 실패", f"포트 연결에 실패했습니다.")
@@ -406,11 +739,34 @@ class ControlWindow(QtWidgets.QMainWindow):
                 import traceback
                 traceback.print_exc()  # 터미널에 전체 에러 로그 출력
                 self.update_status_indicator("disconnected")
+                self.update_connect_button("disconnected")
                 # 시리얼 연결 실패 시 버튼 상태 업데이트
                 self.update_button_states()
                 QMessageBox.critical(self, "오류 발생", f"연결 중 예외 발생:\n{e}")
         else:
             QMessageBox.warning(self, "포트 없음", "연결 가능한 포트가 없습니다.")
+    
+    def disconnect_serial(self):
+        """시리얼 연결 해제"""
+        try:
+            if self.serial_manager.is_connected():
+                self.serial_manager.disconnect_serial()
+                self.update_status_indicator("disconnected")
+                self.update_connect_button("disconnected")
+                # 시리얼 연결 해제 시 버튼 상태 업데이트
+                self.update_button_states()
+                QMessageBox.information(self, "연결 해제", "시리얼 포트 연결이 해제되었습니다.")
+        except Exception as e:
+            QMessageBox.critical(self, "오류 발생", f"연결 해제 중 예외 발생:\n{e}")
+    
+    def update_connect_button(self, status):
+        """연결 버튼 텍스트 및 색상 업데이트"""
+        if status == "connected":
+            self.connectButton.setText("Discon")
+            self.connectButton.setStyleSheet("background-color: rgb(43, 179, 43); color: rgb(255,255,255); font-weight: bold;")
+        else:
+            self.connectButton.setText("연결")
+            self.connectButton.setStyleSheet("background-color: rgb(186,186,186); color: rgb(0,0,0); font-weight: normal;")
 
     def update_status_indicator(self, status):
         """상태 인디케이터 업데이트"""
@@ -453,12 +809,35 @@ class ControlWindow(QtWidgets.QMainWindow):
             self.speed_button_manager.current_con_fan_speed = 0
             if hasattr(self, 'spdButton_7'):
                 self.spdButton_7.setText("0")
+                
+            # DSCT FAN SPD 버튼들 리셋
+            self.speed_button_manager.current_dsct_fan1_speed = 0
+            self.speed_button_manager.current_dsct_fan2_speed = 0
+            self.speed_button_manager.current_dsct_fan3_speed = 0
+            self.speed_button_manager.current_dsct_fan4_speed = 0
+            if hasattr(self, 'spdButton_dsct_fan1_val'):
+                self.spdButton_dsct_fan1_val.setText("0")
+            if hasattr(self, 'spdButton_dsct_fan2_val'):
+                self.spdButton_dsct_fan2_val.setText("0")
+            if hasattr(self, 'spdButton_dsct_fan3_val'):
+                self.spdButton_dsct_fan3_val.setText("0")
+            if hasattr(self, 'spdButton_dsct_fan4_val'):
+                self.spdButton_dsct_fan4_val.setText("0")
+                
+            # PUMPER SPD 버튼들 리셋
+            self.speed_button_manager.current_pump1_speed = 0
+            self.speed_button_manager.current_pump2_speed = 0
+            if hasattr(self, 'spdButton_pump1_val'):
+                self.spdButton_pump1_val.setText("0")
+            if hasattr(self, 'spdButton_pump2_val'):
+                self.spdButton_pump2_val.setText("0")
 
     def read_serial_data(self):
         """시리얼 데이터 읽기"""
         try: 
             if not self.serial_manager.is_connected():
                 self.update_status_indicator("disconnected")
+                self.update_connect_button("disconnected")
                 # 연결이 끊어진 경우 버튼 상태 업데이트
                 self.update_button_states()
                 return
@@ -470,6 +849,7 @@ class ControlWindow(QtWidgets.QMainWindow):
                 # 메시지 텍스트 에디터 제거로 인한 로그만 유지
         except IOError as e:
             self.update_status_indicator("disconnected")
+            self.update_connect_button("disconnected")
             # 연결이 끊어진 경우 버튼 상태 업데이트
             self.update_button_states()
             print(f"시리얼 데이터 읽기 오류: {e}")
