@@ -218,7 +218,17 @@ $CMD,<DEVICE>,<VALUE>\r
 
 ## 업데이트 내역
 
-### v2.0 (2024년 최신)
+### v2.1 (2025년 1월 최신)
+- **MAJOR**: FAN 속도 버튼 로직 대폭 개선
+  - 모든 FAN (AIRCON FAN, Con Fan, DESICCANT FAN1~4) 동일한 동작 로직 적용
+  - FAN OFF 시: SPD 버튼 0으로 초기화
+  - FAN ON 시: SPD 버튼 자동으로 1로 설정 및 Serial CMD 전송
+  - SPD 범위: 1~10 (감소 버튼 클릭 시 1에서 멈춤, 0은 OFF 상태에서만)
+  - 중앙 버튼: FAN ON 상태에서는 1로 리셋
+- **ENHANCED**: FAN 토글 버튼과 SPD 버튼 간 완벽한 동기화
+- **IMPROVED**: 모든 FAN 타입에 대한 일관성 있는 사용자 경험
+
+### v2.0 (2024년)
 - **NEW**: DESICCANT 탭 추가 - FAN1~FAN4 개별 제어
 - **NEW**: DAMPER 탭 추가 - DMP1~DMP4 위치값 제어
 - **NEW**: PUMPER & SOL 탭 추가 - 펌프 및 솔레노이드 밸브 제어

@@ -73,6 +73,9 @@ class ButtonManager:
                     button.setText(on_text)
                     self.send_command(commands.get('on'))
                     group['active'] = True
+                    
+                    # FAN이 ON될 때 해당 SPD 버튼을 1로 설정
+                    self._handle_fan_on_callback(group_name)
                 else:
                     # ON 상태 -> OFF 상태로 전환
                     button.setStyleSheet("background-color: rgb(186,186,186); color: rgb(0,0,0); font-weight: normal")
@@ -99,6 +102,9 @@ class ButtonManager:
                     button.setStyleSheet("background-color: rgb(43, 179, 43); color: rgb(255,255,255); font-weight: bold;")
                     self.send_command(commands.get('on'))
                     group['active'] = button
+                    
+                    # FAN이 ON될 때 해당 SPD 버튼을 1로 설정
+                    self._handle_fan_on_callback(group_name)
                     
             # 버튼 크기 유지 - 스타일시트 변경 후 다시 크기 적용
             button.setFixedSize(original_size)
@@ -138,6 +144,30 @@ class ButtonManager:
                     self.SendData_textEdit.verticalScrollBar().maximum()
                 )
     
+    def _handle_fan_on_callback(self, group_name):
+        """FAN이 ON될 때 해당 SPD 버튼을 1로 설정 콜백"""
+        if not self.speed_button_manager:
+            return
+            
+        if group_name == 'aircon_fan':
+            # AIRCON FAN이 ON될 때 SPD를 1로 설정
+            self.speed_button_manager.set_fan_speed_to_one()
+        elif group_name == 'aircon_con_fan':
+            # AIRCON Con Fan이 ON될 때 SPD를 1로 설정
+            self.speed_button_manager.set_con_fan_speed_to_one()
+        elif group_name == 'dsct_fan1':
+            # DSCT FAN1이 ON될 때 SPD를 1로 설정
+            self.speed_button_manager.set_dsct_fan_speed_to_one(1)
+        elif group_name == 'dsct_fan2':
+            # DSCT FAN2이 ON될 때 SPD를 1로 설정
+            self.speed_button_manager.set_dsct_fan_speed_to_one(2)
+        elif group_name == 'dsct_fan3':
+            # DSCT FAN3이 ON될 때 SPD를 1로 설정
+            self.speed_button_manager.set_dsct_fan_speed_to_one(3)
+        elif group_name == 'dsct_fan4':
+            # DSCT FAN4이 ON될 때 SPD를 1로 설정
+            self.speed_button_manager.set_dsct_fan_speed_to_one(4)
+
     def _handle_fan_off_callback(self, group_name):
         """FAN이나 Con Fan이 OFF될 때 해당 SPD 버튼들 초기화 콜백"""
         if not self.speed_button_manager:

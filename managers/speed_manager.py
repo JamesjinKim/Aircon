@@ -181,15 +181,15 @@ class SpeedButtonManager:
         # 현재 값 가져오기
         current_speed = getattr(self, speed_var_name)
         
-        # 1씩 감소 (최소값 0)
-        if current_speed > 0:
+        # 최소값을 1로 제한 (FAN이 ON인 상태에서는 1이 최소값)
+        if current_speed > 1:
             current_speed -= 1
             setattr(self, speed_var_name, current_speed)
             
             # 버튼 텍스트 업데이트
             button.setText(str(current_speed))
             
-            # 명령 전송 (0인 경우 0으로 전송)
+            # 명령 전송
             command = f"{command_prefix}{current_speed}{TERMINATOR}"
                 
             self.send_command(command)
@@ -239,7 +239,7 @@ class SpeedButtonManager:
                 self.sync_to_auto_tab(current_speed)
     
     def handle_reset_button(self, button, command_prefix, speed_var_name):
-        """중앙 버튼 핸들러 (값 버튼) - 0으로 리셋"""
+        """중앙 버튼 핸들러 (값 버튼) - FAN이 ON인 상태에서는 1로 리셋"""
         # 의존성 확인
         if speed_var_name == "current_fan_speed" and not self._can_operate_fan_speed_buttons():
             print("FAN이 OFF 상태이거나 시리얼 포트가 연결되지 않음 - Fan SPD 버튼 동작 차단")
@@ -259,19 +259,19 @@ class SpeedButtonManager:
                 )
             return
         
-        # 속도 변수를 0으로 설정
-        setattr(self, speed_var_name, 0)
+        # FAN이 ON인 상태에서는 최소값이 1이므로 1로 설정
+        setattr(self, speed_var_name, 1)
         
         # 버튼 텍스트 업데이트
-        button.setText("0")
+        button.setText("1")
         
-        # 0 명령 전송
-        command = f"{command_prefix}0{TERMINATOR}"
+        # 1 명령 전송
+        command = f"{command_prefix}1{TERMINATOR}"
         self.send_command(command)
         
         # 팬 속도 변경 시 AUTO 탭과 동기화
         if speed_var_name == "current_fan_speed":
-            self.sync_to_auto_tab(0)
+            self.sync_to_auto_tab(1)
     
     def send_command(self, command):
         """명령어 전송"""
@@ -330,7 +330,8 @@ class SpeedButtonManager:
             return
             
         current_speed = getattr(self, speed_var_name)
-        if current_speed > 0:
+        # 최소값을 1로 제한 (FAN이 ON인 상태에서는 1이 최소값)
+        if current_speed > 1:
             current_speed -= 1
             setattr(self, speed_var_name, current_speed)
             button.setText(str(current_speed))
@@ -352,14 +353,15 @@ class SpeedButtonManager:
             self.send_command(command)
 
     def handle_dsct_reset_button(self, button, command_prefix, speed_var_name, fan_num):
-        """DSCT FAN 리셋 버튼 핸들러"""
+        """DSCT FAN 리셋 버튼 핸들러 - FAN이 ON인 상태에서는 1로 설정"""
         if not self._can_operate_dsct_fan_buttons(fan_num):
             self._log_dsct_blocked_message(fan_num)
             return
             
-        setattr(self, speed_var_name, 0)
-        button.setText("0")
-        command = f"{command_prefix}0{TERMINATOR}"
+        # FAN이 ON인 상태에서는 최소값이 1이므로 1로 설정
+        setattr(self, speed_var_name, 1)
+        button.setText("1")
+        command = f"{command_prefix}1{TERMINATOR}"
         self.send_command(command)
 
     def _can_operate_dsct_fan_buttons(self, fan_num):
@@ -398,6 +400,35 @@ class SpeedButtonManager:
             button.setText("0")
             
         print(f"DSCT FAN{fan_num} 스피드 버튼 초기화됨")
+    
+    def set_dsct_fan_speed_to_one(self, fan_num):
+        """DSCT FAN이 ON될 때 스피드 버튼을 1로 설정"""
+        speed_var_name = f"current_dsct_fan{fan_num}_speed"
+        button_name = f"spdButton_dsct_fan{fan_num}_val"
+        
+        # 속도 값을 1로 설정
+        setattr(self, speed_var_name, 1)
+        
+        # 중앙 버튼 텍스트를 1로 변경
+        if self.main_window and hasattr(self.main_window, button_name):
+            button = getattr(self.main_window, button_name)
+            button.setText("1")
+        
+        # 스피드 1 명령 전송
+        fan_commands = {
+            1: FAN1_CMD,
+            2: FAN2_CMD,
+            3: FAN3_CMD,
+            4: FAN4_CMD
+        }
+        
+        fan_cmd = fan_commands.get(fan_num)
+        if fan_cmd:
+            command_prefix = f"{CMD_PREFIX},{DSCT_SYSTEM},{fan_cmd},{SPD_CMD},"
+            command = f"{command_prefix}1{TERMINATOR}"
+            self.send_command(command)
+            
+        print(f"DSCT FAN{fan_num} 스피드 버튼을 1로 설정됨")
 
     def create_damper_position_buttons(self, parent, dmp_num, left_button, center_button, right_button):
         """DAMPER 위치 버튼 설정"""
@@ -511,6 +542,32 @@ class SpeedButtonManager:
         
         self.is_updating = False
     
+    def set_fan_speed_to_one(self):
+        """FAN이 ON될 때 스피드 버튼을 1로 설정"""
+        print("FAN이 ON되어 Fan SPD 버튼을 1로 설정합니다.")
+        
+        # 속도 값을 1로 설정
+        self.current_fan_speed = 1
+        
+        # 중앙 버튼(값 표시 버튼) 텍스트를 1로 변경
+        if self.center_button:
+            self.center_button.setText("1")
+        
+        # 1 명령어 전송
+        command = f"{CMD_PREFIX},{AIR_SYSTEM},{FSPD_CMD},1{TERMINATOR}"
+        if self.serial_manager.is_connected():
+            self.serial_manager.shinho_serial_connection.write(command.encode())
+            print(f"Fan SPD 1 명령 전송: {command}")
+            
+            if self.SendData_textEdit:
+                self.SendData_textEdit.append(f"{command}")
+                self.SendData_textEdit.verticalScrollBar().setValue(
+                    self.SendData_textEdit.verticalScrollBar().maximum()
+                )
+        
+        # AUTO 탭과 동기화
+        self.sync_to_auto_tab(1)
+
     def reset_fan_speed_buttons(self):
         """FAN이 OFF될 때 Fan SPD 버튼들 초기화"""
         print("FAN이 OFF되어 Fan SPD 버튼들을 초기화합니다.")
@@ -642,6 +699,30 @@ class SpeedButtonManager:
             
         print(f"PUMP{pump_num} 스피드 버튼 초기화됨")
     
+    def set_con_fan_speed_to_one(self):
+        """Con Fan이 ON될 때 스피드 버튼을 1로 설정"""
+        print("Con Fan이 ON되어 Con Fan SPD 버튼을 1로 설정합니다.")
+        
+        # 속도 값을 1로 설정
+        self.current_con_fan_speed = 1
+        
+        # Con Fan SPD 중앙 버튼 찾아서 텍스트를 1로 변경
+        if len(self.con_fan_speed_buttons) >= 2:
+            center_button = self.con_fan_speed_buttons[1]  # 중앙 버튼 (인덱스 1)
+            center_button.setText("1")
+        
+        # 1 명령어 전송
+        command = f"{CMD_PREFIX},{AIR_SYSTEM},{CON_SPD_CMD},1{TERMINATOR}"
+        if self.serial_manager.is_connected():
+            self.serial_manager.shinho_serial_connection.write(command.encode())
+            print(f"Con Fan SPD 1 명령 전송: {command}")
+            
+            if self.SendData_textEdit:
+                self.SendData_textEdit.append(f"{command}")
+                self.SendData_textEdit.verticalScrollBar().setValue(
+                    self.SendData_textEdit.verticalScrollBar().maximum()
+                )
+
     def reset_con_fan_speed_buttons(self):
         """Con Fan이 OFF될 때 Con Fan SPD 버튼들 초기화"""
         print("Con Fan이 OFF되어 Con Fan SPD 버튼들을 초기화합니다.")
