@@ -210,8 +210,8 @@ class ControlWindow(QtWidgets.QMainWindow):
                 self.spdButton_pump2_dec, self.spdButton_pump2_val, self.spdButton_pump2_inc
             ])
         
-        # 기존 스피드 버튼들에 동일한 크기 설정
-        for button in speed_fan_buttons + speed_con_fan_buttons + pumper_speed_buttons:
+        # PUMPER 스피드 버튼들에 동일한 크기 설정
+        for button in pumper_speed_buttons:
             button.setFixedSize(50, 45)
             
         # 새로운 DSCT FAN 순환 스피드 버튼들 - 터치 친화적 크기 (이미 설정됨)
