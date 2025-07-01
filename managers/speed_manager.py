@@ -471,7 +471,7 @@ class SpeedButtonManager:
             return
             
         current_pos = getattr(self, pos_var_name)
-        if current_pos < 10:
+        if current_pos < 4:
             current_pos += 1
             setattr(self, pos_var_name, current_pos)
             button.setText(str(current_pos))
@@ -489,14 +489,22 @@ class SpeedButtonManager:
         self._send_damper_command(dmp_num, 0)
     
     def _send_damper_command(self, dmp_num, position):
-        """DAMPER 명령 전송 - 항상 CLOSE 명령만 전송"""
-        # CLOSE 명령만 전송
-        dmp_commands = {
-            1: DMP1_CLOSE_CMD,
-            2: DMP2_CLOSE_CMD,
-            3: DMP3_CLOSE_CMD,
-            4: DMP4_CLOSE_CMD
-        }
+        """DAMPER 명령 전송 - position에 따라 OPEN/CLOSE 구분"""
+        # position이 0이면 CLOSE, 1~4이면 OPEN 명령 전송
+        if position == 0:
+            dmp_commands = {
+                1: DMP1_CLOSE_CMD,
+                2: DMP2_CLOSE_CMD,
+                3: DMP3_CLOSE_CMD,
+                4: DMP4_CLOSE_CMD
+            }
+        else:
+            dmp_commands = {
+                1: DMP1_OPEN_CMD,
+                2: DMP2_OPEN_CMD,
+                3: DMP3_OPEN_CMD,
+                4: DMP4_OPEN_CMD
+            }
         
         dmp_cmd = dmp_commands.get(dmp_num)
         if dmp_cmd:

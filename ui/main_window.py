@@ -26,7 +26,7 @@ class ControlWindow(QtWidgets.QMainWindow):
         super().__init__()
         
         # 창 설정
-        self.setWindowTitle('Remote control')
+        self.setWindowTitle('Aircon Remote Control')
         self.centralwidget = QtWidgets.QWidget(self)
         self.setCentralWidget(self.centralwidget)
         
