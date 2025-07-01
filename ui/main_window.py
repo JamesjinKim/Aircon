@@ -70,13 +70,15 @@ class ControlWindow(QtWidgets.QMainWindow):
         # 스피드 버튼 매니저에 메인 윈도우 참조 설정
         self.speed_button_manager.set_main_window(self)
         
-        # 스피드 버튼 생성 및 연결
-        self.speed_button_manager.create_aircon_fan_speed_buttons(
-            self, self.spdButton_2, self.spdButton_3, self.spdButton_4
-        )
-        self.speed_button_manager.create_aircon_con_fan_speed_buttons(
-            self, self.spdButton_6, self.spdButton_7, self.spdButton_8
-        )
+        # 기존 스피드 버튼 생성 및 연결 (EVA FAN CONTROLS에서는 사용하지 않음)
+        if hasattr(self, 'spdButton_2') and hasattr(self, 'spdButton_3') and hasattr(self, 'spdButton_4'):
+            self.speed_button_manager.create_aircon_fan_speed_buttons(
+                self, self.spdButton_2, self.spdButton_3, self.spdButton_4
+            )
+        if hasattr(self, 'spdButton_6') and hasattr(self, 'spdButton_7') and hasattr(self, 'spdButton_8'):
+            self.speed_button_manager.create_aircon_con_fan_speed_buttons(
+                self, self.spdButton_6, self.spdButton_7, self.spdButton_8
+            )
         
         
         # AUTO 탭 컨트롤 연결
@@ -144,14 +146,24 @@ class ControlWindow(QtWidgets.QMainWindow):
             self.speed_button_manager.create_damper_toggle_button(3, self.toggleButton_dmp3, self.positionButton_dmp3)
             self.speed_button_manager.create_damper_toggle_button(4, self.toggleButton_dmp4, self.positionButton_dmp4)
         
-        # PUMPER 스피드 버튼 생성 및 연결 (UI 설정 후에 연결)
-        if hasattr(self, 'spdButton_pump1_dec'):
+        # 새로운 PUMP 스피드 버튼 생성 및 연결 (새로운 터치 친화적 디자인)
+        if hasattr(self, 'speedButton_pump1'):
+            self.speed_button_manager.create_new_pump_buttons(1, self.speedButton_pump1)
+            self.speed_button_manager.create_new_pump_buttons(2, self.speedButton_pump2)
+        # 기존 PUMPER 스피드 버튼 (호환성을 위해 유지)
+        elif hasattr(self, 'spdButton_pump1_dec'):
             self.speed_button_manager.create_pumper_speed_buttons(
                 self, 1, self.spdButton_pump1_dec, self.spdButton_pump1_val, self.spdButton_pump1_inc
             )
             self.speed_button_manager.create_pumper_speed_buttons(
                 self, 2, self.spdButton_pump2_dec, self.spdButton_pump2_val, self.spdButton_pump2_inc
             )
+        
+        # EVA FAN 순환 버튼들 연결 (새로운 AIRCON 탭)
+        if hasattr(self, 'evaFanButton_1'):
+            self.speed_button_manager.create_eva_fan_cycle_button("EVA FAN", self.evaFanButton_1)
+        if hasattr(self, 'conFanButton_5'):
+            self.speed_button_manager.create_eva_fan_cycle_button("CONDENSOR FAN", self.conFanButton_5)
         
         # 모든 스피드 버튼의 크기를 균일하게 맞추기 위한 추가 코드
         QTimer.singleShot(100, self.ensure_uniform_button_sizes)
@@ -173,9 +185,14 @@ class ControlWindow(QtWidgets.QMainWindow):
     
     def ensure_uniform_button_sizes(self):
         """모든 버튼 크기를 동일하게 설정"""
-        # 스피드 버튼 크기 맞추기
-        speed_fan_buttons = [self.spdButton_2, self.spdButton_3, self.spdButton_4]
-        speed_con_fan_buttons = [self.spdButton_6, self.spdButton_7, self.spdButton_8]
+        # 기존 스피드 버튼 크기 맞추기 (EVA FAN CONTROLS에서는 존재하지 않음)
+        speed_fan_buttons = []
+        speed_con_fan_buttons = []
+        
+        if hasattr(self, 'spdButton_2') and hasattr(self, 'spdButton_3') and hasattr(self, 'spdButton_4'):
+            speed_fan_buttons = [self.spdButton_2, self.spdButton_3, self.spdButton_4]
+        if hasattr(self, 'spdButton_6') and hasattr(self, 'spdButton_7') and hasattr(self, 'spdButton_8'):
+            speed_con_fan_buttons = [self.spdButton_6, self.spdButton_7, self.spdButton_8]
         
         # 새로운 DSCT FAN 스피드 버튼들 (순환 버튼)
         new_dsct_speed_buttons = []
@@ -213,16 +230,27 @@ class ControlWindow(QtWidgets.QMainWindow):
         # 새로운 DSCT FAN 순환 스피드 버튼들 - 터치 친화적 크기 (이미 설정됨)
         # 새로운 DAMPER 토글 및 위치 버튼들 - 터치 친화적 크기 (이미 설정됨)
         
-        # Fan, Con Fan 버튼들 - 스피드 버튼과 동일한 너비 (166px)
-        main_fan_buttons = [self.pushButton_1, self.pushButton_5]  # Fan, Con Fan
-        for button in main_fan_buttons:
-            button.setFixedSize(166, 45)
+        # 기존 Fan, Con Fan 버튼들 - 스피드 버튼과 동일한 너비 (EVA FAN CONTROLS에서는 다른 크기)
+        main_fan_buttons = []
+        if hasattr(self, 'pushButton_1') and hasattr(self, 'spdButton_2'):  # 기존 AIRCON 방식인 경우만
+            main_fan_buttons = [self.pushButton_1, self.pushButton_5]  # Fan, Con Fan
+            for button in main_fan_buttons:
+                button.setFixedSize(166, 45)
         
         # 나머지 일반 버튼들 - 기본 크기
-        other_buttons = [
-            self.pushButton_9, self.pushButton_10, self.pushButton_11, self.pushButton_12,  # DMP 버튼들
-            self.pushButton_13, self.pushButton_14,  # INVERTER, CLUCH
-        ]
+        other_buttons = []
+        
+        # DMP 버튼들 (항상 존재)
+        if hasattr(self, 'pushButton_9'):
+            other_buttons.extend([
+                self.pushButton_9, self.pushButton_10, self.pushButton_11, self.pushButton_12
+            ])
+        
+        # COMPRESURE, CLUCH 버튼들 (EVA FAN CONTROLS에 포함)
+        if hasattr(self, 'pushButton_13'):
+            other_buttons.extend([
+                self.pushButton_13, self.pushButton_14
+            ])
         
         # DSCT FAN 버튼들 추가 (존재하는 경우)
         if hasattr(self, 'pushButton_dsct_fan1'):
@@ -311,67 +339,92 @@ class ControlWindow(QtWidgets.QMainWindow):
         self.statusBar()
     
     def setup_aircon_tab(self):
-        """AIRCON 탭 설정 - 2컬럼 레이아웃"""
-        # AIRCON 탭 메인 레이아웃
+        """AIRCON 탭 설정 - 좌우 2컬럼 레이아웃 (EVA FAN CONTROLS | DMP CONTROLS)"""
+        # AIRCON 탭 메인 레이아웃 - 그리드 레이아웃
         main_grid = QGridLayout(self.aircon_tab)
-        main_grid.setContentsMargins(10, 10, 10, 10)  # 마진 증가
-        main_grid.setSpacing(15)  # 그룹 간 간격 증가
+        main_grid.setContentsMargins(10, 10, 10, 10)
+        main_grid.setSpacing(15)  # 그룹 간 간격
         
-        # 왼쪽 그룹: Fan Controls - 여백 조정
-        left_group, left_layout = create_group_box("FAN CONTROLS", margins=(15, 30, 15, 15))
+        # 왼쪽 그룹: EVA FAN CONTROLS
+        left_group, left_layout = create_group_box("EVA FAN CONTROLS", margins=(15, 30, 15, 15))
         left_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
-        # Aircon Fan - 스피드 버튼과 동일한 너비 (50*3 + 8*2 = 166)
-        self.pushButton_1 = create_button_row("Fan", QPushButton("OFF"), left_layout, button_width=166)
+        # EVA FAN - 순환 버튼 (OFF,1,2,3,4,5,6,7,8)
+        self.create_eva_fan_row(left_layout, "EVA FAN", 1)
         
-        # Aircon Fan Speed 
-        self.spdButton_2, self.spdButton_3, self.spdButton_4 = create_speed_buttons_with_text(
-            left_layout, "Fan SPD", "<", "0", ">"
-        )
+        # COMPRESURE - 토글 버튼 (기존 INVERTER)
+        self.pushButton_13 = create_button_row("COMPRESURE", QPushButton("OFF"), left_layout, button_width=140)
         
-        # Aircon Con Fan - 스피드 버튼과 동일한 너비 (50*3 + 8*2 = 166)
-        self.pushButton_5 = create_button_row("Con Fan", QPushButton("OFF"), left_layout, button_width=166)
+        # COMP CLUCH - 토글 버튼
+        self.pushButton_14 = create_button_row("COMP CLUCH", QPushButton("OFF"), left_layout, button_width=140)
         
-        # Aircon Con Fan Speed
-        self.spdButton_6, self.spdButton_7, self.spdButton_8 = create_speed_buttons_with_text(
-            left_layout, "Con Fan SPD", "<", "0", ">"
-        )
+        # CONDENSOR FAN - 순환 버튼 (OFF,1,2,3,4,5,6,7,8)  
+        self.create_eva_fan_row(left_layout, "CONDENSOR FAN", 5)
         
-        # 왼쪽 그룹 여백 최소화
-        left_layout.addStretch(1)  # 최소 여백만 추가
         
-        # 오른쪽 그룹: DMP & Other Controls - 여백 조정
+        # 왼쪽 그룹 여백
+        left_layout.addStretch(1)
+        
+        # 오른쪽 그룹: DMP CONTROLS
         right_group, right_layout = create_group_box("DMP CONTROLS", margins=(15, 30, 15, 15))
         right_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
-        # Aircon Left Top DMP
-        self.pushButton_9 = create_button_row("Left Top DMP", QPushButton("CLOSE"), right_layout)
+        # OA.DAMPER(L) - Outside Air Damper Left
+        self.pushButton_9 = create_button_row("OA.DAMPER(L)", QPushButton("CLOSE"), right_layout)
         
-        # Aircon Left Bottom DMP
-        self.pushButton_10 = create_button_row("Left Bottom DMP", QPushButton("CLOSE"), right_layout)
+        # OA.DAMPER(R) - Outside Air Damper Right
+        self.pushButton_11 = create_button_row("OA.DAMPER(R)", QPushButton("CLOSE"), right_layout)
         
-        # Aircon Right Top DMP
-        self.pushButton_11 = create_button_row("Right Top DMP", QPushButton("CLOSE"), right_layout)
+        # RA.DAMPER(L) - Return Air Damper Left
+        self.pushButton_10 = create_button_row("RA.DAMPER(L)", QPushButton("CLOSE"), right_layout)
         
-        # Aircon Right Bottom DMP
-        self.pushButton_12 = create_button_row("Right Bottom DMP", QPushButton("CLOSE"), right_layout)
+        # RA.DAMPER(R) - Return Air Damper Right
+        self.pushButton_12 = create_button_row("RA.DAMPER(R)", QPushButton("CLOSE"), right_layout)
         
-        # Inverter
-        self.pushButton_13 = create_button_row("INVERTER", QPushButton("OFF"), right_layout)
-        
-        # CLUCH
-        self.pushButton_14 = create_button_row("CLUCH", QPushButton("OFF"), right_layout)
-        
-        # 오른쪽 그룹 여백 최소화
-        right_layout.addStretch(1)  # 최소 여백만 추가
+        # 오른쪽 그룹 여백
+        right_layout.addStretch(1)
         
         # 2컬럼 그리드에 위젯 배치 (왼쪽:오른쪽 = 1:1)
         main_grid.addWidget(left_group, 0, 0)
         main_grid.addWidget(right_group, 0, 1)
         
-        # 컬럼 너비 비율 설정 (1:1)
+        # 컬럼 너비 비율 설정 (1:1 균등 분배)
         main_grid.setColumnStretch(0, 1)
         main_grid.setColumnStretch(1, 1)
+    
+    def create_eva_fan_row(self, parent_layout, label_text, button_id):
+        """EVA FAN 행 생성 - 순환 버튼 (OFF,1,2,3,4,5,6,7,8)"""
+        # 행 레이아웃 생성
+        row_layout = QHBoxLayout()
+        row_layout.setContentsMargins(5, 8, 5, 8)  # create_button_row와 동일한 마진
+        
+        # 라벨
+        label = QLabel(label_text)
+        label.setFixedWidth(140)  # 통일된 라벨 너비
+        label.setStyleSheet("font-size: 15px; font-weight: bold;")  # create_button_row와 동일한 스타일
+        
+        # 순환 버튼 - 터치 친화적 크기
+        cycle_button = QPushButton("OFF")
+        cycle_button.setFixedSize(140, 45)  # 통일된 버튼 크기
+        cycle_button.setStyleSheet("font-size: 14px; background-color: rgb(186,186,186); color: rgb(0,0,0);")
+        cycle_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)  # create_button_row와 동일
+        
+        # 버튼들을 self에 저장 (기존 버튼 ID 유지)
+        if label_text == "EVA FAN":
+            setattr(self, f"pushButton_{button_id}", cycle_button)  # pushButton_1
+            setattr(self, f"evaFanButton_{button_id}", cycle_button)
+        elif label_text == "CONDENSOR FAN":
+            setattr(self, f"pushButton_{button_id}", cycle_button)  # pushButton_5
+            setattr(self, f"conFanButton_{button_id}", cycle_button)
+        
+        # 행에 위젯들 추가 - create_button_row와 동일한 방식
+        row_layout.addWidget(label)
+        row_layout.addSpacing(20)  # 고정된 적당한 간격 (create_button_row와 동일)
+        row_layout.addWidget(cycle_button)
+        row_layout.addStretch()  # 오른쪽 여백
+        
+        # 부모 레이아웃에 행 추가
+        parent_layout.addLayout(row_layout)
     
     def setup_desiccant_tab(self):
         """DESICCANT 탭 설정 - 좌우 2분할 레이아웃 (DESICCANT + DAMPER)"""
@@ -430,7 +483,7 @@ class ControlWindow(QtWidgets.QMainWindow):
         # ON/OFF 토글 버튼
         toggle_button = QPushButton("OFF")
         toggle_button.setFixedSize(80, 45)
-        toggle_button.setStyleSheet("font-size: 14px; font-weight: bold; background-color: rgb(186,186,186); color: rgb(0,0,0);")
+        toggle_button.setStyleSheet("font-size: 14px; background-color: rgb(186,186,186); color: rgb(0,0,0);")
         
         # 버튼을 self에 저장
         setattr(self, f"pushButton_dsct_fan{fan_num}", toggle_button)
@@ -443,7 +496,7 @@ class ControlWindow(QtWidgets.QMainWindow):
         # SPD 버튼 스타일 및 크기 설정
         for button in [dec_button, val_button, inc_button]:
             button.setFixedSize(50, 45)
-            button.setStyleSheet("background-color: rgb(186,186,186); font-size: 14px; font-weight: bold;")
+            button.setStyleSheet("background-color: rgb(186,186,186); font-size: 14px;")
         
         # 버튼들을 self에 저장
         setattr(self, f"spdButton_dsct_fan{fan_num}_dec", dec_button)
@@ -478,12 +531,12 @@ class ControlWindow(QtWidgets.QMainWindow):
         # ON/OFF 토글 버튼 - 터치 친화적 크기
         toggle_button = QPushButton("OFF")
         toggle_button.setFixedSize(120, 50)  # 터치하기 편한 크기
-        toggle_button.setStyleSheet("font-size: 14px; font-weight: bold; background-color: rgb(186,186,186); color: rgb(0,0,0);")
+        toggle_button.setStyleSheet("font-size: 14px; background-color: rgb(186,186,186); color: rgb(0,0,0);")
         
         # 순환 숫자 버튼 - 터치 친화적 크기
         speed_button = QPushButton("0")
         speed_button.setFixedSize(80, 50)  # 터치하기 편한 크기
-        speed_button.setStyleSheet("font-size: 14px; font-weight: bold; background-color: rgb(186,186,186); color: rgb(0,0,0);")
+        speed_button.setStyleSheet("font-size: 14px; background-color: rgb(186,186,186); color: rgb(0,0,0);")
         
         # 버튼들을 self에 저장
         setattr(self, f"pushButton_dsct_fan{fan_num}", toggle_button)
@@ -514,12 +567,12 @@ class ControlWindow(QtWidgets.QMainWindow):
         # CLOSE/OPEN 토글 버튼 - 터치 친화적 크기
         toggle_button = QPushButton("CLOSE")
         toggle_button.setFixedSize(120, 50)  # 터치하기 편한 크기
-        toggle_button.setStyleSheet("font-size: 14px; font-weight: bold; background-color: rgb(186,186,186); color: rgb(0,0,0);")
+        toggle_button.setStyleSheet("font-size: 14px; background-color: rgb(186,186,186); color: rgb(0,0,0);")
         
         # 순환 숫자 버튼 - 터치 친화적 크기
         position_button = QPushButton("0")
         position_button.setFixedSize(80, 50)  # 터치하기 편한 크기
-        position_button.setStyleSheet("font-size: 14px; font-weight: bold; background-color: rgb(186,186,186); color: rgb(0,0,0);")
+        position_button.setStyleSheet("font-size: 14px; background-color: rgb(186,186,186); color: rgb(0,0,0);")
         
         # 버튼들을 self에 저장
         setattr(self, f"toggleButton_dmp{dmp_num}", toggle_button)
@@ -573,11 +626,11 @@ class ControlWindow(QtWidgets.QMainWindow):
         left_group, left_layout = create_group_box("PUMPER CONTROLS", margins=(15, 30, 15, 15))
         left_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
-        # PUMP1 제어 - FAN과 동일한 패턴
-        self.create_pumper_row(left_layout, 1)
+        # PUMP1 제어 - DESICCANT FAN과 동일한 새로운 패턴
+        self.create_new_pump_row(left_layout, 1)
         
-        # PUMP2 제어 - FAN과 동일한 패턴
-        self.create_pumper_row(left_layout, 2)
+        # PUMP2 제어 - DESICCANT FAN과 동일한 새로운 패턴
+        self.create_new_pump_row(left_layout, 2)
         
         # 왼쪽 그룹 여백
         left_layout.addStretch(1)
@@ -651,6 +704,42 @@ class ControlWindow(QtWidgets.QMainWindow):
         row_layout.addWidget(spd_dec_button)
         row_layout.addWidget(spd_val_button)
         row_layout.addWidget(spd_inc_button)
+        row_layout.addStretch()  # 오른쪽 여백
+        
+        # 부모 레이아웃에 행 추가
+        parent_layout.addLayout(row_layout)
+    
+    def create_new_pump_row(self, parent_layout, pump_num):
+        """새로운 PUMP 행 생성 - DESICCANT FAN과 동일한 터치 친화적 디자인"""
+        # 행 레이아웃 생성
+        row_layout = QHBoxLayout()
+        row_layout.setContentsMargins(5, 10, 5, 10)
+        row_layout.setSpacing(15)  # 버튼 간 충분한 간격
+        
+        # PUMP 라벨
+        pump_label = QLabel(f"PUMP{pump_num}")
+        pump_label.setFixedWidth(80)
+        pump_label.setStyleSheet("font-size: 15px; font-weight: bold;")
+        pump_label.setAlignment(Qt.AlignCenter)
+        
+        # ON/OFF 토글 버튼 - 터치 친화적 크기
+        toggle_button = QPushButton("OFF")
+        toggle_button.setFixedSize(120, 50)  # 터치하기 편한 크기
+        toggle_button.setStyleSheet("font-size: 14px; background-color: rgb(186,186,186); color: rgb(0,0,0);")
+        
+        # 순환 숫자 버튼 - 터치 친화적 크기
+        speed_button = QPushButton("0")
+        speed_button.setFixedSize(80, 50)  # 터치하기 편한 크기
+        speed_button.setStyleSheet("font-size: 14px; background-color: rgb(186,186,186); color: rgb(0,0,0);")
+        
+        # 버튼들을 self에 저장
+        setattr(self, f"pushButton_pump{pump_num}", toggle_button)
+        setattr(self, f"speedButton_pump{pump_num}", speed_button)
+        
+        # 행에 위젯들 추가
+        row_layout.addWidget(pump_label)
+        row_layout.addWidget(toggle_button)
+        row_layout.addWidget(speed_button)
         row_layout.addStretch()  # 오른쪽 여백
         
         # 부모 레이아웃에 행 추가

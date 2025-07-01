@@ -69,7 +69,7 @@ class ButtonManager:
                 # group['active']를 Boolean으로 사용 (False: OFF, True: ON)
                 if group.get('active', False) is not True:
                     # OFF 상태 -> ON 상태로 전환
-                    button.setStyleSheet("background-color: rgb(43, 179, 43); color: rgb(255,255,255); font-weight: bold;")  
+                    button.setStyleSheet("background-color: rgb(43, 179, 43); color: rgb(255,255,255);")  
                     button.setText(on_text)
                     self.send_command(commands.get('on'))
                     group['active'] = True
@@ -78,7 +78,7 @@ class ButtonManager:
                     self._handle_fan_on_callback(group_name)
                 else:
                     # ON 상태 -> OFF 상태로 전환
-                    button.setStyleSheet("background-color: rgb(186,186,186); color: rgb(0,0,0); font-weight: normal")
+                    button.setStyleSheet("background-color: rgb(186,186,186); color: rgb(0,0,0);")
                     button.setText(off_text)
                     self.send_command(commands.get('off'))
                     group['active'] = False
@@ -89,7 +89,7 @@ class ButtonManager:
                 # 다중 버튼 그룹인 경우
                 if group['active'] == button:
                     # 같은 버튼을 다시 눌렀을 때 -> OFF 상태로 전환
-                    button.setStyleSheet("background-color: rgb(186,186,186); color: rgb(0,0,0); font-weight: normal;")
+                    button.setStyleSheet("background-color: rgb(186,186,186); color: rgb(0,0,0);");
                     self.send_command(commands.get('off'))
                     group['active'] = None
                     
@@ -98,8 +98,8 @@ class ButtonManager:
                 else:
                     # 다른 버튼을 다시 눌렀을 때 -> 이전 버튼은 OFF, 현재 버튼은 ON
                     for other_btn in group['buttons'].keys():
-                        other_btn.setStyleSheet("background-color: rgb(186,186,186); color: rgb(0,0,0); font-weight: normal;")
-                    button.setStyleSheet("background-color: rgb(43, 179, 43); color: rgb(255,255,255); font-weight: bold;")
+                        other_btn.setStyleSheet("background-color: rgb(186,186,186); color: rgb(0,0,0);")
+                    button.setStyleSheet("background-color: rgb(43, 179, 43); color: rgb(255,255,255);");
                     self.send_command(commands.get('on'))
                     group['active'] = button
                     
@@ -167,6 +167,12 @@ class ButtonManager:
         elif group_name == 'dsct_fan4':
             # DSCT FAN4이 ON될 때 새로운 SPD를 1로 설정
             self.speed_button_manager.set_new_dsct_fan_speed_to_one(4)
+        elif group_name == 'pump1':
+            # PUMP1이 ON될 때 SPD를 1로 설정
+            self.speed_button_manager.set_pump_speed_to_one(1)
+        elif group_name == 'pump2':
+            # PUMP2이 ON될 때 SPD를 1로 설정
+            self.speed_button_manager.set_pump_speed_to_one(2)
 
     def _handle_fan_off_callback(self, group_name):
         """FAN이나 Con Fan이 OFF될 때 해당 SPD 버튼들 초기화 콜백"""
@@ -192,8 +198,16 @@ class ButtonManager:
             # DSCT FAN4이 OFF될 때 새로운 SPD 초기화
             self.speed_button_manager.reset_new_dsct_fan_speed_button(4)
         elif group_name == 'pump1':
-            # PUMP1이 OFF될 때 초기화
-            self.speed_button_manager.reset_pumper_speed_buttons(1)
+            # PUMP1이 OFF될 때 새로운 스피드 버튼 초기화
+            if hasattr(self.speed_button_manager.main_window, 'speedButton_pump1'):
+                self.speed_button_manager.reset_new_pump_speed_button(1)
+            else:
+                # 기존 스피드 버튼 초기화 (호환성)
+                self.speed_button_manager.reset_pumper_speed_buttons(1)
         elif group_name == 'pump2':
-            # PUMP2이 OFF될 때 초기화
-            self.speed_button_manager.reset_pumper_speed_buttons(2)
+            # PUMP2이 OFF될 때 새로운 스피드 버튼 초기화
+            if hasattr(self.speed_button_manager.main_window, 'speedButton_pump2'):
+                self.speed_button_manager.reset_new_pump_speed_button(2)
+            else:
+                # 기존 스피드 버튼 초기화 (호환성)
+                self.speed_button_manager.reset_pumper_speed_buttons(2)

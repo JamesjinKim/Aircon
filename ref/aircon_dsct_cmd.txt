@@ -75,8 +75,96 @@ $CMD,DSCT,SOL3,OFF
 $CMD,DSCT,SOL4,ON
 $CMD,DSCT,SOL4,OFF
 
+FAN CONTROLS 의 UI 변경 요소입니다.
+1.맨위 타이틀  => "EVA FAN CONTROLS"
+2. 타이틀 아래 요소 => EVA FAN     [OFF,1,2,3,4,5,6,7,8] => Label [EVA FAN]으로 변경,  Button 1개로 표현. Serial Command는 기존 유지.
+
+3. 2번 요소 아래에 CON FAN  [OFF,1,2,3,4,5,6,7,8] => Label [CON FAN]으로 변경,  Button 1개로 표현. Serial Command는 기존 유지.
+4. 3번 요소 아래에 label INVERTER, 토글 Button [ON/OFF] => DMP CONTROLS group 에서 옮겨 옴.
+5. 4번 요소 아래에 label CLUCH, 토글 버튼 [ON/OFF] =>  DMP CONTROLS group 에서 옮겨 옴.
+6. 5번 요소 아래에 기존 Con FAN [ON/OFF]  Con Fan SPD [<] [0] [>] 요소를 LABEL은 "CONDENSOR" Button 1개[OFF,1,2,3,4,5,6,7,8] 로 1개 버튼만 둡니다.
+
+이상의 FAN CONTROLS 의 UI 변경 요소가 이해 된다면 나에게 리뷰 해주고 승인 후 코드 작업 진행 하세요.
+
+예 맞습니다.
+추가로 옮겨오는 Label "INVERTER" => COMPRESURE 로 변경 주세요.
 
 
+변경된 구조 (좌우 배치)
+
+  ┌─────────────────┬─────────────────┐
+  │ EVA FAN CONTROLS│ DMP CONTROLS    │
+  │ ┌─────────────┐ │ ┌─────────────┐ │
+  │ │EVA FAN [..] │ │ │Left Top [..]│ │
+  │ │CON FAN [..] │ │ │Left Bot [..]│ │
+  │ │COMPRESURE[.]│ │ │Right Top[..]│ │
+  │ │CLUCH    [.] │ │ │Right Bot[..]│ │
+  │ │CONDENSOR[..]│ │ └─────────────┘ │
+  │ └─────────────┘ │                 │
+  └─────────────────┴─────────────────┘
+
+  ┌─────────────────┬─────────────────┐
+  │ EVA FAN CONTROLS│ DMP CONTROLS    │
+  │ ┌─────────────┐ │ ┌─────────────┐ │
+  │ │EVA FAN [..] │ │ │Left Top [..]│ │
+  │ │COMPRESURE[.]│ │ │Right Top[..]│ │
+  │ │COMP CLUCH[.]│ │ │Left Bot [..]│ │
+  │ │CONDENSOR FAN│ │ │Right Bot[..]│ │
+  │ │CONDENSOR[..]│ │ └─────────────┘ │
+  │ └─────────────┘ │                 │
+  └─────────────────┴─────────────────┘
+┬─────────────────┐
+│ DMP CONTROLS    │
+│ ┌─────────────┐ │
+│ │Left Top [..]│ │
+│ │Right Top[..]│ │
+│ │Left Bot [..]│ │
+│ │Right Bot[..]│ │
+│ └─────────────┘ │
+│                 │
+┴─────────────────┘
+
+┬─────────────────────┐
+│ DMP CONTROLS        │
+│ ┌─────────────────┐ │
+│ │OA.Damper(L) [..]│ │
+│ │OA.Damper(R) [..]│ │
+│ │Left Bot [..]│ │
+│ │Right Bot[..]│ │
+│ └─────────────┘ │
+│                 │
+┴─────────────────┘
+
+수정 
+  ┌───────────────────────┬
+  │ EVA FAN CONTROLS      │ 
+  │ ┌───────────────────┐ │
+  │ │EVA FAN       [..] │ │
+  │ │COMPRESURE    [.]  │ │
+  │ │COMP CLUCH    [.]  │ │
+  │ │CONDENSOR FAN [..] │ │
+  │ └───────────────────┘ │
+  └───────────────────────┴
+
+DMP CONTROLS
+┌─────────────────────────┐
+│ OA.DAMPER(L) [.]        │ 
+│ OA.DAMPER(R) [.]        │ 
+│ RA.DAMPER(L) [.]        │ 
+│ RA.DAMPER(R) [.]        │ 
+└─────────────────────────┴
+
+ 현재 label:
+  1. Left Top DMP → OA.DAMPER(L)
+  2. Right Top DMP → OA.DAMPER(R)
+  3. Left Bottom DMP → RA.DAMPER(L)
+  4. Right Bottom DMP → RA.DAMPER(R)
+
+  변경 내용:
+  - Left Top DMP = OA.DAMPER(L) (Outside Air Damper Left)
+  - Right Top DMP = OA.DAMPER(R) (Outside Air Damper Right)
+  - Left Bottom DMP = RA.DAMPER(L) (Return Air Damper Left)
+  - Right Bottom DMP = RA.DAMPER(R) (Return Air Damper Right)
 
 DESICCANT CONTROLS
   ┌─────────────────────────────────┐
@@ -116,8 +204,8 @@ PUMPER & SOL CONTROLS
 
     ┌───────────────────────────────────────────────
     │ PUMPER CONTROLS               SOL CONTROLS                
-    │ PUMP1  [OFF]  [<] [0] [>]     SOL1   [OFF]          
-    │ PUMP2  [OFF]  [<] [0] [>]     SOL2   [OFF]         
+    │ PUMP1  [ON]   [0]             SOL1   [OFF]          
+    │ PUMP2  [OFF]  [0]             SOL2   [OFF]         
     │                               SOL3   [OFF]             
     │                               SOL4   [OFF]
     └───────────────────────────────────────────────┘

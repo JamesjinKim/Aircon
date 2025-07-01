@@ -1,5 +1,5 @@
 from ui.constants import (CMD_PREFIX, TERMINATOR, AIR_SYSTEM, DSCT_SYSTEM, FSPD_CMD, CON_SPD_CMD, OFF_STATE, ON_STATE,
-                         FAN1_CMD, FAN2_CMD, FAN3_CMD, FAN4_CMD, SPD_CMD,
+                         FAN_CMD, FAN1_CMD, FAN2_CMD, FAN3_CMD, FAN4_CMD, SPD_CMD,
                          DMP1_OPEN_CMD, DMP1_CLOSE_CMD, DMP2_OPEN_CMD, DMP2_CLOSE_CMD,
                          DMP3_OPEN_CMD, DMP3_CLOSE_CMD, DMP4_OPEN_CMD, DMP4_CLOSE_CMD,
                          PUMP1_CMD, PUMP2_CMD, BUTTON_ON_STYLE, BUTTON_OFF_STYLE)
@@ -908,3 +908,170 @@ class SpeedButtonManager:
             self.send_command(command)
             
         print(f"DSCT FAN{fan_num} 새로운 스피드 버튼을 1로 설정됨")
+    
+    def set_pump_speed_to_one(self, pump_num):
+        """PUMP이 ON될 때 스피드 버튼을 1로 설정"""
+        speed_var_name = f"current_pump{pump_num}_speed"
+        button_name = f"spdButton_pump{pump_num}_val"
+        
+        # 속도 값을 1로 설정
+        setattr(self, speed_var_name, 1)
+        
+        # 스피드 버튼 텍스트를 1로 변경
+        if self.main_window and hasattr(self.main_window, button_name):
+            button = getattr(self.main_window, button_name)
+            button.setText("1")
+        
+        # 스피드 1 명령 전송
+        pump_commands = {1: PUMP1_CMD, 2: PUMP2_CMD}
+        pump_cmd = pump_commands.get(pump_num)
+        if pump_cmd:
+            command_prefix = f"{CMD_PREFIX},{DSCT_SYSTEM},{pump_cmd},{SPD_CMD},"
+            command = f"{command_prefix}1{TERMINATOR}"
+            self.send_command(command)
+            
+        print(f"PUMP{pump_num} 스피드 버튼을 1로 설정됨")
+    
+    def create_cyclic_pump_button(self, pump_num, speed_button):
+        """PUMP 순환 스피드 버튼 설정 (0~8 순환) - DESICCANT FAN과 동일한 동작"""
+        speed_var_name = f"current_pump{pump_num}_speed"
+        
+        def cyclic_click():
+            if not self.serial_manager or not self.serial_manager.is_connected():
+                print(f"PUMP{pump_num} 시리얼 포트 연결되지 않음 - 버튼 동작 차단")
+                if self.SendData_textEdit:
+                    self.SendData_textEdit.append(f"PUMP{pump_num} 시리얼 포트 연결되지 않음 - 버튼 동작 차단")
+                return
+                
+            # PUMP 버튼 상태 확인
+            pump_button = getattr(self.main_window, f"pushButton_pump{pump_num}", None)
+            if not pump_button:
+                return
+                
+            # button_manager에서 PUMP 상태 확인
+            if self.main_window and hasattr(self.main_window, 'button_manager'):
+                pump_group = self.main_window.button_manager.button_groups.get(f'pump{pump_num}')
+                current_pump_state = pump_group.get('active', False) if pump_group else False
+            else:
+                current_pump_state = False
+                
+            current_speed = getattr(self, speed_var_name)
+            
+            if current_pump_state is not True:
+                # PUMP가 OFF 상태에서 숫자 버튼 클릭 시 자동으로 ON + 1로 설정
+                pump_button.click()  # Auto-toggle to ON
+                new_speed = 1
+            else:
+                # PUMP가 ON 상태에서는 0~8 순환
+                new_speed = (current_speed + 1) % 9
+                if new_speed == 0:
+                    # 숫자가 0이 되면 PUMP를 OFF로 변경
+                    pump_button.click()  # button_manager의 토글 로직으로 OFF 처리
+                    print(f"PUMP{pump_num} 스피드 0 - 자동으로 OFF로 변경")
+                else:
+                    # SPD 명령 전송 (0이 아닐 때만)
+                    pump_commands = {1: PUMP1_CMD, 2: PUMP2_CMD}
+                    pump_cmd = pump_commands.get(pump_num)
+                    if pump_cmd:
+                        command_prefix = f"{CMD_PREFIX},{DSCT_SYSTEM},{pump_cmd},{SPD_CMD},"
+                        command = f"{command_prefix}{new_speed}{TERMINATOR}"
+                        self.send_command(command)
+            
+            # 버튼 텍스트 및 내부 변수 업데이트
+            setattr(self, speed_var_name, new_speed)
+            speed_button.setText(str(new_speed))
+            print(f"PUMP{pump_num} 스피드 변경: {new_speed}")
+        
+        speed_button.clicked.connect(cyclic_click)
+    
+    def create_new_pump_buttons(self, pump_num, speed_button):
+        """새로운 PUMP 버튼 설정 - DESICCANT FAN과 동일한 패턴"""
+        # 순환 스피드 버튼 설정
+        self.create_cyclic_pump_button(pump_num, speed_button)
+        
+        print(f"PUMP{pump_num} 새로운 버튼 설정 완료")
+    
+    def reset_new_pump_speed_button(self, pump_num):
+        """새로운 PUMP 스피드 버튼 초기화 (OFF일 때 0으로)"""
+        speed_var_name = f"current_pump{pump_num}_speed"
+        button_name = f"speedButton_pump{pump_num}"
+        
+        # 속도 값 초기화
+        setattr(self, speed_var_name, 0)
+        
+        # 스피드 버튼 텍스트 초기화
+        if self.main_window and hasattr(self.main_window, button_name):
+            button = getattr(self.main_window, button_name)
+            button.setText("0")
+            
+        print(f"PUMP{pump_num} 새로운 스피드 버튼 초기화됨")
+    
+    def create_eva_fan_cycle_button(self, fan_type, button):
+        """EVA FAN 순환 버튼 설정 (OFF,1,2,3,4,5,6,7,8)"""
+        
+        def cycle_click():
+            if not self.serial_manager or not self.serial_manager.is_connected():
+                print(f"{fan_type} 시리얼 포트 연결되지 않음 - 버튼 동작 차단")
+                if self.SendData_textEdit:
+                    self.SendData_textEdit.append(f"{fan_type} 시리얼 포트 연결되지 않음 - 버튼 동작 차단")
+                return
+            
+            current_text = button.text()
+            
+            if current_text == "OFF":
+                # OFF → 1
+                new_value = 1
+                button.setText("1")
+                # ON 명령 전송
+                if fan_type == "EVA FAN":
+                    on_command = f"{CMD_PREFIX},{AIR_SYSTEM},{FAN_CMD},{ON_STATE}{TERMINATOR}"
+                    speed_command = f"{CMD_PREFIX},{AIR_SYSTEM},{FSPD_CMD},{new_value}{TERMINATOR}"
+                elif fan_type == "CONDENSOR FAN":
+                    on_command = f"{CMD_PREFIX},{AIR_SYSTEM},CON_F,{ON_STATE}{TERMINATOR}"
+                    speed_command = f"{CMD_PREFIX},{AIR_SYSTEM},{CON_SPD_CMD},{new_value}{TERMINATOR}"
+                
+                self.send_command(on_command)
+                self.send_command(speed_command)
+            elif current_text == "ON":
+                # button_manager에 의해 ON으로 변경된 경우 → 1로 설정
+                button.setText("1")
+                # 스피드 1 명령 전송
+                if fan_type == "EVA FAN":
+                    speed_command = f"{CMD_PREFIX},{AIR_SYSTEM},{FSPD_CMD},1{TERMINATOR}"
+                elif fan_type == "CONDENSOR FAN":
+                    speed_command = f"{CMD_PREFIX},{AIR_SYSTEM},{CON_SPD_CMD},1{TERMINATOR}"
+                
+                self.send_command(speed_command)
+            else:
+                # 1~5 순환, 5 다음에는 OFF
+                try:
+                    current_value = int(current_text)
+                except ValueError:
+                    # 숫자가 아닌 경우 1로 리셋
+                    current_value = 1
+                    button.setText("1")
+                
+                if current_value == 5:  # 5 → OFF
+                    button.setText("OFF")
+                    # OFF 명령 전송
+                    if fan_type == "EVA FAN":
+                        off_command = f"{CMD_PREFIX},{AIR_SYSTEM},{FAN_CMD},{OFF_STATE}{TERMINATOR}"
+                    elif fan_type == "CONDENSOR FAN":
+                        off_command = f"{CMD_PREFIX},{AIR_SYSTEM},CON_F,{OFF_STATE}{TERMINATOR}"
+                    
+                    self.send_command(off_command)
+                else:
+                    # 1~4 → 2~5
+                    new_value = current_value + 1
+                    button.setText(str(new_value))
+                    # 스피드 명령 전송
+                    if fan_type == "EVA FAN":
+                        speed_command = f"{CMD_PREFIX},{AIR_SYSTEM},{FSPD_CMD},{new_value}{TERMINATOR}"
+                    elif fan_type == "CONDENSOR FAN":
+                        speed_command = f"{CMD_PREFIX},{AIR_SYSTEM},{CON_SPD_CMD},{new_value}{TERMINATOR}"
+                    
+                    self.send_command(speed_command)
+            
+            print(f"{fan_type} 값 변경: {button.text()}")
+        
+        button.clicked.connect(cycle_click)

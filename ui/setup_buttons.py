@@ -10,21 +10,23 @@ from ui.constants import (
 
 def setup_button_groups(window):
     """버튼 그룹 설정 - 일반 버튼만 (SPD 버튼 제외)"""
-    # 에어컨 팬 | AIRCON FAN
-    window.button_manager.add_group('aircon_fan', {
-        window.pushButton_1: {
-            'on': f'{CMD_PREFIX},{AIR_SYSTEM},{FAN_CMD},{ON_STATE}{TERMINATOR}',
-            'off': f'{CMD_PREFIX},{AIR_SYSTEM},{FAN_CMD},{OFF_STATE}{TERMINATOR}'
-        }
-    })
+    # 에어컨 팬 | AIRCON FAN (EVA FAN CONTROLS에서는 제외)
+    if not hasattr(window, 'evaFanButton_1'):  # EVA FAN CONTROLS가 아닌 경우만
+        window.button_manager.add_group('aircon_fan', {
+            window.pushButton_1: {
+                'on': f'{CMD_PREFIX},{AIR_SYSTEM},{FAN_CMD},{ON_STATE}{TERMINATOR}',
+                'off': f'{CMD_PREFIX},{AIR_SYSTEM},{FAN_CMD},{OFF_STATE}{TERMINATOR}'
+            }
+        })
 
-    # 에어컨 콘 팬 | Aircoen Con Fan 
-    window.button_manager.add_group('aircon_con_fan', {
-        window.pushButton_5: {
-            'on': f'{CMD_PREFIX},{AIR_SYSTEM},{CON_F_CMD},{ON_STATE}{TERMINATOR}',
-            'off': f'{CMD_PREFIX},{AIR_SYSTEM},{CON_F_CMD},{OFF_STATE}{TERMINATOR}'
-        }
-    })
+    # 에어컨 콘 팬 | Aircoen Con Fan (EVA FAN CONTROLS에서는 제외)
+    if not hasattr(window, 'conFanButton_5'):  # EVA FAN CONTROLS가 아닌 경우만
+        window.button_manager.add_group('aircon_con_fan', {
+            window.pushButton_5: {
+                'on': f'{CMD_PREFIX},{AIR_SYSTEM},{CON_F_CMD},{ON_STATE}{TERMINATOR}',
+                'off': f'{CMD_PREFIX},{AIR_SYSTEM},{CON_F_CMD},{OFF_STATE}{TERMINATOR}'
+            }
+        })
 
     # 에어컨 왼쪽 위 DMP | Aircon LEFT TOP DMP
     window.button_manager.add_group('aircon_left_top_DMP', {

@@ -26,7 +26,7 @@ def create_button_row(label_text, button, layout, button_width=140):
     row_layout.setContentsMargins(5, 8, 5, 8)  # 상하 마진 증가
     
     label = QLabel(label_text)
-    label.setMinimumWidth(100)  # 레이블 최소 너비 증가
+    label.setFixedWidth(140)  # 레이블 고정 너비로 정렬 개선
     label.setStyleSheet("font-size: 15px; font-weight: bold;")  # 폰트 크기와 굵기 증가
 
     # 모든 버튼에 동일한 고정 크기 적용 - 크기 증가
@@ -35,8 +35,9 @@ def create_button_row(label_text, button, layout, button_width=140):
     button.setStyleSheet("font-size: 14px; font-weight: bold;")  # 버튼 폰트 크기 증가
     
     row_layout.addWidget(label)
-    row_layout.addStretch()
+    row_layout.addSpacing(20)  # 고정된 적당한 간격
     row_layout.addWidget(button)
+    row_layout.addStretch()  # 오른쪽 여백
     layout.addLayout(row_layout)
     return button
 
@@ -49,6 +50,7 @@ def create_port_selection_section():
     port_label = QLabel("Port")
     port_label.setAlignment(Qt.AlignCenter)
     port_label.setFixedWidth(30)
+    port_label.setStyleSheet("font-weight: bold;")
     
     port_combobox = QComboBox()
     port_combobox.setFixedWidth(150)
@@ -56,6 +58,7 @@ def create_port_selection_section():
     baudrate_label = QLabel("Baudrate")
     baudrate_label.setAlignment(Qt.AlignCenter)
     baudrate_label.setFixedWidth(70)
+    baudrate_label.setStyleSheet("font-weight: bold;")
     
     baudrate_combobox = QComboBox()
     baudrate_combobox.setFixedWidth(120)
@@ -63,6 +66,7 @@ def create_port_selection_section():
     connection_label = QLabel("Connect")
     connection_label.setAlignment(Qt.AlignCenter)
     connection_label.setFixedWidth(70)
+    connection_label.setStyleSheet("font-weight: bold;")
     
     connect_button = QPushButton("연결")
     connect_button.setFixedWidth(50)
@@ -169,10 +173,10 @@ def create_speed_buttons_with_text(layout, label_text, left_text, center_text, r
     speed_layout.setContentsMargins(5, 8, 5, 8)  # 상하 마진 증가
     
     speed_label = QLabel(label_text)
-    speed_label.setMinimumWidth(100)  # 레이블 최소 너비 증가
+    speed_label.setFixedWidth(140)  # 레이블 고정 너비로 정렬 개선
     speed_label.setStyleSheet("font-size: 15px; font-weight: bold;")  # 폰트 크기와 굵기 증가
     speed_layout.addWidget(speed_label)
-    speed_layout.addStretch()
+    speed_layout.addSpacing(20)  # 고정된 적당한 간격
     
     buttons_layout = QHBoxLayout()
     buttons_layout.setSpacing(8)  # 버튼 사이 간격 증가
@@ -191,6 +195,7 @@ def create_speed_buttons_with_text(layout, label_text, left_text, center_text, r
     buttons_layout.addWidget(button2)
     buttons_layout.addWidget(button3)
     speed_layout.addLayout(buttons_layout)
+    speed_layout.addStretch()  # 오른쪽 여백
     
     layout.addLayout(speed_layout)
     
@@ -355,7 +360,9 @@ def create_auto_control_tab(parent):
         border: 1px solid #ddd;
     """)
     fan_speed_value.setFixedHeight(30) # 풍량값 txtbox  높이조절 
-    fan_speed_header.addWidget(QLabel("속도:"))
+    speed_label = QLabel("속도:")
+    speed_label.setStyleSheet("font-weight: bold;")
+    fan_speed_header.addWidget(speed_label)
     fan_speed_header.addWidget(fan_speed_value)
     
     fan_speed_layout.addLayout(fan_speed_header)
@@ -460,7 +467,9 @@ def create_auto_control_tab(parent):
         border: 1px solid #ddd;
     """)
     temp_value.setFixedHeight(30) # 높이 조절
-    temp_header.addWidget(QLabel("온도:"))
+    temp_label = QLabel("온도:")
+    temp_label.setStyleSheet("font-weight: bold;")
+    temp_header.addWidget(temp_label)
     temp_header.addWidget(temp_value)
     
     temp_layout.addLayout(temp_header)
