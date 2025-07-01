@@ -44,72 +44,8 @@ class SpeedButtonManager:
         """메인 윈도우 참조 설정"""
         self.main_window = main_window
         
-    def create_aircon_fan_speed_buttons(self, parent, left_button, center_button, right_button):
-        """팬 스피드 버튼 설정 (<, 값, >)"""
-        # 버튼 그룹 저장
-        button_group = [left_button, center_button, right_button]
-        self.center_button = center_button  # 중앙 버튼 저장
-        self.fan_speed_buttons = button_group  # Fan SPD 버튼들 저장
-        
-        # 초기 값 설정
-        center_button.setText("0")
-        
-        # 모든 버튼에 동일한 크기 및 스타일 설정
-        self._configure_uniform_button_size(button_group)
-        
-        # 시그널 연결 - 왼쪽 버튼 (감소)
-        left_button.clicked.connect(lambda: self.handle_decrease_button(
-            button=center_button,
-            command_prefix=f"{CMD_PREFIX},{AIR_SYSTEM},{FSPD_CMD},",
-            speed_var_name="current_fan_speed"
-        ))
-        
-        # 시그널 연결 - 중앙 버튼 (0으로 리셋)
-        center_button.clicked.connect(lambda: self.handle_reset_button(
-            button=center_button,
-            command_prefix=f"{CMD_PREFIX},{AIR_SYSTEM},{FSPD_CMD},",
-            speed_var_name="current_fan_speed"
-        ))
-        
-        # 시그널 연결 - 오른쪽 버튼 (증가)
-        right_button.clicked.connect(lambda: self.handle_increase_button(
-            button=center_button,
-            command_prefix=f"{CMD_PREFIX},{AIR_SYSTEM},{FSPD_CMD},",
-            speed_var_name="current_fan_speed"
-        ))
-            
-    def create_aircon_con_fan_speed_buttons(self, parent, left_button, center_button, right_button):
-        """콘 팬 스피드 버튼 설정 (<, 값, >)"""
-        # 버튼 그룹 저장
-        button_group = [left_button, center_button, right_button]
-        self.con_fan_speed_buttons = button_group  # Con Fan SPD 버튼들 저장
-        
-        # 초기 값 설정
-        center_button.setText("0")
-        
-        # 모든 버튼에 동일한 크기 및 스타일 설정
-        self._configure_uniform_button_size(button_group)
-        
-        # 시그널 연결 - 왼쪽 버튼 (감소)
-        left_button.clicked.connect(lambda: self.handle_decrease_button(
-            button=center_button,
-            command_prefix=f"{CMD_PREFIX},{AIR_SYSTEM},{CON_SPD_CMD},",
-            speed_var_name="current_con_fan_speed"
-        ))
-        
-        # 시그널 연결 - 중앙 버튼 (0으로 리셋)
-        center_button.clicked.connect(lambda: self.handle_reset_button(
-            button=center_button,
-            command_prefix=f"{CMD_PREFIX},{AIR_SYSTEM},{CON_SPD_CMD},",
-            speed_var_name="current_con_fan_speed"
-        ))
-        
-        # 시그널 연결 - 오른쪽 버튼 (증가)
-        right_button.clicked.connect(lambda: self.handle_increase_button(
-            button=center_button,
-            command_prefix=f"{CMD_PREFIX},{AIR_SYSTEM},{CON_SPD_CMD},",
-            speed_var_name="current_con_fan_speed"
-        ))
+    # REMOVED: create_aircon_fan_speed_buttons 및 create_aircon_con_fan_speed_buttons 메소드
+    # 이전 spdButton_2,3,4 및 spdButton_6,7,8 버튼들이 더 이상 생성되지 않아 사용되지 않는 메소드
     
     # 새로운 헬퍼 메서드 추가
     def _configure_uniform_button_size(self, buttons):

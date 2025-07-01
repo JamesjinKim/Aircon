@@ -1,13 +1,12 @@
 import os
 import sys
-import platform
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import (QMainWindow, QMessageBox, QDesktopWidget, QWidget,
                            QAction, QVBoxLayout, QHBoxLayout, QScrollArea, QLabel, QPushButton,
                            QComboBox, QGroupBox, QTextEdit, QFrame, QStatusBar, QTabWidget, QSlider,
                            QGridLayout, QSizePolicy)
-from PyQt5.QtCore import QTimer, Qt, QDateTime, QRect, QMetaObject, QCoreApplication, QSize
-from PyQt5.QtGui import QIcon, QDesktopServices, QGuiApplication, QFont
+from PyQt5.QtCore import QTimer, Qt, QDateTime, QSize
+from PyQt5.QtGui import QFont
 
 from managers.serial_manager import SerialManager
 from managers.button_manager import ButtonManager
@@ -69,16 +68,6 @@ class ControlWindow(QtWidgets.QMainWindow):
         
         # 스피드 버튼 매니저에 메인 윈도우 참조 설정
         self.speed_button_manager.set_main_window(self)
-        
-        # 기존 스피드 버튼 생성 및 연결 (EVA FAN CONTROLS에서는 사용하지 않음)
-        if hasattr(self, 'spdButton_2') and hasattr(self, 'spdButton_3') and hasattr(self, 'spdButton_4'):
-            self.speed_button_manager.create_aircon_fan_speed_buttons(
-                self, self.spdButton_2, self.spdButton_3, self.spdButton_4
-            )
-        if hasattr(self, 'spdButton_6') and hasattr(self, 'spdButton_7') and hasattr(self, 'spdButton_8'):
-            self.speed_button_manager.create_aircon_con_fan_speed_buttons(
-                self, self.spdButton_6, self.spdButton_7, self.spdButton_8
-            )
         
         
         # AUTO 탭 컨트롤 연결
@@ -190,14 +179,7 @@ class ControlWindow(QtWidgets.QMainWindow):
     
     def ensure_uniform_button_sizes(self):
         """모든 버튼 크기를 동일하게 설정"""
-        # 기존 스피드 버튼 크기 맞추기 (EVA FAN CONTROLS에서는 존재하지 않음)
-        speed_fan_buttons = []
-        speed_con_fan_buttons = []
-        
-        if hasattr(self, 'spdButton_2') and hasattr(self, 'spdButton_3') and hasattr(self, 'spdButton_4'):
-            speed_fan_buttons = [self.spdButton_2, self.spdButton_3, self.spdButton_4]
-        if hasattr(self, 'spdButton_6') and hasattr(self, 'spdButton_7') and hasattr(self, 'spdButton_8'):
-            speed_con_fan_buttons = [self.spdButton_6, self.spdButton_7, self.spdButton_8]
+        # 기존 스피드 버튼 배열 제거됨 (이전 오래된 리퍼런스)
         
         # 새로운 DSCT FAN 스피드 버튼들 (순환 버튼)
         new_dsct_speed_buttons = []
@@ -978,8 +960,7 @@ class ControlWindow(QtWidgets.QMainWindow):
             
             # Con Fan SPD 버튼들 리셋  
             self.speed_button_manager.current_con_fan_speed = 0
-            if hasattr(self, 'spdButton_7'):
-                self.spdButton_7.setText("0")
+            # 이전 spdButton_7 리퍼런스 제거됨 (사용되지 않는 버튼)
                 
             # DSCT FAN SPD 버튼들 리셋
             self.speed_button_manager.current_dsct_fan1_speed = 0

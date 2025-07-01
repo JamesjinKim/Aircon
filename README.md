@@ -45,7 +45,7 @@ AIRCON은 PyQt5를 기반으로 한 에어컨 및 제습기 원격 제어 시스
 
 ## 시스템 요구사항
 
-- Python 3.6 이상
+- Python 3.12
 - PyQt5 5.15.0 이상
 - pyserial 3.5 이상
 
