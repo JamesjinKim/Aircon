@@ -64,6 +64,11 @@ TEMP_CMD = "TEMP"
 BUTTON_ON_STYLE = "background-color: rgb(43, 179, 43); color: rgb(255,255,255);"
 BUTTON_OFF_STYLE = "background-color: rgb(186,186,186); color: rgb(0,0,0);"
 
+# 추가 버튼 스타일 상수
+BUTTON_DEFAULT_STYLE = "font-size: 14px; background-color: rgb(186,186,186); color: rgb(0,0,0);"
+BUTTON_SPEED_STYLE = "background-color: rgb(186,186,186); font-size: 14px;"
+BUTTON_PUMP_STYLE = "background-color: rgb(186,186,186); color: rgb(0,0,0);"
+
 # 기본 설정값
 DEFAULT_BAUDRATE = 115200
 

@@ -1,4 +1,4 @@
-from ui.constants import CMD_PREFIX, TERMINATOR
+from ui.constants import CMD_PREFIX, TERMINATOR, BUTTON_ON_STYLE, BUTTON_OFF_STYLE
 
 class ButtonManager:
     def __init__(self, serial_manager, SendData_textEdit, ReceiveData_textEdit):
@@ -69,7 +69,7 @@ class ButtonManager:
                 # group['active']를 Boolean으로 사용 (False: OFF, True: ON)
                 if group.get('active', False) is not True:
                     # OFF 상태 -> ON 상태로 전환
-                    button.setStyleSheet("background-color: rgb(43, 179, 43); color: rgb(255,255,255);")  
+                    button.setStyleSheet(BUTTON_ON_STYLE)  
                     button.setText(on_text)
                     self.send_command(commands.get('on'))
                     group['active'] = True
@@ -78,7 +78,7 @@ class ButtonManager:
                     self._handle_fan_on_callback(group_name)
                 else:
                     # ON 상태 -> OFF 상태로 전환
-                    button.setStyleSheet("background-color: rgb(186,186,186); color: rgb(0,0,0);")
+                    button.setStyleSheet(BUTTON_OFF_STYLE)
                     button.setText(off_text)
                     self.send_command(commands.get('off'))
                     group['active'] = False
@@ -89,7 +89,7 @@ class ButtonManager:
                 # 다중 버튼 그룹인 경우
                 if group['active'] == button:
                     # 같은 버튼을 다시 눌렀을 때 -> OFF 상태로 전환
-                    button.setStyleSheet("background-color: rgb(186,186,186); color: rgb(0,0,0);");
+                    button.setStyleSheet(BUTTON_OFF_STYLE)
                     self.send_command(commands.get('off'))
                     group['active'] = None
                     
@@ -98,8 +98,8 @@ class ButtonManager:
                 else:
                     # 다른 버튼을 다시 눌렀을 때 -> 이전 버튼은 OFF, 현재 버튼은 ON
                     for other_btn in group['buttons'].keys():
-                        other_btn.setStyleSheet("background-color: rgb(186,186,186); color: rgb(0,0,0);")
-                    button.setStyleSheet("background-color: rgb(43, 179, 43); color: rgb(255,255,255);");
+                        other_btn.setStyleSheet(BUTTON_OFF_STYLE)
+                    button.setStyleSheet(BUTTON_ON_STYLE)
                     self.send_command(commands.get('on'))
                     group['active'] = button
                     

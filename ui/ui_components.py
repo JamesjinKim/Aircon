@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import (QGroupBox, QLabel, QPushButton, QComboBox, QTextEdi
                            QSlider, QGridLayout, QToolButton, QButtonGroup)
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QIcon, QPalette, QColor
+from ui.constants import BUTTON_ON_STYLE, BUTTON_OFF_STYLE
 
 def create_group_box(title, background_color="#f0f0f0", margins=(10, 25, 10, 10)):
     """그룹박스 생성 헬퍼 함수"""
@@ -20,7 +21,7 @@ def create_group_box(title, background_color="#f0f0f0", margins=(10, 25, 10, 10)
     layout.setContentsMargins(*margins)
     return group, layout
 
-def create_button_row(label_text, button, layout, button_width=140):
+def create_button_row(label_text, button, layout, button_width=140, spacing=20):
     """버튼 행 생성 헬퍼 함수"""
     row_layout = QHBoxLayout()
     row_layout.setContentsMargins(5, 8, 5, 8)  # 상하 마진 증가
@@ -35,7 +36,7 @@ def create_button_row(label_text, button, layout, button_width=140):
     button.setStyleSheet("font-size: 14px; font-weight: bold;")  # 버튼 폰트 크기 증가
     
     row_layout.addWidget(label)
-    row_layout.addSpacing(20)  # 고정된 적당한 간격
+    row_layout.addSpacing(spacing)  # 조정 가능한 간격
     row_layout.addWidget(button)
     row_layout.addStretch()  # 오른쪽 여백
     layout.addLayout(row_layout)
@@ -155,7 +156,7 @@ def create_speed_buttons(layout, label_text):
     
     # 초기 크기 설정 (SpeedButtonManager에서 재설정됨)
     for button in [button1, button2, button3]:
-        button.setStyleSheet("background-color: rgb(186,186,186);")
+        button.setStyleSheet(BUTTON_OFF_STYLE)
         button.setFixedSize(40, 30)  # 고정 크기로 설정
     
     buttons_layout.addWidget(button1)
@@ -188,7 +189,7 @@ def create_speed_buttons_with_text(layout, label_text, left_text, center_text, r
     
     # 초기 크기 설정 - 크기 증가
     for button in [button1, button2, button3]:
-        button.setStyleSheet("background-color: rgb(186,186,186); font-size: 14px; font-weight: bold;")
+        button.setStyleSheet("background-color: rgb(186,186,186); font-size: 14px;")
         button.setFixedSize(50, 45)  # 크기 증가
     
     buttons_layout.addWidget(button1)
