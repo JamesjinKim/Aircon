@@ -156,17 +156,17 @@ class ButtonManager:
             # AIRCON Con Fan이 ON될 때 SPD를 1로 설정
             self.speed_button_manager.set_con_fan_speed_to_one()
         elif group_name == 'dsct_fan1':
-            # DSCT FAN1이 ON될 때 SPD를 1로 설정
-            self.speed_button_manager.set_dsct_fan_speed_to_one(1)
+            # DSCT FAN1이 ON될 때 새로운 SPD를 1로 설정
+            self.speed_button_manager.set_new_dsct_fan_speed_to_one(1)
         elif group_name == 'dsct_fan2':
-            # DSCT FAN2이 ON될 때 SPD를 1로 설정
-            self.speed_button_manager.set_dsct_fan_speed_to_one(2)
+            # DSCT FAN2이 ON될 때 새로운 SPD를 1로 설정
+            self.speed_button_manager.set_new_dsct_fan_speed_to_one(2)
         elif group_name == 'dsct_fan3':
-            # DSCT FAN3이 ON될 때 SPD를 1로 설정
-            self.speed_button_manager.set_dsct_fan_speed_to_one(3)
+            # DSCT FAN3이 ON될 때 새로운 SPD를 1로 설정
+            self.speed_button_manager.set_new_dsct_fan_speed_to_one(3)
         elif group_name == 'dsct_fan4':
-            # DSCT FAN4이 ON될 때 SPD를 1로 설정
-            self.speed_button_manager.set_dsct_fan_speed_to_one(4)
+            # DSCT FAN4이 ON될 때 새로운 SPD를 1로 설정
+            self.speed_button_manager.set_new_dsct_fan_speed_to_one(4)
 
     def _handle_fan_off_callback(self, group_name):
         """FAN이나 Con Fan이 OFF될 때 해당 SPD 버튼들 초기화 콜백"""
@@ -180,17 +180,17 @@ class ButtonManager:
             # Con Fan이 OFF될 때 Con Fan SPD 버튼들 초기화
             self.speed_button_manager.reset_con_fan_speed_buttons()
         elif group_name == 'dsct_fan1':
-            # DSCT FAN1이 OFF될 때 초기화
-            self.speed_button_manager.reset_dsct_fan_speed_buttons(1)
+            # DSCT FAN1이 OFF될 때 새로운 SPD 초기화
+            self.speed_button_manager.reset_new_dsct_fan_speed_button(1)
         elif group_name == 'dsct_fan2':
-            # DSCT FAN2이 OFF될 때 초기화
-            self.speed_button_manager.reset_dsct_fan_speed_buttons(2)
+            # DSCT FAN2이 OFF될 때 새로운 SPD 초기화
+            self.speed_button_manager.reset_new_dsct_fan_speed_button(2)
         elif group_name == 'dsct_fan3':
-            # DSCT FAN3이 OFF될 때 초기화
-            self.speed_button_manager.reset_dsct_fan_speed_buttons(3)
+            # DSCT FAN3이 OFF될 때 새로운 SPD 초기화
+            self.speed_button_manager.reset_new_dsct_fan_speed_button(3)
         elif group_name == 'dsct_fan4':
-            # DSCT FAN4이 OFF될 때 초기화
-            self.speed_button_manager.reset_dsct_fan_speed_buttons(4)
+            # DSCT FAN4이 OFF될 때 새로운 SPD 초기화
+            self.speed_button_manager.reset_new_dsct_fan_speed_button(4)
         elif group_name == 'pump1':
             # PUMP1이 OFF될 때 초기화
             self.speed_button_manager.reset_pumper_speed_buttons(1)

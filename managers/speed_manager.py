@@ -1,8 +1,8 @@
-from ui.constants import (CMD_PREFIX, TERMINATOR, AIR_SYSTEM, DSCT_SYSTEM, FSPD_CMD, CON_SPD_CMD, OFF_STATE, 
+from ui.constants import (CMD_PREFIX, TERMINATOR, AIR_SYSTEM, DSCT_SYSTEM, FSPD_CMD, CON_SPD_CMD, OFF_STATE, ON_STATE,
                          FAN1_CMD, FAN2_CMD, FAN3_CMD, FAN4_CMD, SPD_CMD,
                          DMP1_OPEN_CMD, DMP1_CLOSE_CMD, DMP2_OPEN_CMD, DMP2_CLOSE_CMD,
                          DMP3_OPEN_CMD, DMP3_CLOSE_CMD, DMP4_OPEN_CMD, DMP4_CLOSE_CMD,
-                         PUMP1_CMD, PUMP2_CMD)
+                         PUMP1_CMD, PUMP2_CMD, BUTTON_ON_STYLE, BUTTON_OFF_STYLE)
 
 class SpeedButtonManager:
     def __init__(self, serial_manager, SendData_textEdit):
@@ -754,3 +754,157 @@ class SpeedButtonManager:
                 self.SendData_textEdit.verticalScrollBar().setValue(
                     self.SendData_textEdit.verticalScrollBar().maximum()
                 )
+
+    # 새로운 순환 클릭 메서드들
+    def create_cyclic_dsct_fan_button(self, fan_num, speed_button):
+        """DESICCANT FAN 순환 스피드 버튼 설정 (FAN ON시 0~8 순환, FAN OFF시 변경 차단)"""
+        speed_var_name = f"current_dsct_fan{fan_num}_speed"
+        
+        def cyclic_click():
+            # 시리얼 연결 상태 확인
+            if not self.serial_manager or not self.serial_manager.is_connected():
+                print(f"시리얼 포트가 연결되지 않음 - FAN{fan_num} 동작 차단")
+                if self.SendData_textEdit:
+                    self.SendData_textEdit.append(f"시리얼 포트가 연결되지 않음 - FAN{fan_num} 동작 차단")
+                    self.SendData_textEdit.verticalScrollBar().setValue(
+                        self.SendData_textEdit.verticalScrollBar().maximum()
+                    )
+                return
+            
+            # FAN 상태 확인
+            fan_button_name = f"pushButton_dsct_fan{fan_num}"
+            fan_button = getattr(self.main_window, fan_button_name, None)
+            
+            if not fan_button:
+                return
+                
+            current_speed = getattr(self, speed_var_name)
+            current_fan_state = fan_button.text()
+            
+            if current_fan_state == "OFF":
+                # FAN이 OFF 상태일 때: FAN 토글 버튼 클릭을 시뮬레이션하여 button_manager 통해 처리
+                fan_button.click()  # button_manager의 토글 로직 실행
+                
+                # 토글 후 숫자를 1로 설정
+                new_speed = 1
+                setattr(self, speed_var_name, new_speed)
+                speed_button.setText(str(new_speed))
+                
+                print(f"FAN{fan_num} OFF->ON 변경, 스피드 {new_speed}로 설정")
+            else:
+                # FAN이 ON일 때: 0~8 순환
+                new_speed = (current_speed + 1) % 9
+                setattr(self, speed_var_name, new_speed)
+                speed_button.setText(str(new_speed))
+                
+                if new_speed == 0:
+                    # 숫자가 0이 되면 FAN을 OFF로 변경
+                    fan_button.click()  # button_manager의 토글 로직으로 OFF 처리
+                    print(f"FAN{fan_num} 스피드 0 - 자동으로 OFF로 변경")
+                else:
+                    # SPD 명령 전송 (0이 아닐 때만)
+                    fan_commands = {1: FAN1_CMD, 2: FAN2_CMD, 3: FAN3_CMD, 4: FAN4_CMD}
+                    fan_cmd = fan_commands.get(fan_num)
+                    if fan_cmd:
+                        command_prefix = f"{CMD_PREFIX},{DSCT_SYSTEM},{fan_cmd},{SPD_CMD},"
+                        command = f"{command_prefix}{new_speed}{TERMINATOR}"
+                        self.send_command(command)
+        
+        speed_button.clicked.connect(cyclic_click)
+
+    def create_cyclic_damper_button(self, dmp_num, position_button, toggle_button):
+        """DAMPER 순환 위치 버튼 설정 (0~4 순환)"""
+        pos_var_name = f"current_dmp{dmp_num}_pos"
+        
+        def cyclic_click():
+            if not self.serial_manager or not self.serial_manager.is_connected():
+                self._log_damper_blocked_message(dmp_num)
+                return
+                
+            current_pos = getattr(self, pos_var_name)
+            # 0~4 순환: 4 다음에는 0
+            new_pos = (current_pos + 1) % 5
+            setattr(self, pos_var_name, new_pos)
+            position_button.setText(str(new_pos))
+            
+            # 토글 버튼 상태 및 색상 업데이트
+            if new_pos == 0:
+                toggle_button.setText("CLOSE")
+                toggle_button.setStyleSheet(BUTTON_OFF_STYLE)
+            else:
+                toggle_button.setText("OPEN")
+                toggle_button.setStyleSheet(BUTTON_ON_STYLE)
+            
+            # 명령 전송
+            self._send_damper_command(dmp_num, new_pos)
+        
+        position_button.clicked.connect(cyclic_click)
+
+    def create_damper_toggle_button(self, dmp_num, toggle_button, position_button):
+        """DAMPER 토글 버튼 설정 (CLOSE/OPEN 토글)"""
+        pos_var_name = f"current_dmp{dmp_num}_pos"
+        
+        def toggle_click():
+            if not self.serial_manager or not self.serial_manager.is_connected():
+                self._log_damper_blocked_message(dmp_num)
+                return
+            
+            current_pos = getattr(self, pos_var_name)
+            current_text = toggle_button.text()
+            
+            if current_text == "CLOSE":
+                # CLOSE -> OPEN으로 변경, position을 1로 설정
+                toggle_button.setText("OPEN")
+                toggle_button.setStyleSheet(BUTTON_ON_STYLE)  # Green 색상
+                if current_pos == 0:
+                    new_pos = 1
+                    setattr(self, pos_var_name, new_pos)
+                    position_button.setText(str(new_pos))
+                    self._send_damper_command(dmp_num, new_pos)
+            else:
+                # OPEN -> CLOSE로 변경, position을 0으로 설정
+                toggle_button.setText("CLOSE")
+                toggle_button.setStyleSheet(BUTTON_OFF_STYLE)  # 기본 색상
+                setattr(self, pos_var_name, 0)
+                position_button.setText("0")
+                self._send_damper_command(dmp_num, 0)
+        
+        toggle_button.clicked.connect(toggle_click)
+
+    def reset_new_dsct_fan_speed_button(self, fan_num):
+        """새로운 DSCT FAN 스피드 버튼 초기화 (OFF일 때 0으로)"""
+        speed_var_name = f"current_dsct_fan{fan_num}_speed"
+        button_name = f"speedButton_dsct_fan{fan_num}"
+        
+        # 속도 값 초기화
+        setattr(self, speed_var_name, 0)
+        
+        # 스피드 버튼 텍스트 초기화
+        if self.main_window and hasattr(self.main_window, button_name):
+            button = getattr(self.main_window, button_name)
+            button.setText("0")
+            
+        print(f"DSCT FAN{fan_num} 새로운 스피드 버튼 초기화됨")
+    
+    def set_new_dsct_fan_speed_to_one(self, fan_num):
+        """새로운 DSCT FAN이 ON될 때 스피드 버튼을 1로 설정"""
+        speed_var_name = f"current_dsct_fan{fan_num}_speed"
+        button_name = f"speedButton_dsct_fan{fan_num}"
+        
+        # 속도 값을 1로 설정
+        setattr(self, speed_var_name, 1)
+        
+        # 스피드 버튼 텍스트를 1로 변경
+        if self.main_window and hasattr(self.main_window, button_name):
+            button = getattr(self.main_window, button_name)
+            button.setText("1")
+        
+        # 스피드 1 명령 전송
+        fan_commands = {1: FAN1_CMD, 2: FAN2_CMD, 3: FAN3_CMD, 4: FAN4_CMD}
+        fan_cmd = fan_commands.get(fan_num)
+        if fan_cmd:
+            command_prefix = f"{CMD_PREFIX},{DSCT_SYSTEM},{fan_cmd},{SPD_CMD},"
+            command = f"{command_prefix}1{TERMINATOR}"
+            self.send_command(command)
+            
+        print(f"DSCT FAN{fan_num} 새로운 스피드 버튼을 1로 설정됨")

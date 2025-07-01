@@ -108,8 +108,9 @@ def setup_button_groups(window):
         }
     })
 
-    #-----------DAMPER는 라벨만 있고 토글 버튼 없음-----------#
-    # DAMPER 위치값 버튼만 동작하며, 항상 CLOSE 명령 전송
+    #-----------NEW DAMPER 토글 버튼들-----------#
+    # 새로운 DAMPER 토글 버튼들 (CLOSE/OPEN 토글) - 순환 클릭은 speed_manager에서 처리
+    # 이 버튼들은 button_manager가 아닌 speed_manager에서 직접 관리됨
 
     #-----------NEW PUMPER & SOL BUTTONS-----------#
     # PUMP1 토글 버튼
