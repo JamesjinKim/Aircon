@@ -222,8 +222,8 @@ class SpeedButtonManager:
         # 현재 값 가져오기
         current_speed = getattr(self, speed_var_name)
         
-        # 1씩 증가 (최대값 10)
-        if current_speed < 10:
+        # 1씩 증가 (최대값 8)
+        if current_speed < 8:
             current_speed += 1
             setattr(self, speed_var_name, current_speed)
             
@@ -345,7 +345,7 @@ class SpeedButtonManager:
             return
             
         current_speed = getattr(self, speed_var_name)
-        if current_speed < 10:
+        if current_speed < 8:
             current_speed += 1
             setattr(self, speed_var_name, current_speed)
             button.setText(str(current_speed))
@@ -652,7 +652,7 @@ class SpeedButtonManager:
             return
             
         current_speed = getattr(self, speed_var_name)
-        if current_speed < 10:
+        if current_speed < 8:
             current_speed += 1
             setattr(self, speed_var_name, current_speed)
             button.setText(str(current_speed))
