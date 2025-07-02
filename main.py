@@ -14,6 +14,6 @@ if __name__ == '__main__':
 
     app = QtWidgets.QApplication(sys.argv)
     myWindow = ControlWindow()
-    myWindow.setWindowTitle('Remote control')
+    myWindow.setWindowTitle('Aircon Remote control')
     myWindow.show()
     sys.exit(app.exec_())

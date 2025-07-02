@@ -5,35 +5,47 @@ AIRCON은 PyQt5를 기반으로 한 에어컨 및 제습기 원격 제어 시스
 ## 주요 기능
 
 ### 🎛️ 제어 모드
-- **AIRCON 탭**: 에어컨 시스템 수동 제어
-- **DESICCANT 탭**: 제습기 시스템 제어
-- **DAMPER 탭**: 댐퍼 위치 제어
+- **AIRCON 탭**: 에어컨 시스템 수동 제어 (EVA FAN, COMPRESSOR 등)
 - **PUMPER & SOL 탭**: 펌프 및 솔레노이드 밸브 제어
+- **DESICCANT 탭**: 제습기 시스템 및 댐퍼 제어 (통합)
+- **SEMI AUTO 탭**: 반자동 제어 모드 (DESICCANT SEMI AUTO, DAMP TEST)
 - **AUTO 탭**: 온도 및 풍량 자동 제어
 
-### 🌡️ 에어컨 제어
-- 팬 온/오프 및 속도 조절 (0-10단계)
-- 콘덴서 팬 온/오프 및 속도 조절
-- 댐퍼 제어 (Left/Right Top/Bottom)
-- 인버터 및 클러치 제어
-- 온도 설정 (16-30°C)
+### 🌡️ 에어컨 제어 (AIRCON 탭)
+- **EVA FAN**: 순환 버튼으로 OFF→1→2→3→4→5→OFF 제어
+- **COMPRESSOR**: 압축기 ON/OFF 토글 제어
+- **COMP CLUCH**: 압축기 클러치 ON/OFF 토글 제어
+- **CONDENSOR FAN**: 순환 버튼으로 OFF→1→2→3→4→5→OFF 제어
+- **댐퍼 제어**: OA.DAMP(L/R), RA.DAMP(L/R) CLOSE/OPEN 토글
 
-### 💨 제습기(DESICCANT) 제어
-- FAN1~FAN4 개별 온/오프 및 속도 조절 (0-10단계)
-- 각 팬별 독립적인 속도 제어
-- 팬 OFF 시 자동 속도 리셋
+### 💨 제습기 및 댐퍼 제어 (DESICCANT 탭)
+**왼쪽 - DESICCANT CONTROLS:**
+- **FAN1~FAN4**: 개별 ON/OFF 토글 + 순환 숫자 버튼 (0→1→...→8→0)
+- FAN OFF 시 속도 자동 리셋, ON 시 속도 1부터 시작
 
-### 🌬️ 댐퍼(DAMPER) 제어
-- DMP1~DMP4 위치값 제어 (0-10 범위)
-- CLOSE 명령 기반 위치 설정
-- 시리얼 연결 상태 검증
+**오른쪽 - DAMP CONTROLS:**
+- **배기(L), 배기(R), 급기(L), 급기(R)**: CLOSE/OPEN 토글 + 위치 조절 (0→1→...→4→0)
+- 위치 0=CLOSE, 위치 1~4=OPEN 상태
 
-### 🔧 펌프 및 솔레노이드(PUMPER & SOL) 제어
-- PUMP1/PUMP2 온/오프 및 속도 조절 (0-10단계)
-- SOL1~SOL4 솔레노이드 밸브 온/오프
-- 펌프 OFF 시 자동 속도 리셋
+### 🔧 펌프 및 솔레노이드 제어 (PUMPER & SOL 탭)
+**왼쪽 - PUMPER CONTROLS:**
+- **PUMP1/PUMP2**: ON/OFF 토글 + 순환 숫자 버튼 (0→1→...→8→0)
+- 펌프 OFF 시 속도 자동 리셋, ON 시 속도 1부터 시작
 
-### 🔄 환기 시스템
+**오른쪽 - SOL CONTROLS:**
+- **SOL1, SOL4, SOL2, SOL3**: 솔레노이드 밸브 ON/OFF 토글 (순서 재배치)
+
+### 🔄 반자동 제어 (SEMI AUTO 탭)
+**왼쪽 - DESICCANT SEMI AUTO:**
+- **DESICCANT RUN**: RUN/STOP 토글 버튼
+- **주기(Sec)**: [-] [200] [+] 버튼으로 1~999초 조절 (연속 클릭 지원)
+- Serial CMD: `$CMD,DSCT,SEMIAUTO,RUN,(1~999)` / `$CMD,DSCT,SEMIAUTO,STOP`
+
+**오른쪽 - DAMP TEST:**
+- **DAMP**: RUN/STOP 토글 버튼  
+- Serial CMD: `$CMD,DSCT,DAMPTEST,RUN` / `$CMD,DSCT,DAMPTEST,STOP`
+
+### 🔄 환기 시스템 (AUTO 탭)
 - 외기유입 모드
 - 내기순환 모드
 
@@ -164,6 +176,10 @@ $CMD,<DEVICE>,<VALUE>\r
 - 펌프 속도: `$CMD,DSCT,PUMP1,SPD,7` (1-10 범위)
 - 솔레노이드: `$CMD,DSCT,SOL1,ON` / `$CMD,DSCT,SOL1,OFF`
 
+#### SEMI AUTO 시스템
+- DESICCANT SEMI AUTO: `$CMD,DSCT,SEMIAUTO,RUN,300` / `$CMD,DSCT,SEMIAUTO,STOP`
+- DAMP TEST: `$CMD,DSCT,DAMPTEST,RUN` / `$CMD,DSCT,DAMPTEST,STOP`
+
 #### AUTO 모드
 - AUTO 모드: `$CMD,AUTO,ON` / `$CMD,AUTO,OFF`
 - 온도 제어: `$CMD,TEMP,22`
@@ -184,10 +200,11 @@ $CMD,<DEVICE>,<VALUE>\r
 - 명령 전송 실패 시 에러 로깅
 
 ### 🎨 사용자 친화적 UI
-- 탭 기반 인터페이스 (AIRCON | DESICCANT | DAMPER | PUMPER & SOL | AUTO)
-- 직관적인 2컬럼 레이아웃 설계
+- 탭 기반 인터페이스 (AIRCON | PUMPER & SOL | DESICCANT | SEMI AUTO | AUTO)
+- 직관적인 2컬럼 레이아웃 설계 (모든 탭 통일)
 - 실시간 상태 표시 및 버튼 색상 피드백
-- 균일한 버튼 크기와 간격으로 터치 친화적
+- 통일된 버튼 스타일 (COMPRESSOR 버튼 기준)
+- 터치 친화적인 순환 버튼 방식
 - 시각적 그룹화로 기능별 구분
 
 ### ⚡ 고성능
@@ -218,7 +235,25 @@ $CMD,<DEVICE>,<VALUE>\r
 
 ## 업데이트 내역
 
-### v2.1 (2025년 1월 최신)
+### v3.0 (2025년 7월 최신) 🎉
+- **NEW**: SEMI AUTO 탭 추가
+  - DESICCANT SEMI AUTO 기능 (RUN/STOP + 주기 조절 1~999초)
+  - DAMP TEST 기능 (RUN/STOP)
+  - 연속 클릭 지원하는 주기 조절 버튼 ([-] [값] [+])
+- **MAJOR**: 탭 구조 개편
+  - 탭 순서 변경: AIRCON → PUMPER & SOL → DESICCANT → SEMI AUTO → AUTO
+  - DESICCANT 탭에 DAMPER 제어 통합 (기존 DAMPER 탭 제거)
+- **IMPROVED**: 버튼 스타일 통일
+  - 모든 TAB 버튼을 COMPRESSOR 버튼 스타일로 통일 (font-size: 14px, font-weight: bold)
+  - SEMI AUTO, AUTO TAB은 예외로 기존 스타일 유지
+- **ENHANCED**: 터치 친화적 UI 디자인
+  - 모든 제어 버튼이 순환 방식으로 동작 (토글 + 숫자 순환)
+  - 직관적인 2컬럼 레이아웃으로 모든 탭 통일
+- **FIXED**: 시리얼 통신 안정성 개선
+  - 연결 끊김 감지 로직 강화 (5회 연속 에러 시 자동 해제)
+  - 무한 에러 메시지 루프 방지
+
+### v2.1 (2025년 1월)
 - **MAJOR**: FAN 속도 버튼 로직 대폭 개선
   - 모든 FAN (AIRCON FAN, Con Fan, DESICCANT FAN1~4) 동일한 동작 로직 적용
   - FAN OFF 시: SPD 버튼 0으로 초기화

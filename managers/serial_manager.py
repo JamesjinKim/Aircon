@@ -1,6 +1,7 @@
 import os
 import serial
 import serial.tools.list_ports
+import time
 from typing import Optional, List, Dict
 
 class SerialManager:
@@ -8,6 +9,11 @@ class SerialManager:
         # 시리얼 연결 객체, 연결 전이나 연결 해제 시 None으로, 연결 성공 시 Serial 객체로 설정 
         self.shinho_serial_connection: Optional[serial.Serial] = None
         self.supported_baudrates = [9600, 14400, 19200, 28800, 38400, 57600, 115200]
+        
+        # 하트비트 관련 변수
+        self.last_heartbeat_time = 0
+        self.heartbeat_timeout = 10.0  # 10초 타임아웃
+        self.connection_healthy = True
 
     def get_available_ports(self) -> List[Dict[str, str]]:
         """연결 가능한 시리얼 포트 목록을 반환하는 함수"""
@@ -47,6 +53,8 @@ class SerialManager:
                 raise Exception("Serial port is not connected")
             
             self.shinho_serial_connection.write(data.encode('ascii'))
+            # 하트비트 업데이트 비활성화 (정상 연결 끊김 문제 해결)
+            # self.update_heartbeat()
             return True
         except Exception as e:
             print(f"Error sending serial data: {e}")
@@ -74,3 +82,31 @@ class SerialManager:
                 print("Serial port closed.")
         except Exception as e:
             print(f"Disconnect error: {e}")
+    
+    def update_heartbeat(self):
+        """하트비트 업데이트 - 정상 통신 시 호출"""
+        self.last_heartbeat_time = time.time()
+        self.connection_healthy = True
+    
+    def check_heartbeat_timeout(self) -> bool:
+        """하트비트 타임아웃 체크 - 연결 상태 확인"""
+        if self.last_heartbeat_time == 0:
+            return True  # 아직 하트비트 시작 안함 (연결 직후)
+        
+        current_time = time.time()
+        time_since_last_heartbeat = current_time - self.last_heartbeat_time
+        
+        # 연결 후 충분한 시간(5초) 경과 후에만 타임아웃 체크
+        if time_since_last_heartbeat > 5.0 and time_since_last_heartbeat > self.heartbeat_timeout:
+            if self.connection_healthy:  # 처음 타임아웃 감지 시에만 로그
+                print(f"하트비트 타임아웃: {time_since_last_heartbeat:.1f}초 무활동")
+            self.connection_healthy = False
+            return False
+        
+        return True
+    
+    def is_connection_healthy(self) -> bool:
+        """연결 상태가 건강한지 확인 (포트 열림 + 하트비트 정상)"""
+        return (self.is_connected() and 
+                self.connection_healthy and 
+                self.check_heartbeat_timeout())

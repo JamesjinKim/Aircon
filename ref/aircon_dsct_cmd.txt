@@ -360,3 +360,88 @@ SOL CONTROLS 부분의 label과 Button 위치 수정입니다.
   │ SOL3  [OFF]                        │
   └────────────────────────────────────┘
   위 부분의 위치만 수정하고 나머지 변경은 없습니다.
+
+serial 통신 접속 여부 점검이 필요합니다.
+초기에 접속후 갑자기 끊기는 경우를 체크하여 "Discon"으로 변경되어야 사용자가 확인 할 수 있습니다. 
+
+✅ 구현된 기능
+
+  1. 강화된 연결 상태 감지
+
+  - 하트비트 메커니즘: 데이터 수신 시마다 하트비트 업데이트
+  - 타임아웃 체크: 10초간 통신 없으면 연결 불량으로 판단
+  - is_connection_healthy(): 포트 상태 + 하트비트 상태 종합 체크
+
+  2. 현재 동작 방식
+
+  연결됨: 상태="Connected", 버튼="Discon" (초록색)
+  연결끊어짐: 상태="Disconnected", 버튼="연결" (회색)
+
+  3. 개선된 끊김 감지
+
+  - 100ms마다 연결 상태 체크
+  - 하트비트 타임아웃 10초 체크
+  - IOError 즉시 감지
+  - 포트 상태 + 통신 품질 종합 판단
+
+  - 1000ms마다 연결 상태 체크 => 10회 연결 Error이면 Serial Close 하고 연결 버튼 및 연결 메시지 label 텍스트의  초기화.
+  - 하트비트 타임아웃 10초 체크
+  - 10초 무응답: 연결 불량 판단 → "Disconnected" + "연결" 버튼 초기화 
+
+
+  4. 디버깅 로그 추가
+
+  print("시리얼 연결 상태 불량 감지")  # 끊김 감지 시
+  print(f"수신된 데이터: {data}")     # 정상 통신 시
+
+  🔍 동작 과정
+
+  1. 연결 시: 하트비트 초기화
+  2. 데이터 수신: 하트비트 업데이트
+  3. 10초 무응답: 연결 불량 판단 → "Disconnected" + "연결" 버튼
+  4. IOError 발생: 즉시 끊김 처리
+
+UI 수정입니다.
+main_window TAB 추가입니다.
+현재 : AIRCON → PUMPER & SOL → DESICCANT → AUTO
+수정 : AIRCON → PUMPER & SOL → DESICCANT → SEMI AUTO → AUTO (SEMI AUTO TAB 추가)
+
+SEMI AUTO TAB 내의 구조
+TAB 내 전체 공간을 좌우 2개의 그룹으로 균등하게 나눕니다.
+좌측에는 
+
+DESICCANT SEMI AUTO
+  ┌──────────────────────────────────┐
+  │ DESICCANT RUN     [RUN/STOP]     │
+  │ 주기(Sec)         [-] [200] [+]   │
+  │                                  │
+  │                                  │
+  │                                  │
+  │                                  │
+  └──────────────────────────────────┘
+Serial CMD => RUN 인 경우, $CMD,DSCT,SEMIAUTO,RUN,(1~999)
+Serial CMD => STOP 인 경우, $CMD,DSCT,SEMIAUTO,STOP
+주기(Sec) 는 버튼이 3개가 좌에서 우로 배치되고 - 버튼의 버튼다운 상태이면 가운데 숫자 버튼(기본은 200)이 1씩 감소하고, 오른쪽의 + 버튼다운 상태이면 가운데 숫자 버튼의 값이 1씩 증가합니다.
+
+우측에는
+DEMP TEST
+  ┌───────────────────────────┐
+  │ DEMP       [RUN/STOP]     │
+  │                           │
+  │                           │
+  │                           │
+  │                           │
+  └───────────────────────────┘
+Serial CMD => RUN 인 경우, $CMD,DSCT,DEMPTEST,RUN
+Serial CMD => STOP 인 경우, $CMD,DSCT,DEMPTEST,STOP
+
+이상의 내용을 추가해 주세요.
+
+수정 요청사항입니다.
+각 TAB들 속의 버튼이 초기화에서 객상과 폰트가 다릅니다.
+모두 통일 하도록 하겠습니다.
+그 기준이 되는 버튼의 색상과 폰트는  AIRCON CONTROLS의
+
+COMPRESURE  Button [ON/OFF] 입니다.
+여기서 예외가 되는 TAB은 SEMI AUTO, AUTO TAB은 그대로 둡니다.
+이해 되었나요?

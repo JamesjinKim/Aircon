@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import (QMainWindow, QMessageBox, QDesktopWidget, QWidget,
                            QAction, QVBoxLayout, QHBoxLayout, QScrollArea, QLabel, QPushButton,
@@ -13,7 +14,7 @@ from managers.button_manager import ButtonManager
 from managers.speed_manager import SpeedButtonManager
 from managers.auto_manager import AutoSpeedManager
 
-from ui.constants import BUTTON_ON_STYLE, BUTTON_OFF_STYLE, BUTTON_DEFAULT_STYLE, BUTTON_SPEED_STYLE, BUTTON_PUMP_STYLE
+from ui.constants import BUTTON_ON_STYLE, BUTTON_OFF_STYLE, BUTTON_DEFAULT_STYLE, BUTTON_SPEED_STYLE, BUTTON_PUMP_STYLE, BUTTON_STANDARD_STYLE
 from ui.helpers import get_file_path, configure_display_settings
 from ui.ui_components import (create_group_box, create_button_row, create_port_selection_section,
                             create_speed_buttons, create_fan_speed_control,
@@ -69,6 +70,16 @@ class ControlWindow(QtWidgets.QMainWindow):
         # 스피드 버튼 매니저에 메인 윈도우 참조 설정
         self.speed_button_manager.set_main_window(self)
         
+        # 연결 상태 관리 변수
+        self.last_connection_check = 0
+        self.connection_check_interval = 1.0  # 1초
+        self.last_error_log_time = 0
+        self.error_log_interval = 1.0  # 1초
+        self.was_connected = False
+        
+        # 연결 에러 카운터
+        self.connection_error_count = 0
+        self.max_connection_errors = 5  # 5회 연속 에러 시 자동 해제
         
         # AUTO 탭 컨트롤 연결
         self.connect_auto_controls()
@@ -85,14 +96,19 @@ class ControlWindow(QtWidgets.QMainWindow):
         # 창을 항상 최상위로 유지
         self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
 
-        # 타이머 및 상태바 초기화
+        # 타이머 및 상태바 초기화 (1000ms = 1초)
         self.read_timer = QTimer(self)
         self.read_timer.timeout.connect(self.read_serial_data)
-        self.read_timer.start(100)
+        self.read_timer.start(1000)
 
         self.status_timer = QTimer(self)
         self.status_timer.timeout.connect(self.update_status_time)
         self.status_timer.start(1000)
+        
+        # 하트비트 체크 타이머 (비활성화 - 정상 연결을 끊는 문제 해결)
+        # self.heartbeat_timer = QTimer(self)
+        # self.heartbeat_timer.timeout.connect(self.check_connection_health)
+        # self.heartbeat_timer.start(5000)
 
         self.statusBar().showMessage(QDateTime.currentDateTime().toString(Qt.DefaultLocaleLongDate))
 
@@ -317,7 +333,12 @@ class ControlWindow(QtWidgets.QMainWindow):
         self.setup_desiccant_tab()
         self.tab_widget.addTab(self.desiccant_tab, "DESICCANT")
         
-        # 네 번째 탭 - AUTO 모드
+        # 네 번째 탭 - SEMI AUTO
+        self.semi_auto_tab = QWidget()
+        self.setup_semi_auto_tab()
+        self.tab_widget.addTab(self.semi_auto_tab, "SEMI AUTO")
+        
+        # 다섯 번째 탭 - AUTO 모드
         self.auto_tab = QWidget()
         self.setup_auto_tab()
         self.tab_widget.addTab(self.auto_tab, "AUTO")
@@ -365,22 +386,22 @@ class ControlWindow(QtWidgets.QMainWindow):
         right_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
         # OA.DAMPER(L) - Outside Air Damper Left - 외기 댐퍼
-        oa_damper_left_button = create_button_row("OA.DAMPER(L)", QPushButton("CLOSE"), right_layout)
+        oa_damper_left_button = create_button_row("OA.DAMP(L)", QPushButton("CLOSE"), right_layout)
         self.aircon_oa_damper_left_button = oa_damper_left_button  # 새로운 네이밍
         self.pushButton_9 = oa_damper_left_button  # 기존 호환성 유지
         
         # OA.DAMPER(R) - Outside Air Damper Right
-        oa_damper_right_button = create_button_row("OA.DAMPER(R)", QPushButton("CLOSE"), right_layout)
+        oa_damper_right_button = create_button_row("OA.DAMP(R)", QPushButton("CLOSE"), right_layout)
         self.aircon_oa_damper_right_button = oa_damper_right_button  # 새로운 네이밍
         self.pushButton_11 = oa_damper_right_button  # 기존 호환성 유지
         
         # RA.DAMPER(L) - Return Air Damper Left - 내기 댐퍼
-        ra_damper_left_button = create_button_row("RA.DAMPER(L)", QPushButton("CLOSE"), right_layout)
+        ra_damper_left_button = create_button_row("RA.DAMP(L)", QPushButton("CLOSE"), right_layout)
         self.aircon_ra_damper_left_button = ra_damper_left_button  # 새로운 네이밍
         self.pushButton_10 = ra_damper_left_button  # 기존 호환성 유지
         
         # RA.DAMPER(R) - Return Air Damper Right
-        ra_damper_right_button = create_button_row("RA.DAMPER(R)", QPushButton("CLOSE"), right_layout)
+        ra_damper_right_button = create_button_row("RA.DAMP(R)", QPushButton("CLOSE"), right_layout)
         self.aircon_ra_damper_right_button = ra_damper_right_button  # 새로운 네이밍
         self.pushButton_12 = ra_damper_right_button  # 기존 호환성 유지
         
@@ -406,10 +427,10 @@ class ControlWindow(QtWidgets.QMainWindow):
         label.setFixedWidth(140)  # 통일된 라벨 너비
         label.setStyleSheet("font-size: 15px; font-weight: bold;")  # create_button_row와 동일한 스타일
         
-        # 순환 버튼 - 터치 친화적 크기
+        # 순환 버튼 - COMPRESSOR 버튼과 동일한 스타일
         cycle_button = QPushButton("OFF")
         cycle_button.setFixedSize(140, 45)  # 통일된 버튼 크기
-        cycle_button.setStyleSheet(BUTTON_DEFAULT_STYLE)
+        cycle_button.setStyleSheet(BUTTON_STANDARD_STYLE)
         cycle_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)  # create_button_row와 동일
         
         # 새로운 직관적 네이밍과 기존 호환성 유지
@@ -436,7 +457,7 @@ class ControlWindow(QtWidgets.QMainWindow):
         parent_layout.addLayout(row_layout)
     
     def setup_desiccant_tab(self):
-        """DESICCANT 탭 설정 - 좌우 2분할 레이아웃 (DESICCANT + DAMPER)"""
+        """DESICCANT 탭 설정 - 좌우 2분할 레이아웃 (DESICCANT + DAMP)"""
         # DESICCANT 탭 메인 레이아웃
         main_grid = QGridLayout(self.desiccant_tab)
         main_grid.setContentsMargins(10, 10, 10, 10)
@@ -456,7 +477,7 @@ class ControlWindow(QtWidgets.QMainWindow):
         left_layout.addStretch(1)
         
         # 오른쪽 그룹: DAMPER CONTROLS
-        right_group, right_layout = create_group_box("DAMPER CONTROLS", margins=(15, 30, 15, 15))
+        right_group, right_layout = create_group_box("DAMP CONTROLS", margins=(15, 30, 15, 15))
         right_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
         # DMP1~4 제어 - 새로운 토글 + 숫자 버튼 디자인
@@ -542,15 +563,15 @@ class ControlWindow(QtWidgets.QMainWindow):
         fan_label.setStyleSheet("font-size: 15px; font-weight: bold;")
         fan_label.setAlignment(Qt.AlignCenter)
         
-        # ON/OFF 토글 버튼 - 터치 친화적 크기
+        # ON/OFF 토글 버튼 - COMPRESSOR 버튼과 동일한 스타일
         toggle_button = QPushButton("OFF")
         toggle_button.setFixedSize(120, 50)  # 터치하기 편한 크기
-        toggle_button.setStyleSheet(BUTTON_DEFAULT_STYLE)
+        toggle_button.setStyleSheet(BUTTON_STANDARD_STYLE)
         
-        # 순환 숫자 버튼 - 터치 친화적 크기
+        # 순환 숫자 버튼 - COMPRESSOR 버튼과 동일한 스타일
         speed_button = QPushButton("0")
         speed_button.setFixedSize(80, 50)  # 터치하기 편한 크기
-        speed_button.setStyleSheet(BUTTON_DEFAULT_STYLE)
+        speed_button.setStyleSheet(BUTTON_STANDARD_STYLE)
         
         # 새로운 직관적 네이밍과 기존 호환성 유지
         setattr(self, f"desiccant_fan{fan_num}_new_toggle_button", toggle_button)  # 새로운 네이밍
@@ -582,15 +603,15 @@ class ControlWindow(QtWidgets.QMainWindow):
         dmp_label.setStyleSheet("font-size: 15px; font-weight: bold;")
         dmp_label.setAlignment(Qt.AlignCenter)
         
-        # CLOSE/OPEN 토글 버튼 - 터치 친화적 크기
+        # CLOSE/OPEN 토글 버튼 - COMPRESSOR 버튼과 동일한 스타일
         toggle_button = QPushButton("CLOSE")
         toggle_button.setFixedSize(120, 50)  # 터치하기 편한 크기
-        toggle_button.setStyleSheet(BUTTON_DEFAULT_STYLE)
+        toggle_button.setStyleSheet(BUTTON_STANDARD_STYLE)
         
-        # 순환 숫자 버튼 - 터치 친화적 크기
+        # 순환 숫자 버튼 - COMPRESSOR 버튼과 동일한 스타일
         position_button = QPushButton("0")
         position_button.setFixedSize(80, 50)  # 터치하기 편한 크기
-        position_button.setStyleSheet(BUTTON_DEFAULT_STYLE)
+        position_button.setStyleSheet(BUTTON_STANDARD_STYLE)
         
         # 새로운 직관적 네이밍과 기존 호환성 유지
         setattr(self, f"desiccant_damper{dmp_num}_toggle_button", toggle_button)  # 새로운 네이밍
@@ -607,6 +628,113 @@ class ControlWindow(QtWidgets.QMainWindow):
         
         # 부모 레이아웃에 행 추가
         parent_layout.addLayout(row_layout)
+    
+    def setup_semi_auto_tab(self):
+        """SEMI AUTO 탭 설정 - 좌우 2컬럼 레이아웃"""
+        # SEMI AUTO 탭 메인 레이아웃 - 그리드로 설정
+        main_grid = QGridLayout(self.semi_auto_tab)
+        main_grid.setContentsMargins(5, 5, 5, 5)
+        main_grid.setSpacing(15)  # 그룹 간 간격
+        
+        # 좌측 그룹: DESICCANT SEMI AUTO
+        left_group, left_layout = self.create_group_box("DESICCANT SEMI AUTO", margins=(15, 30, 15, 15))
+        left_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        
+        # DESICCANT RUN [RUN/STOP] 버튼
+        run_row_layout = QHBoxLayout()
+        run_row_layout.setContentsMargins(5, 10, 5, 10)
+        run_label = QLabel("DESICCANT RUN")
+        run_label.setFixedWidth(120)
+        run_label.setStyleSheet("font-size: 15px; font-weight: bold;")
+        run_button = QPushButton("RUN")
+        run_button.setFixedSize(120, 50)
+        run_button.setStyleSheet("font-size: 14px; font-weight: bold;")
+        run_row_layout.addWidget(run_label)
+        run_row_layout.addSpacing(10)
+        run_row_layout.addWidget(run_button)
+        run_row_layout.addStretch()
+        left_layout.addLayout(run_row_layout)
+        
+        # 주기(Sec) [-] [200] [+] 버튼들
+        period_row_layout = QHBoxLayout()
+        period_row_layout.setContentsMargins(5, 10, 5, 10)
+        period_label = QLabel("주기(Sec)")
+        period_label.setFixedWidth(120)
+        period_label.setStyleSheet("font-size: 15px; font-weight: bold;")
+        
+        minus_button = QPushButton("-")
+        minus_button.setFixedSize(50, 50)
+        minus_button.setStyleSheet("font-size: 20px; font-weight: bold;")
+        
+        value_button = QPushButton("200")
+        value_button.setFixedSize(80, 50)
+        value_button.setStyleSheet("font-size: 14px; font-weight: bold;")
+        
+        plus_button = QPushButton("+")
+        plus_button.setFixedSize(50, 50)
+        plus_button.setStyleSheet("font-size: 20px; font-weight: bold;")
+        
+        period_row_layout.addWidget(period_label)
+        period_row_layout.addSpacing(10)
+        period_row_layout.addWidget(minus_button)
+        period_row_layout.addSpacing(5)
+        period_row_layout.addWidget(value_button)
+        period_row_layout.addSpacing(5)
+        period_row_layout.addWidget(plus_button)
+        period_row_layout.addStretch()
+        left_layout.addLayout(period_row_layout)
+        
+        # 좌측 그룹 여백
+        left_layout.addStretch(1)
+        
+        # 우측 그룹: DAMP TEST
+        right_group, right_layout = self.create_group_box("DAMP TEST", margins=(15, 30, 15, 15))
+        right_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        
+        # DAMP [RUN/STOP] 버튼
+        damp_row_layout = QHBoxLayout()
+        damp_row_layout.setContentsMargins(5, 10, 5, 10)
+        damp_label = QLabel("DAMP")
+        damp_label.setFixedWidth(80)
+        damp_label.setStyleSheet("font-size: 15px; font-weight: bold;")
+        damp_button = QPushButton("RUN")
+        damp_button.setFixedSize(120, 50)
+        damp_button.setStyleSheet("font-size: 14px; font-weight: bold;")
+        damp_row_layout.addWidget(damp_label)
+        damp_row_layout.addSpacing(10)
+        damp_row_layout.addWidget(damp_button)
+        damp_row_layout.addStretch()
+        right_layout.addLayout(damp_row_layout)
+        
+        # 우측 그룹 여백
+        right_layout.addStretch(1)
+        
+        # 2컬럼 그리드에 위젯 배치 (왼쪽:오른쪽 = 1:1)
+        main_grid.addWidget(left_group, 0, 0)
+        main_grid.addWidget(right_group, 0, 1)
+        
+        # 컬럼 너비 비율 설정 (1:1)
+        main_grid.setColumnStretch(0, 1)
+        main_grid.setColumnStretch(1, 1)
+        
+        # 버튼들을 인스턴스 변수로 저장
+        self.semi_auto_run_button = run_button
+        self.semi_auto_period_minus_button = minus_button
+        self.semi_auto_period_value_button = value_button
+        self.semi_auto_period_plus_button = plus_button
+        self.damp_test_button = damp_button
+        
+        # 버튼 이벤트 연결
+        self.setup_semi_auto_button_events()
+    
+    def create_group_box(self, title, margins=(10, 10, 10, 10)):
+        """그룹 박스 생성 헬퍼 메서드"""
+        group = QGroupBox(title)
+        group.setStyleSheet("font-size: 16px; font-weight: bold;")
+        layout = QVBoxLayout(group)
+        layout.setContentsMargins(*margins)
+        layout.setSpacing(10)
+        return group, layout
     
     def setup_auto_tab(self):
         """AUTO 모드 탭 설정 - 그리드 레이아웃 기반"""
@@ -668,7 +796,7 @@ class ControlWindow(QtWidgets.QMainWindow):
         sol1_label.setStyleSheet("font-size: 15px; font-weight: bold;")
         sol1_button = QPushButton("OFF")
         sol1_button.setFixedSize(140, 45)
-        sol1_button.setStyleSheet("font-size: 14px; font-weight: bold;")
+        sol1_button.setStyleSheet(BUTTON_STANDARD_STYLE)
         sol1_row_layout.addWidget(sol1_label)
         sol1_row_layout.addSpacing(5)  # 작은 간격
         sol1_row_layout.addWidget(sol1_button)
@@ -685,7 +813,7 @@ class ControlWindow(QtWidgets.QMainWindow):
         sol4_label.setStyleSheet("font-size: 15px; font-weight: bold;")
         sol4_button = QPushButton("OFF")
         sol4_button.setFixedSize(140, 45)
-        sol4_button.setStyleSheet("font-size: 14px; font-weight: bold;")
+        sol4_button.setStyleSheet(BUTTON_STANDARD_STYLE)
         sol4_row_layout.addWidget(sol4_label)
         sol4_row_layout.addSpacing(5)  # 작은 간격
         sol4_row_layout.addWidget(sol4_button)
@@ -702,7 +830,7 @@ class ControlWindow(QtWidgets.QMainWindow):
         sol2_label.setStyleSheet("font-size: 15px; font-weight: bold;")
         sol2_button = QPushButton("OFF")
         sol2_button.setFixedSize(140, 45)
-        sol2_button.setStyleSheet("font-size: 14px; font-weight: bold;")
+        sol2_button.setStyleSheet(BUTTON_STANDARD_STYLE)
         sol2_row_layout.addWidget(sol2_label)
         sol2_row_layout.addSpacing(5)  # 작은 간격
         sol2_row_layout.addWidget(sol2_button)
@@ -719,7 +847,7 @@ class ControlWindow(QtWidgets.QMainWindow):
         sol3_label.setStyleSheet("font-size: 15px; font-weight: bold;")
         sol3_button = QPushButton("OFF")
         sol3_button.setFixedSize(140, 45)
-        sol3_button.setStyleSheet("font-size: 14px; font-weight: bold;")
+        sol3_button.setStyleSheet(BUTTON_STANDARD_STYLE)
         sol3_row_layout.addWidget(sol3_label)
         sol3_row_layout.addSpacing(5)  # 작은 간격
         sol3_row_layout.addWidget(sol3_button)
@@ -752,10 +880,10 @@ class ControlWindow(QtWidgets.QMainWindow):
         pump_label.setStyleSheet("font-size: 15px; font-weight: bold;")
         pump_label.setAlignment(Qt.AlignCenter)
         
-        # PUMP ON/OFF 토글 버튼
+        # PUMP ON/OFF 토글 버튼 - COMPRESSOR 버튼과 동일한 스타일
         pump_button = QPushButton("OFF")
         pump_button.setFixedSize(140, 45)
-        pump_button.setStyleSheet(BUTTON_PUMP_STYLE)
+        pump_button.setStyleSheet(BUTTON_STANDARD_STYLE)
         
         # 스피드 버튼들 생성
         spd_dec_button = QPushButton("<")
@@ -804,15 +932,15 @@ class ControlWindow(QtWidgets.QMainWindow):
         pump_label.setStyleSheet("font-size: 15px; font-weight: bold;")
         pump_label.setAlignment(Qt.AlignCenter)
         
-        # ON/OFF 토글 버튼 - 터치 친화적 크기
+        # ON/OFF 토글 버튼 - COMPRESSOR 버튼과 동일한 스타일
         toggle_button = QPushButton("OFF")
         toggle_button.setFixedSize(120, 50)  # 터치하기 편한 크기
-        toggle_button.setStyleSheet(BUTTON_DEFAULT_STYLE)
+        toggle_button.setStyleSheet(BUTTON_STANDARD_STYLE)
         
-        # 순환 숫자 버튼 - 터치 친화적 크기
+        # 순환 숫자 버튼 - COMPRESSOR 버튼과 동일한 스타일
         speed_button = QPushButton("0")
         speed_button.setFixedSize(80, 50)  # 터치하기 편한 크기
-        speed_button.setStyleSheet(BUTTON_DEFAULT_STYLE)
+        speed_button.setStyleSheet(BUTTON_STANDARD_STYLE)
         
         # 새로운 직관적 네이밍과 기존 호환성 유지
         setattr(self, f"pumper_pump{pump_num}_new_toggle_button", toggle_button)  # 새로운 네이밍
@@ -878,6 +1006,12 @@ class ControlWindow(QtWidgets.QMainWindow):
             
             try:
                 if self.serial_manager.connect_serial(selected_port, selected_baudrate):
+                    # 연결 성공 시 상태 초기화
+                    # self.serial_manager.update_heartbeat()  # 하트비트 비활성화
+                    self.was_connected = True
+                    self.connection_error_count = 0  # 에러 카운터 리셋
+                    self.last_connection_check = time.time()
+                    self.last_error_log_time = 0
                     self.update_status_indicator("connected")
                     self.update_connect_button("connected")
                     # 시리얼 연결 성공 시 버튼 상태 업데이트
@@ -905,6 +1039,11 @@ class ControlWindow(QtWidgets.QMainWindow):
         try:
             if self.serial_manager.is_connected():
                 self.serial_manager.disconnect_serial()
+                # 연결 상태 초기화
+                self.was_connected = False
+                self.connection_error_count = 0
+                self.last_connection_check = 0
+                self.last_error_log_time = 0
                 self.update_status_indicator("disconnected")
                 self.update_connect_button("disconnected")
                 # 시리얼 연결 해제 시 버튼 상태 업데이트
@@ -950,7 +1089,7 @@ class ControlWindow(QtWidgets.QMainWindow):
                         button.setText("CLOSE")
                     else:
                         button.setText("OFF")
-                    button.setStyleSheet("background-color: rgb(186,186,186); color: rgb(0,0,0); font-weight: normal;")
+                    button.setStyleSheet(BUTTON_STANDARD_STYLE)
         
         # 스피드 버튼들 리셋
         if hasattr(self, 'speed_button_manager') and self.speed_button_manager:
@@ -984,29 +1123,47 @@ class ControlWindow(QtWidgets.QMainWindow):
                 self.spdButton_pump1_val.setText("0")
             if hasattr(self, 'spdButton_pump2_val'):
                 self.spdButton_pump2_val.setText("0")
+        
+        # SEMI AUTO 버튼들 리셋 (예외 - 그대로 유지)
+        if hasattr(self, 'semi_auto_run_button'):
+            self.semi_auto_run_button.setText("RUN")
+            self.semi_auto_run_button.setStyleSheet("font-size: 14px; font-weight: bold;")
+        
+        if hasattr(self, 'damp_test_button'):
+            self.damp_test_button.setText("RUN")
+            self.damp_test_button.setStyleSheet("font-size: 14px; font-weight: bold;")
+        
+        if hasattr(self, 'semi_auto_period_value_button'):
+            self.semi_auto_period_value_button.setText("200")
 
     def read_serial_data(self):
-        """시리얼 데이터 읽기"""
+        """시리얼 데이터 읽기 - 1000ms마다 실행"""
+        # 연결된 상태에서만 처리
+        if not self.was_connected:
+            return
+            
         try: 
-            if not self.serial_manager.is_connected():
-                self.update_status_indicator("disconnected")
-                self.update_connect_button("disconnected")
-                # 연결이 끊어진 경우 버튼 상태 업데이트
-                self.update_button_states()
-                return
-                
+            # 데이터 읽기 시도
             data = self.serial_manager.read_data()
             if data:
+                # 데이터 수신 성공 - 에러 카운터 리셋
+                self.connection_error_count = 0
                 print(f"수신된 데이터: {data}")
                 self.saved_data_to_file(data)
-                # 메시지 텍스트 에디터 제거로 인한 로그만 유지
-        except IOError as e:
-            self.update_status_indicator("disconnected")
-            self.update_connect_button("disconnected")
-            # 연결이 끊어진 경우 버튼 상태 업데이트
-            self.update_button_states()
-            print(f"시리얼 데이터 읽기 오류: {e}")
-            # 메시지 텍스트 에디터 제거로 인한 로그만 유지
+                    
+        except Exception as e:
+            # 에러 발생 - 카운터 증가
+            self.connection_error_count += 1
+            
+            # 5회까지만 에러 메시지 출력
+            if self.connection_error_count <= 5:
+                print(f"Error reading serial data: {e} (에러 {self.connection_error_count}/5)")
+            
+            # 5회 도달 시 즉시 처리
+            if self.connection_error_count >= 5:
+                print("갑작스런 연결 끊김 감지 (5회) - 연결 해제 및 초기화")
+                self.handle_sudden_disconnect_simple()
+                return
 
     def saved_data_to_file(self, data):
         """수신된 데이터 파일에 저장"""
@@ -1016,6 +1173,142 @@ class ControlWindow(QtWidgets.QMainWindow):
                 file.write(data + "\n")
         except Exception as e:
             print(f"파일 저장 오류: {e}")
+    
+    def handle_sudden_disconnect_simple(self):
+        """간단하고 확실한 갑작스런 연결 끊김 처리"""
+        print("=== 간단한 연결 끊김 처리 시작 ===")
+        
+        # 1. 즉시 was_connected를 False로 설정 (가장 중요!)
+        self.was_connected = False
+        print("연결 상태 즉시 False 설정")
+        
+        # 2. Serial 포트 강제 닫기
+        try:
+            if hasattr(self.serial_manager, 'shinho_serial_connection') and self.serial_manager.shinho_serial_connection:
+                self.serial_manager.shinho_serial_connection.close()
+                self.serial_manager.shinho_serial_connection = None
+                print("Serial port 강제 닫기 성공")
+        except Exception as e:
+            print(f"Serial port 닫기 오류: {e}")
+        
+        # 3. 모든 상태 변수 리셋
+        self.connection_error_count = 0
+        self.last_connection_check = 0
+        self.last_error_log_time = 0
+        print("상태 변수 초기화 완료")
+        
+        # 4. UI 업데이트
+        self.update_status_indicator("disconnected")
+        self.update_connect_button("disconnected")
+        self.update_button_states()
+        print("UI 초기화 완료")
+        
+        print("=== 연결 끊김 처리 완료 - 재연결 준비됨 ===")
+    
+    def handle_sudden_disconnect(self):
+        """갑작스런 연결 끊김 처리 - 즉시 serial close 및 프로그램 초기화"""
+        try:
+            print("=== 갑작스런 연결 끊김 처리 시작 ===")
+            
+            # 즉시 was_connected를 False로 설정하여 추가 에러 메시지 방지
+            self.was_connected = False
+            print("연결 상태를 즉시 False로 설정 - 추가 에러 메시지 방지")
+            
+            # Serial 포트 즉시 강제 닫기
+            if self.serial_manager.shinho_serial_connection:
+                print("Serial connection 발견 - 강제 닫기 실행")
+                self.serial_manager.shinho_serial_connection.close()
+                self.serial_manager.shinho_serial_connection = None
+                print("Serial port 강제 닫기 완료")
+            else:
+                print("Serial connection이 이미 None 상태")
+            
+            # 연결 관련 모든 상태 프로그램 초기 실행 상태로 완전 초기화
+            self.connection_error_count = 0
+            self.last_connection_check = 0
+            self.last_error_log_time = 0
+            print("연결 상태 변수 초기화 완료")
+            
+            # Serial Manager 상태 초기화
+            if hasattr(self.serial_manager, 'last_heartbeat_time'):
+                self.serial_manager.last_heartbeat_time = 0
+            if hasattr(self.serial_manager, 'connection_healthy'):
+                self.serial_manager.connection_healthy = True
+            print("Serial Manager 상태 초기화 완료")
+            
+            # UI를 프로그램 초기 실행 상태로 완전 초기화
+            self.update_status_indicator("disconnected")
+            self.update_connect_button("disconnected")
+            self.update_button_states()  # 모든 버튼 비활성화
+            print("UI 상태 초기화 완료")
+            
+            print("=== 프로그램 초기화 완료 - 재연결 준비됨 ===")
+            
+        except Exception as e:
+            print(f"갑작스런 연결 끊김 처리 오류: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def force_disconnect(self):
+        """강제 연결 해제 및 상태 초기화"""
+        try:
+            # Serial 포트 강제 닫기
+            if self.serial_manager.shinho_serial_connection:
+                self.serial_manager.shinho_serial_connection.close()
+                print("Serial port 강제 닫기 완료")
+            
+            # 연결 상태 초기화
+            self.was_connected = False
+            self.connection_error_count = 0
+            self.last_connection_check = 0
+            self.last_error_log_time = 0
+            
+            # UI 상태 업데이트
+            self.update_status_indicator("disconnected")
+            self.update_connect_button("disconnected")
+            self.update_button_states()
+            
+        except Exception as e:
+            print(f"강제 연결 해제 오류: {e}")
+    
+    def force_disconnect_and_reset(self):
+        """하트비트 타임아웃 시 즉시 연결 해제 및 완전 초기화"""
+        try:
+            print("하트비트 타임아웃 - Serial 강제 닫기 시작")
+            
+            # Serial 포트 즉시 강제 닫기
+            if self.serial_manager.shinho_serial_connection:
+                self.serial_manager.shinho_serial_connection.close()
+                self.serial_manager.shinho_serial_connection = None
+                print("Serial port 즉시 닫기 완료")
+            
+            # 하트비트 관련 상태 완전 초기화
+            self.serial_manager.last_heartbeat_time = 0
+            self.serial_manager.connection_healthy = True
+            
+            # 연결 상태 완전 초기화
+            self.was_connected = False
+            self.connection_error_count = 0
+            self.last_connection_check = 0
+            self.last_error_log_time = 0
+            
+            # UI 상태 즉시 업데이트
+            self.update_status_indicator("disconnected")
+            self.update_connect_button("disconnected")
+            self.update_button_states()
+            
+            print("연결 상태 완전 초기화 완료")
+            
+        except Exception as e:
+            print(f"하트비트 타임아웃 처리 오류: {e}")
+    
+    def check_connection_health(self):
+        """하트비트 기반 연결 상태 체크 (5초마다 실행)"""
+        if self.serial_manager.is_connected():
+            # 포트는 열려있지만 하트비트 타임아웃인 경우
+            if not self.serial_manager.check_heartbeat_timeout():
+                print("하트비트 타임아웃 감지 - 즉시 연결 해제 및 초기화")
+                self.force_disconnect_and_reset()
 
     def center(self):
         """창을 화면 중앙에 위치"""
@@ -1034,3 +1327,110 @@ class ControlWindow(QtWidgets.QMainWindow):
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
             self.close()
+    
+    def setup_semi_auto_button_events(self):
+        """SEMI AUTO 탭 버튼 이벤트 설정"""
+        # DESICCANT RUN/STOP 토글 버튼
+        self.semi_auto_run_button.clicked.connect(self.toggle_desiccant_semi_auto)
+        
+        # DAMP TEST RUN/STOP 토글 버튼
+        self.damp_test_button.clicked.connect(self.toggle_damp_test)
+        
+        # 주기 조절 버튼들 (연속 클릭 지원)
+        self.setup_period_buttons()
+    
+    def toggle_desiccant_semi_auto(self):
+        """DESICCANT SEMI AUTO RUN/STOP 토글"""
+        if not self.serial_manager.is_connected():
+            print("시리얼 포트가 연결되지 않음 - DESICCANT SEMI AUTO 버튼 동작 차단")
+            return
+            
+        if self.semi_auto_run_button.text() == "RUN":
+            # RUN 실행
+            period = int(self.semi_auto_period_value_button.text())
+            cmd = f"$CMD,DSCT,SEMIAUTO,RUN,{period}\r\n"
+            success = self.serial_manager.send_data(cmd)
+            if success:
+                self.semi_auto_run_button.setText("STOP")
+                self.semi_auto_run_button.setStyleSheet("background-color: rgb(255, 0, 0); color: white; font-size: 14px; font-weight: bold;")
+                print(f"DESICCANT SEMI AUTO RUN 명령 전송: {cmd.strip()}")
+        else:
+            # STOP 실행
+            cmd = f"$CMD,DSCT,SEMIAUTO,STOP\r\n"
+            success = self.serial_manager.send_data(cmd)
+            if success:
+                self.semi_auto_run_button.setText("RUN")
+                self.semi_auto_run_button.setStyleSheet("font-size: 14px; font-weight: bold;")
+                print(f"DESICCANT SEMI AUTO STOP 명령 전송: {cmd.strip()}")
+    
+    def toggle_damp_test(self):
+        """DAMP TEST RUN/STOP 토글"""
+        if not self.serial_manager.is_connected():
+            print("시리얼 포트가 연결되지 않음 - DAMP TEST 버튼 동작 차단")
+            return
+            
+        if self.damp_test_button.text() == "RUN":
+            # RUN 실행
+            cmd = f"$CMD,DSCT,DAMPTEST,RUN\r\n"
+            success = self.serial_manager.send_data(cmd)
+            if success:
+                self.damp_test_button.setText("STOP")
+                self.damp_test_button.setStyleSheet("background-color: rgb(255, 0, 0); color: white; font-size: 14px; font-weight: bold;")
+                print(f"DAMP TEST RUN 명령 전송: {cmd.strip()}")
+        else:
+            # STOP 실행
+            cmd = f"$CMD,DSCT,DAMPTEST,STOP\r\n"
+            success = self.serial_manager.send_data(cmd)
+            if success:
+                self.damp_test_button.setText("RUN")
+                self.damp_test_button.setStyleSheet("font-size: 14px; font-weight: bold;")
+                print(f"DAMP TEST STOP 명령 전송: {cmd.strip()}")
+    
+    def setup_period_buttons(self):
+        """주기 조절 버튼 설정 (연속 클릭 지원)"""
+        # 타이머 초기화
+        self.period_decrease_timer = QTimer()
+        self.period_increase_timer = QTimer()
+        
+        # 타이머 이벤트 연결
+        self.period_decrease_timer.timeout.connect(self.decrease_period)
+        self.period_increase_timer.timeout.connect(self.increase_period)
+        
+        # 마우스 이벤트 연결
+        self.semi_auto_period_minus_button.pressed.connect(self.start_decreasing_period)
+        self.semi_auto_period_minus_button.released.connect(self.stop_decreasing_period)
+        
+        self.semi_auto_period_plus_button.pressed.connect(self.start_increasing_period)
+        self.semi_auto_period_plus_button.released.connect(self.stop_increasing_period)
+    
+    def start_decreasing_period(self):
+        """주기 감소 시작 (연속 클릭)"""
+        self.decrease_period()  # 즉시 1회 실행
+        self.period_decrease_timer.start(200)  # 200ms마다 반복
+    
+    def stop_decreasing_period(self):
+        """주기 감소 정지"""
+        self.period_decrease_timer.stop()
+    
+    def start_increasing_period(self):
+        """주기 증가 시작 (연속 클릭)"""
+        self.increase_period()  # 즉시 1회 실행
+        self.period_increase_timer.start(200)  # 200ms마다 반복
+    
+    def stop_increasing_period(self):
+        """주기 증가 정지"""
+        self.period_increase_timer.stop()
+    
+    def decrease_period(self):
+        """주기 값 1 감소 (1~999 범위)"""
+        current_value = int(self.semi_auto_period_value_button.text())
+        if current_value > 1:
+            new_value = current_value - 1
+            self.semi_auto_period_value_button.setText(str(new_value))
+    
+    def increase_period(self):
+        """주기 값 1 증가 (1~999 범위)"""
+        current_value = int(self.semi_auto_period_value_button.text())
+        if current_value < 999:
+            new_value = current_value + 1
+            self.semi_auto_period_value_button.setText(str(new_value))

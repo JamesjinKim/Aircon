@@ -925,7 +925,7 @@ class SpeedButtonManager:
         # 순환 스피드 버튼 설정
         self.create_cyclic_pump_button(pump_num, speed_button)
         
-        print(f"PUMP{pump_num} 새로운 버튼 설정 완료")
+        #print(f"PUMP{pump_num} 새로운 버튼 설정 완료")
     
     def reset_new_pump_speed_button(self, pump_num):
         """새로운 PUMP 스피드 버튼 초기화 (OFF일 때 0으로)"""

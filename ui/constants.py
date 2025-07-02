@@ -69,6 +69,9 @@ BUTTON_DEFAULT_STYLE = "font-size: 14px; background-color: rgb(186,186,186); col
 BUTTON_SPEED_STYLE = "background-color: rgb(186,186,186); font-size: 14px;"
 BUTTON_PUMP_STYLE = "background-color: rgb(186,186,186); color: rgb(0,0,0);"
 
+# COMPRESSOR 버튼 기준 표준 스타일 (AIRCON CONTROLS의 COMPRESSOR 버튼과 동일)
+BUTTON_STANDARD_STYLE = "font-size: 14px; font-weight: bold;"
+
 # 기본 설정값
 DEFAULT_BAUDRATE = 115200
 
