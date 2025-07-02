@@ -321,3 +321,42 @@ DAMPER CONTROLS
   DAMPER 토글 버튼:
   - CLOSE ↔ OPEN 토글
   - 숫자 버튼과 연동하여 적절한 serial 명령 전송
+
+07.02 작업
+OA.DAMPER 포지션 정보 1~8까지 제공 필요
+RA.DAMPER 포지션 정보 1~8까지 제공 필요
+
+UI 수정 작업
+DESICCANT TAB 의 DAMPER CONTROLS group의 Button 순서 변경.
+-아래와 같이 반드시 label과 Button이 쌍으로  그 위아래로 순서만 바뀝니다.
+  ┌─────────────────────────┐
+  │ DMP1 [CLOSE/OPEN] [0]   │
+  │ DMP3 [CLOSE/OPEN] [0]   │
+  │ DMP2 [CLOSE/OPEN] [0]   │
+  │ DMP4 [CLOSE/OPEN] [0]   │
+  └─────────────────────────┘
+
+UI 수정 작업
+DESICCANT TAB 의 DAMPER CONTROLS group의 Label text만 변경.
+아래와 같이 반드시 label text 만을 변경 합니다.
+  ┌─────────────────────────┐
+  │ DMP1 => 배기(L) [CLOSE] [0]   │
+  │ DMP3 => 배기(R) [CLOSE] [0]   │
+  │ DMP2 => 급기(L) [CLOSE] [0]   │
+  │ DMP4 => 급기(R) [CLOSE] [0]   │
+  └─────────────────────────┘
+  - DMP1 → 배기(L)
+  - DMP2 → 급기(L)
+  - DMP3 → 배기(R)
+  - DMP4 → 급기(R)  로 수정 완료.
+
+PUMPER & SOL CONTROLS TAB의 
+SOL CONTROLS 부분의 label과 Button 위치 수정입니다.
+  ┌────────────────────────────────────┐
+  │ SOL CONTROLS                       │
+  │ SOL1  [OFF]                        │
+  │ SOL4  [OFF]                        │
+  │ SOL2  [OFF]                        │
+  │ SOL3  [OFF]                        │
+  └────────────────────────────────────┘
+  위 부분의 위치만 수정하고 나머지 변경은 없습니다.

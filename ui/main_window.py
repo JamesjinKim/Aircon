@@ -233,7 +233,7 @@ class ControlWindow(QtWidgets.QMainWindow):
                 self.pushButton_9, self.pushButton_10, self.pushButton_11, self.pushButton_12
             ])
         
-        # COMPRESURE, CLUCH 버튼들 (EVA FAN CONTROLS에 포함) - 새로운 네이밍 우선 사용
+        # COMPRESSOR, CLUCH 버튼들 (EVA FAN CONTROLS에 포함) - 새로운 네이밍 우선 사용
         if hasattr(self, 'aircon_compresure_button'):
             other_buttons.extend([
                 self.aircon_compresure_button, self.aircon_comp_cluch_button
@@ -337,14 +337,14 @@ class ControlWindow(QtWidgets.QMainWindow):
         main_grid.setSpacing(15)  # 그룹 간 간격
         
         # 왼쪽 그룹: EVA FAN CONTROLS
-        left_group, left_layout = create_group_box("EVA FAN CONTROLS", margins=(15, 30, 15, 15))
+        left_group, left_layout = create_group_box("AIRCON CONTROLS", margins=(15, 30, 15, 15))
         left_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
         # EVA FAN - 순환 버튼 (OFF,1,2,3,4,5,6,7,8)
         self.create_eva_fan_row(left_layout, "EVA FAN", 1)
         
-        # COMPRESURE - 토글 버튼 (기존 INVERTER)
-        compresure_button = create_button_row("COMPRESURE", QPushButton("OFF"), left_layout, button_width=140)
+        # COMPRESSOR - 토글 버튼 (기존 INVERTER)
+        compresure_button = create_button_row("COMPRESSOR", QPushButton("OFF"), left_layout, button_width=140)
         self.aircon_compresure_button = compresure_button  # 새로운 네이밍
         self.pushButton_13 = compresure_button  # 기존 호환성 유지
         
@@ -360,11 +360,11 @@ class ControlWindow(QtWidgets.QMainWindow):
         # 왼쪽 그룹 여백
         left_layout.addStretch(1)
         
-        # 오른쪽 그룹: DMP CONTROLS
-        right_group, right_layout = create_group_box("DMP CONTROLS", margins=(15, 30, 15, 15))
+        # 오른쪽 그룹: DESICCANT CONTROLS
+        right_group, right_layout = create_group_box("DESICCANT CONTROLS", margins=(15, 30, 15, 15))
         right_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
-        # OA.DAMPER(L) - Outside Air Damper Left
+        # OA.DAMPER(L) - Outside Air Damper Left - 외기 댐퍼
         oa_damper_left_button = create_button_row("OA.DAMPER(L)", QPushButton("CLOSE"), right_layout)
         self.aircon_oa_damper_left_button = oa_damper_left_button  # 새로운 네이밍
         self.pushButton_9 = oa_damper_left_button  # 기존 호환성 유지
@@ -374,7 +374,7 @@ class ControlWindow(QtWidgets.QMainWindow):
         self.aircon_oa_damper_right_button = oa_damper_right_button  # 새로운 네이밍
         self.pushButton_11 = oa_damper_right_button  # 기존 호환성 유지
         
-        # RA.DAMPER(L) - Return Air Damper Left
+        # RA.DAMPER(L) - Return Air Damper Left - 내기 댐퍼
         ra_damper_left_button = create_button_row("RA.DAMPER(L)", QPushButton("CLOSE"), right_layout)
         self.aircon_ra_damper_left_button = ra_damper_left_button  # 새로운 네이밍
         self.pushButton_10 = ra_damper_left_button  # 기존 호환성 유지
@@ -461,8 +461,8 @@ class ControlWindow(QtWidgets.QMainWindow):
         
         # DMP1~4 제어 - 새로운 토글 + 숫자 버튼 디자인
         self.create_new_damper_row(right_layout, 1)
-        self.create_new_damper_row(right_layout, 2)
         self.create_new_damper_row(right_layout, 3)
+        self.create_new_damper_row(right_layout, 2)
         self.create_new_damper_row(right_layout, 4)
         
         # 오른쪽 그룹 여백
@@ -576,7 +576,8 @@ class ControlWindow(QtWidgets.QMainWindow):
         row_layout.setSpacing(15)  # 버튼 간 충분한 간격
         
         # DMP 라벨
-        dmp_label = QLabel(f"DMP{dmp_num}")
+        dmp_labels = {1: "배기(L)", 2: "급기(L)", 3: "배기(R)", 4: "급기(R)"}
+        dmp_label = QLabel(dmp_labels[dmp_num])
         dmp_label.setFixedWidth(60)
         dmp_label.setStyleSheet("font-size: 15px; font-weight: bold;")
         dmp_label.setAlignment(Qt.AlignCenter)
@@ -676,6 +677,23 @@ class ControlWindow(QtWidgets.QMainWindow):
         self.sol_sol1_button = sol1_button  # 새로운 네이밍
         self.pushButton_sol1 = sol1_button  # 기존 호환성 유지
         
+        # SOL4 제어 - 레이블 너비를 줄여서 간격 최소화
+        sol4_row_layout = QHBoxLayout()
+        sol4_row_layout.setContentsMargins(5, 8, 5, 8)
+        sol4_label = QLabel("SOL4")
+        sol4_label.setFixedWidth(50)  # 레이블 너비를 140에서 50으로 줄임
+        sol4_label.setStyleSheet("font-size: 15px; font-weight: bold;")
+        sol4_button = QPushButton("OFF")
+        sol4_button.setFixedSize(140, 45)
+        sol4_button.setStyleSheet("font-size: 14px; font-weight: bold;")
+        sol4_row_layout.addWidget(sol4_label)
+        sol4_row_layout.addSpacing(5)  # 작은 간격
+        sol4_row_layout.addWidget(sol4_button)
+        sol4_row_layout.addStretch()
+        right_layout.addLayout(sol4_row_layout)
+        self.sol_sol4_button = sol4_button  # 새로운 네이밍
+        self.pushButton_sol4 = sol4_button  # 기존 호환성 유지
+        
         # SOL2 제어 - 레이블 너비를 줄여서 간격 최소화
         sol2_row_layout = QHBoxLayout()
         sol2_row_layout.setContentsMargins(5, 8, 5, 8)
@@ -709,23 +727,6 @@ class ControlWindow(QtWidgets.QMainWindow):
         right_layout.addLayout(sol3_row_layout)
         self.sol_sol3_button = sol3_button  # 새로운 네이밍
         self.pushButton_sol3 = sol3_button  # 기존 호환성 유지
-        
-        # SOL4 제어 - 레이블 너비를 줄여서 간격 최소화
-        sol4_row_layout = QHBoxLayout()
-        sol4_row_layout.setContentsMargins(5, 8, 5, 8)
-        sol4_label = QLabel("SOL4")
-        sol4_label.setFixedWidth(50)  # 레이블 너비를 140에서 50으로 줄임
-        sol4_label.setStyleSheet("font-size: 15px; font-weight: bold;")
-        sol4_button = QPushButton("OFF")
-        sol4_button.setFixedSize(140, 45)
-        sol4_button.setStyleSheet("font-size: 14px; font-weight: bold;")
-        sol4_row_layout.addWidget(sol4_label)
-        sol4_row_layout.addSpacing(5)  # 작은 간격
-        sol4_row_layout.addWidget(sol4_button)
-        sol4_row_layout.addStretch()
-        right_layout.addLayout(sol4_row_layout)
-        self.sol_sol4_button = sol4_button  # 새로운 네이밍
-        self.pushButton_sol4 = sol4_button  # 기존 호환성 유지
         
         # 오른쪽 그룹 여백
         right_layout.addStretch(1)
