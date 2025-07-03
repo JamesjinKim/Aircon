@@ -43,15 +43,15 @@ self.desiccant_damper1_toggle_button    # DMP1 CLOSE/OPEN 토글 버튼
 self.desiccant_damper1_position_button  # DMP1 위치 버튼
 ```
 
-### PUMPER & SOL 탭
+### PUMP & SOL 탭
 ```python
-# PUMPER CONTROLS (기존 방식)
+# PUMP CONTROLS (기존 방식)
 self.pumper_pump1_toggle_button         # PUMP1 ON/OFF 토글 버튼
 self.pumper_pump1_speed_dec_button      # PUMP1 스피드 감소 버튼
 self.pumper_pump1_speed_val_button      # PUMP1 스피드 값 버튼
 self.pumper_pump1_speed_inc_button      # PUMP1 스피드 증가 버튼
 
-# PUMPER CONTROLS (터치 친화적 방식)
+# PUMP CONTROLS (터치 친화적 방식)
 self.pumper_pump1_new_toggle_button     # PUMP1 ON/OFF 토글 버튼
 self.pumper_pump1_new_speed_button      # PUMP1 순환 스피드 버튼
 

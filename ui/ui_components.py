@@ -785,3 +785,32 @@ def create_auto_control_tab(parent):
     auto_widget.temp_plus_button = None
     
     return auto_widget
+
+def create_button_row_with_number(label_text, button, layout, button_width=140, spacing=20):
+    """버튼 행 생성 헬퍼 함수 - 숫자 버튼 포함"""
+    row_layout = QHBoxLayout()
+    row_layout.setContentsMargins(5, 8, 5, 8)  # 상하 마진 증가
+    
+    label = QLabel(label_text)
+    label.setFixedWidth(140)  # 레이블 고정 너비로 정렬 개선
+    label.setStyleSheet("font-size: 15px; font-weight: bold;")  # 폰트 크기와 굵기 증가
+
+    # 메인 버튼에 동일한 고정 크기 적용
+    button.setFixedSize(button_width, 45)  # 너비와 높이 증가
+    button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+    button.setStyleSheet("font-size: 14px; font-weight: bold;")  # 버튼 폰트 크기 증가
+    
+    # 숫자 버튼 생성
+    number_button = QPushButton("0")
+    number_button.setFixedSize(45, 45)  # 정사각형 숫자 버튼
+    number_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+    number_button.setStyleSheet("font-size: 14px; font-weight: bold;")
+    
+    row_layout.addWidget(label)
+    row_layout.addSpacing(spacing)  # 조정 가능한 간격
+    row_layout.addWidget(button)
+    row_layout.addSpacing(10)  # 메인 버튼과 숫자 버튼 사이 간격
+    row_layout.addWidget(number_button)
+    row_layout.addStretch()  # 오른쪽 여백
+    layout.addLayout(row_layout)
+    return button, number_button

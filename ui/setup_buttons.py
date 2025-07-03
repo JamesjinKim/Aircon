@@ -114,7 +114,7 @@ def setup_button_groups(window):
     # 새로운 DAMPER 토글 버튼들 (CLOSE/OPEN 토글) - 순환 클릭은 speed_manager에서 처리
     # 이 버튼들은 button_manager가 아닌 speed_manager에서 직접 관리됨
 
-    #-----------NEW PUMPER & SOL BUTTONS-----------#
+    #-----------NEW PUMP & SOL BUTTONS-----------#
     # PUMP1 토글 버튼
     window.button_manager.add_group('pump1', {
         window.pushButton_pump1: {

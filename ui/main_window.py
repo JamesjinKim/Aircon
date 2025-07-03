@@ -18,7 +18,7 @@ from ui.constants import BUTTON_ON_STYLE, BUTTON_OFF_STYLE, BUTTON_DEFAULT_STYLE
 from ui.helpers import get_file_path, configure_display_settings
 from ui.ui_components import (create_group_box, create_button_row, create_port_selection_section,
                             create_speed_buttons, create_fan_speed_control,
-                            create_auto_control_tab, create_speed_buttons_with_text)
+                            create_auto_control_tab, create_speed_buttons_with_text, create_button_row_with_number)
 from ui.setup_buttons import setup_button_groups
 
 class ControlWindow(QtWidgets.QMainWindow):
@@ -155,7 +155,7 @@ class ControlWindow(QtWidgets.QMainWindow):
         if hasattr(self, 'speedButton_pump1'):
             self.speed_button_manager.create_new_pump_buttons(1, self.speedButton_pump1)
             self.speed_button_manager.create_new_pump_buttons(2, self.speedButton_pump2)
-        # 기존 PUMPER 스피드 버튼 (호환성을 위해 유지)
+        # 기존 PUMP 스피드 버튼 (호환성을 위해 유지)
         elif hasattr(self, 'spdButton_pump1_dec'):
             self.speed_button_manager.create_pumper_speed_buttons(
                 self, 1, self.spdButton_pump1_dec, self.spdButton_pump1_val, self.spdButton_pump1_inc
@@ -183,6 +183,12 @@ class ControlWindow(QtWidgets.QMainWindow):
         
         # ButtonManager와 SpeedButtonManager 연결
         self.button_manager.set_speed_button_manager(self.speed_button_manager)
+        
+        # OA DAMPER 숫자 버튼들 연결
+        if hasattr(self, 'aircon_oa_damper_left_number'):
+            self.speed_button_manager.create_oa_damper_number_button("L", self.aircon_oa_damper_left_number, self.aircon_oa_damper_left_button)
+        if hasattr(self, 'aircon_oa_damper_right_number'):
+            self.speed_button_manager.create_oa_damper_number_button("R", self.aircon_oa_damper_right_number, self.aircon_oa_damper_right_button)
 
         
     def connect_auto_controls(self):
@@ -218,16 +224,16 @@ class ControlWindow(QtWidgets.QMainWindow):
                 self.positionButton_dmp3, self.positionButton_dmp4
             ])
         
-        # PUMPER 스피드 버튼들
-        pumper_speed_buttons = []
+        # PUMP 스피드 버튼들
+        pump_speed_buttons = []
         if hasattr(self, 'spdButton_pump1_dec'):
-            pumper_speed_buttons.extend([
+            pump_speed_buttons.extend([
                 self.spdButton_pump1_dec, self.spdButton_pump1_val, self.spdButton_pump1_inc,
                 self.spdButton_pump2_dec, self.spdButton_pump2_val, self.spdButton_pump2_inc
             ])
         
-        # PUMPER 스피드 버튼들에 동일한 크기 설정
-        for button in pumper_speed_buttons:
+        # PUMP 스피드 버튼들에 동일한 크기 설정
+        for button in pump_speed_buttons:
             button.setFixedSize(50, 45)
             
         # 새로운 DSCT FAN 순환 스피드 버튼들 - 터치 친화적 크기 (이미 설정됨)
@@ -266,7 +272,7 @@ class ControlWindow(QtWidgets.QMainWindow):
                 self.pushButton_dsct_fan3, self.pushButton_dsct_fan4
             ])
         
-        # PUMPER & SOL 버튼들 추가 (존재하는 경우)
+        # PUMP & SOL 버튼들 추가 (존재하는 경우)
         if hasattr(self, 'pushButton_pump1'):
             other_buttons.extend([
                 self.pushButton_pump1, self.pushButton_pump2
@@ -323,10 +329,10 @@ class ControlWindow(QtWidgets.QMainWindow):
         self.setup_aircon_tab()
         self.tab_widget.addTab(self.aircon_tab, "AIRCON")
         
-        # 두 번째 탭 - PUMPER & SOL
+        # 두 번째 탭 - PUMP & SOL
         self.pumper_sol_tab = QWidget()
         self.setup_pumper_sol_tab()
-        self.tab_widget.addTab(self.pumper_sol_tab, "PUMPER & SOL")
+        self.tab_widget.addTab(self.pumper_sol_tab, "PUMP & SOL")
         
         # 세 번째 탭 - DESICCANT (DAMPER 포함)
         self.desiccant_tab = QWidget()
@@ -381,18 +387,20 @@ class ControlWindow(QtWidgets.QMainWindow):
         # 왼쪽 그룹 여백
         left_layout.addStretch(1)
         
-        # 오른쪽 그룹: DESICCANT CONTROLS
-        right_group, right_layout = create_group_box("DESICCANT CONTROLS", margins=(15, 30, 15, 15))
+        # 오른쪽 그룹: DAMPER CONTROLS
+        right_group, right_layout = create_group_box("DAMPER CONTROLS", margins=(15, 30, 15, 15))
         right_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
-        # OA.DAMPER(L) - Outside Air Damper Left - 외기 댐퍼
-        oa_damper_left_button = create_button_row("OA.DAMP(L)", QPushButton("CLOSE"), right_layout)
+        # OA.DAMPER(L) - Outside Air Damper Left - 외기 댐퍼 (숫자 버튼 포함)
+        oa_damper_left_button, oa_damper_left_number = create_button_row_with_number("OA.DAMP(L)", QPushButton("CLOSE"), right_layout)
         self.aircon_oa_damper_left_button = oa_damper_left_button  # 새로운 네이밍
+        self.aircon_oa_damper_left_number = oa_damper_left_number  # 숫자 버튼
         self.pushButton_9 = oa_damper_left_button  # 기존 호환성 유지
         
-        # OA.DAMPER(R) - Outside Air Damper Right
-        oa_damper_right_button = create_button_row("OA.DAMP(R)", QPushButton("CLOSE"), right_layout)
+        # OA.DAMPER(R) - Outside Air Damper Right (숫자 버튼 포함)
+        oa_damper_right_button, oa_damper_right_number = create_button_row_with_number("OA.DAMP(R)", QPushButton("CLOSE"), right_layout)
         self.aircon_oa_damper_right_button = oa_damper_right_button  # 새로운 네이밍
+        self.aircon_oa_damper_right_number = oa_damper_right_number  # 숫자 버튼
         self.pushButton_11 = oa_damper_right_button  # 기존 호환성 유지
         
         # RA.DAMPER(L) - Return Air Damper Left - 내기 댐퍼
@@ -765,14 +773,14 @@ class ControlWindow(QtWidgets.QMainWindow):
 
 
     def setup_pumper_sol_tab(self):
-        """PUMPER & SOL 탭 설정 - 2컬럼 레이아웃"""
-        # PUMPER & SOL 탭 메인 레이아웃
+        """PUMP & SOL 탭 설정 - 2컬럼 레이아웃"""
+        # PUMP & SOL 탭 메인 레이아웃
         main_grid = QGridLayout(self.pumper_sol_tab)
         main_grid.setContentsMargins(10, 10, 10, 10)
         main_grid.setSpacing(15)
         
-        # 왼쪽 그룹: PUMPER CONTROLS
-        left_group, left_layout = create_group_box("PUMPER CONTROLS", margins=(15, 30, 15, 15))
+        # 왼쪽 그룹: PUMP CONTROLS
+        left_group, left_layout = create_group_box("PUMP CONTROLS", margins=(15, 30, 15, 15))
         left_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
         # PUMP1 제어 - DESICCANT FAN과 동일한 새로운 패턴
@@ -1116,13 +1124,16 @@ class ControlWindow(QtWidgets.QMainWindow):
             if hasattr(self, 'spdButton_dsct_fan4_val'):
                 self.spdButton_dsct_fan4_val.setText("0")
                 
-            # PUMPER SPD 버튼들 리셋
+            # PUMP SPD 버튼들 리셋
             self.speed_button_manager.current_pump1_speed = 0
             self.speed_button_manager.current_pump2_speed = 0
             if hasattr(self, 'spdButton_pump1_val'):
                 self.spdButton_pump1_val.setText("0")
             if hasattr(self, 'spdButton_pump2_val'):
                 self.spdButton_pump2_val.setText("0")
+                
+            # OA DAMPER 숫자 버튼들 리셋
+            self.speed_button_manager.reset_oa_damper_number_buttons()
         
         # SEMI AUTO 버튼들 리셋 (예외 - 그대로 유지)
         if hasattr(self, 'semi_auto_run_button'):

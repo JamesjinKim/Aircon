@@ -2,7 +2,8 @@ from ui.constants import (CMD_PREFIX, TERMINATOR, AIR_SYSTEM, DSCT_SYSTEM, FSPD_
                          FAN_CMD, FAN1_CMD, FAN2_CMD, FAN3_CMD, FAN4_CMD, SPD_CMD,
                          DMP1_OPEN_CMD, DMP1_CLOSE_CMD, DMP2_OPEN_CMD, DMP2_CLOSE_CMD,
                          DMP3_OPEN_CMD, DMP3_CLOSE_CMD, DMP4_OPEN_CMD, DMP4_CLOSE_CMD,
-                         PUMP1_CMD, PUMP2_CMD, BUTTON_ON_STYLE, BUTTON_OFF_STYLE)
+                         PUMP1_CMD, PUMP2_CMD, BUTTON_ON_STYLE, BUTTON_OFF_STYLE,
+                         ALTDMP_OPEN_1_CMD, ALTDMP_CLOSE_1_CMD, ARTDMP_OPEN_1_CMD, ARTDMP_CLOSE_1_CMD)
 
 class SpeedButtonManager:
     def __init__(self, serial_manager, SendData_textEdit):
@@ -24,9 +25,14 @@ class SpeedButtonManager:
         self.current_dmp3_pos = 0
         self.current_dmp4_pos = 0
         
-        # PUMPER 속도 값들
+        # PUMP 속도 값들
         self.current_pump1_speed = 0
         self.current_pump2_speed = 0
+        
+        # OA DAMPER 숫자 버튼 값들 (1~9 순환)
+        self.current_oa_damper_left_number = 0
+        self.current_oa_damper_right_number = 0
+        
         self.auto_speed_manager = None  # AUTO 매니저 참조 추가
         self.is_updating = False  # 동기화 중 무한 루프 방지용 플래그
         self.center_button = None  # 중앙 버튼(팬 속도 표시) 저장
@@ -539,7 +545,7 @@ class SpeedButtonManager:
         self.sync_to_auto_tab(0)
 
     def create_pumper_speed_buttons(self, parent, pump_num, left_button, center_button, right_button):
-        """PUMPER 스피드 버튼 설정"""
+        """PUMP 스피드 버튼 설정"""
         pump_commands = {
             1: PUMP1_CMD,
             2: PUMP2_CMD
@@ -568,7 +574,7 @@ class SpeedButtonManager:
         )
 
     def handle_pumper_decrease_button(self, button, command_prefix, speed_var_name, pump_num):
-        """PUMPER 감소 버튼 핸들러"""
+        """PUMP 감소 버튼 핸들러"""
         if not self._can_operate_pumper_buttons(pump_num):
             self._log_pumper_blocked_message(pump_num)
             return
@@ -582,7 +588,7 @@ class SpeedButtonManager:
             self.send_command(command)
 
     def handle_pumper_increase_button(self, button, command_prefix, speed_var_name, pump_num):
-        """PUMPER 증가 버튼 핸들러"""
+        """PUMP 증가 버튼 핸들러"""
         if not self._can_operate_pumper_buttons(pump_num):
             self._log_pumper_blocked_message(pump_num)
             return
@@ -596,7 +602,7 @@ class SpeedButtonManager:
             self.send_command(command)
 
     def handle_pumper_reset_button(self, button, command_prefix, speed_var_name, pump_num):
-        """PUMPER 리셋 버튼 핸들러"""
+        """PUMP 리셋 버튼 핸들러"""
         if not self._can_operate_pumper_buttons(pump_num):
             self._log_pumper_blocked_message(pump_num)
             return
@@ -607,7 +613,7 @@ class SpeedButtonManager:
         self.send_command(command)
 
     def _can_operate_pumper_buttons(self, pump_num):
-        """PUMPER 버튼 작동 가능 여부 확인"""
+        """PUMP 버튼 작동 가능 여부 확인"""
         if not self.main_window or not self.serial_manager or not self.serial_manager.is_connected():
             return False
             
@@ -619,7 +625,7 @@ class SpeedButtonManager:
         return pump_button.text() == "ON"
 
     def _log_pumper_blocked_message(self, pump_num):
-        """PUMPER 버튼 차단 메시지 로깅"""
+        """PUMP 버튼 차단 메시지 로깅"""
         message = f"PUMP{pump_num}이 OFF 상태이거나 시리얼 포트가 연결되지 않음 - PUMP{pump_num} SPD 버튼 동작 차단"
         print(message)
         if self.SendData_textEdit:
@@ -629,7 +635,7 @@ class SpeedButtonManager:
             )
 
     def reset_pumper_speed_buttons(self, pump_num):
-        """PUMPER 스피드 버튼 초기화"""
+        """PUMP 스피드 버튼 초기화"""
         speed_var_name = f"current_pump{pump_num}_speed"
         button_name = f"spdButton_pump{pump_num}_val"
         
@@ -1011,3 +1017,72 @@ class SpeedButtonManager:
             print(f"{fan_type} 값 변경: {button.text()}")
         
         button.clicked.connect(cycle_click)
+    
+    def create_oa_damper_number_button(self, damper_side, number_button, toggle_button):
+        """OA DAMPER 숫자 버튼 설정 (1~9 순환, 시리얼 명령어는 항상 1 전송)"""
+        if damper_side == "L":
+            number_var_name = "current_oa_damper_left_number"
+        elif damper_side == "R":
+            number_var_name = "current_oa_damper_right_number"
+        else:
+            return
+        
+        def number_click():
+            # 시리얼 연결 상태 확인
+            if not self.serial_manager or not self.serial_manager.is_connected():
+                print(f"OA.DAMP({damper_side}) 숫자 버튼 - 시리얼 포트가 연결되지 않음")
+                if self.SendData_textEdit:
+                    self.SendData_textEdit.append(f"OA.DAMP({damper_side}) 숫자 버튼 - 시리얼 포트가 연결되지 않음")
+                    self.SendData_textEdit.verticalScrollBar().setValue(
+                        self.SendData_textEdit.verticalScrollBar().maximum()
+                    )
+                return
+            
+            # 현재 숫자 값 가져오기
+            current_number = getattr(self, number_var_name)
+            
+            # 1~9 순환 (0 → 1 → 2 → ... → 9 → 1)
+            if current_number == 0:
+                new_number = 1
+            elif current_number >= 9:
+                new_number = 1
+            else:
+                new_number = current_number + 1
+            
+            # 값 업데이트
+            setattr(self, number_var_name, new_number)
+            number_button.setText(str(new_number))
+            
+            # 토글 버튼 상태에 따라 명령어 결정
+            button_state = toggle_button.text()
+            
+            if damper_side == "L":
+                if button_state == "OPEN":
+                    command = f"{CMD_PREFIX},{AIR_SYSTEM},{ALTDMP_OPEN_1_CMD}{TERMINATOR}"
+                else:  # CLOSE
+                    command = f"{CMD_PREFIX},{AIR_SYSTEM},{ALTDMP_CLOSE_1_CMD}{TERMINATOR}"
+            elif damper_side == "R":
+                if button_state == "OPEN":
+                    command = f"{CMD_PREFIX},{AIR_SYSTEM},{ARTDMP_OPEN_1_CMD}{TERMINATOR}"
+                else:  # CLOSE
+                    command = f"{CMD_PREFIX},{AIR_SYSTEM},{ARTDMP_CLOSE_1_CMD}{TERMINATOR}"
+            
+            # 명령어 전송
+            self.send_command(command)
+            print(f"OA.DAMP({damper_side}) 숫자 버튼 클릭: {new_number} (명령어: {command.strip()})")
+        
+        number_button.clicked.connect(number_click)
+    
+    def reset_oa_damper_number_buttons(self):
+        """OA DAMPER 숫자 버튼들 초기화"""
+        self.current_oa_damper_left_number = 0
+        self.current_oa_damper_right_number = 0
+        
+        # 버튼 텍스트 초기화
+        if self.main_window:
+            if hasattr(self.main_window, 'aircon_oa_damper_left_number'):
+                self.main_window.aircon_oa_damper_left_number.setText("0")
+            if hasattr(self.main_window, 'aircon_oa_damper_right_number'):
+                self.main_window.aircon_oa_damper_right_number.setText("0")
+        
+        print("OA DAMPER 숫자 버튼들 초기화됨")

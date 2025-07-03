@@ -6,7 +6,7 @@ AIRCON은 PyQt5를 기반으로 한 에어컨 및 제습기 원격 제어 시스
 
 ### 🎛️ 제어 모드
 - **AIRCON 탭**: 에어컨 시스템 수동 제어 (EVA FAN, COMPRESSOR 등)
-- **PUMPER & SOL 탭**: 펌프 및 솔레노이드 밸브 제어
+- **PUMP & SOL 탭**: 펌프 및 솔레노이드 밸브 제어
 - **DESICCANT 탭**: 제습기 시스템 및 댐퍼 제어 (통합)
 - **SEMI AUTO 탭**: 반자동 제어 모드 (DESICCANT SEMI AUTO, DAMP TEST)
 - **AUTO 탭**: 온도 및 풍량 자동 제어
@@ -27,8 +27,8 @@ AIRCON은 PyQt5를 기반으로 한 에어컨 및 제습기 원격 제어 시스
 - **배기(L), 배기(R), 급기(L), 급기(R)**: CLOSE/OPEN 토글 + 위치 조절 (0→1→...→4→0)
 - 위치 0=CLOSE, 위치 1~4=OPEN 상태
 
-### 🔧 펌프 및 솔레노이드 제어 (PUMPER & SOL 탭)
-**왼쪽 - PUMPER CONTROLS:**
+### 🔧 펌프 및 솔레노이드 제어 (PUMP & SOL 탭)
+**왼쪽 - PUMP CONTROLS:**
 - **PUMP1/PUMP2**: ON/OFF 토글 + 순환 숫자 버튼 (0→1→...→8→0)
 - 펌프 OFF 시 속도 자동 리셋, ON 시 속도 1부터 시작
 
@@ -131,8 +131,8 @@ Aircon/
   - 위치값 조절 버튼 (&lt;, 현재값, &gt;)
   - 0-10 범위 위치 설정
 
-#### PUMPER & SOL 탭
-- **PUMPER CONTROLS 그룹**:
+#### PUMP & SOL 탭
+- **PUMP CONTROLS 그룹**:
   - PUMP1/PUMP2: 펌프 온/오프
   - 속도 조절 버튼 (&lt;, 현재값, &gt;)
   - 펌프 OFF 시 속도 자동 리셋
@@ -171,7 +171,7 @@ $CMD,<DEVICE>,<VALUE>\r
 - 팬 속도: `$CMD,DSCT,FAN1,SPD,5` (1-10 범위)
 - 댐퍼 위치: `$CMD,DSCT,DMP1_CLOSE,3` (1-10 범위)
 
-#### PUMPER & SOL 시스템
+#### PUMP & SOL 시스템
 - 펌프 제어: `$CMD,DSCT,PUMP1,ON` / `$CMD,DSCT,PUMP1,OFF`
 - 펌프 속도: `$CMD,DSCT,PUMP1,SPD,7` (1-10 범위)
 - 솔레노이드: `$CMD,DSCT,SOL1,ON` / `$CMD,DSCT,SOL1,OFF`
@@ -200,7 +200,7 @@ $CMD,<DEVICE>,<VALUE>\r
 - 명령 전송 실패 시 에러 로깅
 
 ### 🎨 사용자 친화적 UI
-- 탭 기반 인터페이스 (AIRCON | PUMPER & SOL | DESICCANT | SEMI AUTO | AUTO)
+- 탭 기반 인터페이스 (AIRCON | PUMP & SOL | DESICCANT | SEMI AUTO | AUTO)
 - 직관적인 2컬럼 레이아웃 설계 (모든 탭 통일)
 - 실시간 상태 표시 및 버튼 색상 피드백
 - 통일된 버튼 스타일 (COMPRESSOR 버튼 기준)
@@ -241,7 +241,7 @@ $CMD,<DEVICE>,<VALUE>\r
   - DAMP TEST 기능 (RUN/STOP)
   - 연속 클릭 지원하는 주기 조절 버튼 ([-] [값] [+])
 - **MAJOR**: 탭 구조 개편
-  - 탭 순서 변경: AIRCON → PUMPER & SOL → DESICCANT → SEMI AUTO → AUTO
+  - 탭 순서 변경: AIRCON → PUMP & SOL → DESICCANT → SEMI AUTO → AUTO
   - DESICCANT 탭에 DAMPER 제어 통합 (기존 DAMPER 탭 제거)
 - **IMPROVED**: 버튼 스타일 통일
   - 모든 TAB 버튼을 COMPRESSOR 버튼 스타일로 통일 (font-size: 14px, font-weight: bold)
@@ -266,7 +266,7 @@ $CMD,<DEVICE>,<VALUE>\r
 ### v2.0 (2024년)
 - **NEW**: DESICCANT 탭 추가 - FAN1~FAN4 개별 제어
 - **NEW**: DAMPER 탭 추가 - DMP1~DMP4 위치값 제어
-- **NEW**: PUMPER & SOL 탭 추가 - 펌프 및 솔레노이드 밸브 제어
+- **NEW**: PUMP & SOL 탭 추가 - 펌프 및 솔레노이드 밸브 제어
 - **IMPROVED**: 탭 기반 UI 재설계로 사용성 향상
 - **IMPROVED**: 2컬럼 레이아웃으로 화면 공간 효율성 증대
 - **ENHANCED**: 시리얼 연결 상태 기반 안전 제어 강화
