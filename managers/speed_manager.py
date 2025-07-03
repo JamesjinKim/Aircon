@@ -1078,11 +1078,117 @@ class SpeedButtonManager:
         self.current_oa_damper_left_number = 0
         self.current_oa_damper_right_number = 0
         
-        # 버튼 텍스트 초기화
+        # 버튼 텍스트 및 색상 초기화
         if self.main_window:
+            # 기존 호환성 유지
             if hasattr(self.main_window, 'aircon_oa_damper_left_number'):
                 self.main_window.aircon_oa_damper_left_number.setText("0")
             if hasattr(self.main_window, 'aircon_oa_damper_right_number'):
                 self.main_window.aircon_oa_damper_right_number.setText("0")
+            
+            # 새로운 3버튼 구조 초기화
+            if hasattr(self.main_window, 'aircon_oa_damper_left_number_button'):
+                self.main_window.aircon_oa_damper_left_number_button.setText("0")
+                self.main_window.aircon_oa_damper_left_open_button.setStyleSheet("font-size: 14px; font-weight: bold;")
+                self.main_window.aircon_oa_damper_left_close_button.setStyleSheet("font-size: 14px; font-weight: bold;")
+            if hasattr(self.main_window, 'aircon_oa_damper_right_number_button'):
+                self.main_window.aircon_oa_damper_right_number_button.setText("0")
+                self.main_window.aircon_oa_damper_right_open_button.setStyleSheet("font-size: 14px; font-weight: bold;")
+                self.main_window.aircon_oa_damper_right_close_button.setStyleSheet("font-size: 14px; font-weight: bold;")
         
         print("OA DAMPER 숫자 버튼들 초기화됨")
+    
+    def create_new_oa_damper_controls(self, damper_side, open_button, number_button, close_button):
+        """새로운 OA DAMPER 3버튼 컨트롤 설정"""
+        if damper_side == "L":
+            number_var_name = "current_oa_damper_left_number"
+        elif damper_side == "R":
+            number_var_name = "current_oa_damper_right_number"
+        else:
+            return
+        
+        # 초기값 설정
+        setattr(self, number_var_name, 0)
+        number_button.setText("0")
+        
+        def open_click():
+            """OPEN 버튼 클릭 - 숫자 +1 증가, Green 색상"""
+            # 시리얼 연결 상태 확인
+            if not self.serial_manager or not self.serial_manager.is_connected():
+                print(f"OA.DAMP({damper_side}) OPEN 버튼 - 시리얼 포트가 연결되지 않음")
+                if self.SendData_textEdit:
+                    self.SendData_textEdit.append(f"OA.DAMP({damper_side}) OPEN 버튼 - 시리얼 포트가 연결되지 않음")
+                    self.SendData_textEdit.verticalScrollBar().setValue(
+                        self.SendData_textEdit.verticalScrollBar().maximum()
+                    )
+                return
+            
+            # 현재 숫자 값 가져오기
+            current_number = getattr(self, number_var_name)
+            
+            # 0~9 순환 (증가)
+            new_number = (current_number + 1) % 10
+            
+            # 값 업데이트
+            setattr(self, number_var_name, new_number)
+            number_button.setText(str(new_number))
+            
+            # OPEN 버튼 Green 색상으로 변경
+            open_button.setStyleSheet("background-color: rgb(43, 179, 43); color: rgb(255,255,255); font-size: 14px; font-weight: bold;")
+            # CLOSE 버튼 기본 색상으로 변경
+            close_button.setStyleSheet("font-size: 14px; font-weight: bold;")
+            
+            # 시리얼 명령어 전송 (항상 1로 고정)
+            if damper_side == "L":
+                command = f"{CMD_PREFIX},{AIR_SYSTEM},ALTDMP,OPEN,1{TERMINATOR}"
+            elif damper_side == "R":
+                command = f"{CMD_PREFIX},{AIR_SYSTEM},ARTDMP,OPEN,1{TERMINATOR}"
+            
+            self.send_command(command)
+            print(f"OA.DAMP({damper_side}) OPEN 클릭: {new_number} (명령어: {command.strip()})")
+        
+        def close_click():
+            """CLOSE 버튼 클릭 - 숫자 -1 감소, Green 색상"""
+            # 시리얼 연결 상태 확인
+            if not self.serial_manager or not self.serial_manager.is_connected():
+                print(f"OA.DAMP({damper_side}) CLOSE 버튼 - 시리얼 포트가 연결되지 않음")
+                if self.SendData_textEdit:
+                    self.SendData_textEdit.append(f"OA.DAMP({damper_side}) CLOSE 버튼 - 시리얼 포트가 연결되지 않음")
+                    self.SendData_textEdit.verticalScrollBar().setValue(
+                        self.SendData_textEdit.verticalScrollBar().maximum()
+                    )
+                return
+            
+            # 현재 숫자 값 가져오기
+            current_number = getattr(self, number_var_name)
+            
+            # 0에서 멈춤 (감소, 0보다 작아지지 않음)
+            new_number = max(0, current_number - 1)
+            
+            # 값 업데이트
+            setattr(self, number_var_name, new_number)
+            number_button.setText(str(new_number))
+            
+            # CLOSE 버튼 Green 색상으로 변경
+            close_button.setStyleSheet("background-color: rgb(43, 179, 43); color: rgb(255,255,255); font-size: 14px; font-weight: bold;")
+            # OPEN 버튼 기본 색상으로 변경
+            open_button.setStyleSheet("font-size: 14px; font-weight: bold;")
+            
+            # 시리얼 명령어 전송 (1 이상일 때만 전송)
+            if new_number > 0:
+                if damper_side == "L":
+                    command = f"{CMD_PREFIX},{AIR_SYSTEM},ALTDMP,CLOSE,1{TERMINATOR}"
+                elif damper_side == "R":
+                    command = f"{CMD_PREFIX},{AIR_SYSTEM},ARTDMP,CLOSE,1{TERMINATOR}"
+                
+                self.send_command(command)
+                print(f"OA.DAMP({damper_side}) CLOSE 클릭: {new_number} (명령어: {command.strip()})")
+            else:
+                print(f"OA.DAMP({damper_side}) CLOSE 클릭: {new_number} (숫자가 0이므로 명령어 전송 안함)")
+        
+        # 이벤트 연결
+        open_button.clicked.connect(open_click)
+        close_button.clicked.connect(close_click)
+        # 숫자 버튼은 아무 이벤트도 연결하지 않음 (요구사항 1번)
+        
+        print(f"새로운 OA.DAMP({damper_side}) 컨트롤 설정 완료")

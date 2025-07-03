@@ -814,3 +814,45 @@ def create_button_row_with_number(label_text, button, layout, button_width=140, 
     row_layout.addStretch()  # 오른쪽 여백
     layout.addLayout(row_layout)
     return button, number_button
+
+def create_oa_damper_three_button_row(label_text, layout, button_width=65, spacing=20):
+    """OA.DAMP 전용 3버튼 행 생성 - OPEN + 숫자 + CLOSE 동일 크기"""
+    row_layout = QHBoxLayout()
+    row_layout.setContentsMargins(5, 8, 5, 8)
+    
+    # 라벨
+    label = QLabel(label_text)
+    label.setFixedWidth(140)
+    label.setStyleSheet("font-size: 15px; font-weight: bold;")
+    
+    # OPEN 버튼 - 고정 크기
+    open_button = QPushButton("OPEN")
+    open_button.setFixedSize(button_width, 45)
+    open_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+    open_button.setStyleSheet("font-size: 14px; font-weight: bold;")
+    
+    # 숫자 버튼 - 정사각형
+    number_button = QPushButton("0")
+    number_button.setFixedSize(45, 45)
+    number_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+    number_button.setStyleSheet("font-size: 14px; font-weight: bold;")
+    
+    # CLOSE 버튼 - OPEN과 동일한 크기
+    close_button = QPushButton("CLOSE")
+    close_button.setFixedSize(button_width, 45)  # OPEN과 동일한 크기
+    close_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+    close_button.setStyleSheet("font-size: 14px; font-weight: bold;")
+    
+    # 레이아웃에 추가
+    row_layout.addWidget(label)
+    row_layout.addSpacing(spacing)
+    row_layout.addWidget(open_button)
+    row_layout.addSpacing(5)
+    row_layout.addWidget(number_button)
+    row_layout.addSpacing(5)
+    row_layout.addWidget(close_button)
+    row_layout.addStretch()
+    
+    layout.addLayout(row_layout)
+    
+    return open_button, number_button, close_button

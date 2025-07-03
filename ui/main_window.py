@@ -18,7 +18,7 @@ from ui.constants import BUTTON_ON_STYLE, BUTTON_OFF_STYLE, BUTTON_DEFAULT_STYLE
 from ui.helpers import get_file_path, configure_display_settings
 from ui.ui_components import (create_group_box, create_button_row, create_port_selection_section,
                             create_speed_buttons, create_fan_speed_control,
-                            create_auto_control_tab, create_speed_buttons_with_text, create_button_row_with_number)
+                            create_auto_control_tab, create_speed_buttons_with_text, create_button_row_with_number, create_oa_damper_three_button_row)
 from ui.setup_buttons import setup_button_groups
 
 class ControlWindow(QtWidgets.QMainWindow):
@@ -184,11 +184,21 @@ class ControlWindow(QtWidgets.QMainWindow):
         # ButtonManager와 SpeedButtonManager 연결
         self.button_manager.set_speed_button_manager(self.speed_button_manager)
         
-        # OA DAMPER 숫자 버튼들 연결
-        if hasattr(self, 'aircon_oa_damper_left_number'):
-            self.speed_button_manager.create_oa_damper_number_button("L", self.aircon_oa_damper_left_number, self.aircon_oa_damper_left_button)
-        if hasattr(self, 'aircon_oa_damper_right_number'):
-            self.speed_button_manager.create_oa_damper_number_button("R", self.aircon_oa_damper_right_number, self.aircon_oa_damper_right_button)
+        # OA DAMPER 3버튼 컨트롤 연결 (새로운 요구사항)
+        if hasattr(self, 'aircon_oa_damper_left_open_button'):
+            self.speed_button_manager.create_new_oa_damper_controls(
+                "L", 
+                self.aircon_oa_damper_left_open_button,
+                self.aircon_oa_damper_left_number_button, 
+                self.aircon_oa_damper_left_close_button
+            )
+        if hasattr(self, 'aircon_oa_damper_right_open_button'):
+            self.speed_button_manager.create_new_oa_damper_controls(
+                "R", 
+                self.aircon_oa_damper_right_open_button,
+                self.aircon_oa_damper_right_number_button, 
+                self.aircon_oa_damper_right_close_button
+            )
 
         
     def connect_auto_controls(self):
@@ -286,6 +296,14 @@ class ControlWindow(QtWidgets.QMainWindow):
         # 나머지 버튼들에 기본 크기 설정
         for button in other_buttons:
             button.setFixedSize(140, 45)
+            
+        # OA.DAMP 버튼들은 별도로 65px 크기로 재설정 (3버튼 구조)
+        if hasattr(self, 'aircon_oa_damper_left_open_button'):
+            self.aircon_oa_damper_left_open_button.setFixedSize(65, 45)
+            self.aircon_oa_damper_left_close_button.setFixedSize(65, 45)
+        if hasattr(self, 'aircon_oa_damper_right_open_button'):
+            self.aircon_oa_damper_right_open_button.setFixedSize(65, 45)
+            self.aircon_oa_damper_right_close_button.setFixedSize(65, 45)
             
     def setup_ui(self):
         """UI 요소 생성 - 800x480 크기에 최적화된 그리드 레이아웃"""
@@ -387,21 +405,29 @@ class ControlWindow(QtWidgets.QMainWindow):
         # 왼쪽 그룹 여백
         left_layout.addStretch(1)
         
-        # 오른쪽 그룹: DAMPER CONTROLS
-        right_group, right_layout = create_group_box("DAMPER CONTROLS", margins=(15, 30, 15, 15))
+        # 오른쪽 그룹: DAMP CONTROLS
+        right_group, right_layout = create_group_box("DAMP CONTROLS", margins=(15, 30, 15, 15))
         right_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
-        # OA.DAMPER(L) - Outside Air Damper Left - 외기 댐퍼 (숫자 버튼 포함)
-        oa_damper_left_button, oa_damper_left_number = create_button_row_with_number("OA.DAMP(L)", QPushButton("CLOSE"), right_layout)
-        self.aircon_oa_damper_left_button = oa_damper_left_button  # 새로운 네이밍
-        self.aircon_oa_damper_left_number = oa_damper_left_number  # 숫자 버튼
-        self.pushButton_9 = oa_damper_left_button  # 기존 호환성 유지
+        # OA.DAMPER(L) - Outside Air Damper Left - 3버튼 구조 (OPEN + 숫자 + CLOSE)
+        oa_l_open, oa_l_number, oa_l_close = create_oa_damper_three_button_row("OA.DAMP(L)", right_layout)
+        self.aircon_oa_damper_left_open_button = oa_l_open  # OPEN 버튼
+        self.aircon_oa_damper_left_number_button = oa_l_number  # 숫자 버튼
+        self.aircon_oa_damper_left_close_button = oa_l_close  # CLOSE 버튼
+        # 기존 호환성 유지
+        self.aircon_oa_damper_left_button = oa_l_close  # 기존 참조는 CLOSE 버튼으로
+        self.aircon_oa_damper_left_number = oa_l_number  # 숫자 버튼 호환성
+        self.pushButton_9 = oa_l_close  # 기존 호환성 유지
         
-        # OA.DAMPER(R) - Outside Air Damper Right (숫자 버튼 포함)
-        oa_damper_right_button, oa_damper_right_number = create_button_row_with_number("OA.DAMP(R)", QPushButton("CLOSE"), right_layout)
-        self.aircon_oa_damper_right_button = oa_damper_right_button  # 새로운 네이밍
-        self.aircon_oa_damper_right_number = oa_damper_right_number  # 숫자 버튼
-        self.pushButton_11 = oa_damper_right_button  # 기존 호환성 유지
+        # OA.DAMPER(R) - Outside Air Damper Right - 3버튼 구조 (OPEN + 숫자 + CLOSE)
+        oa_r_open, oa_r_number, oa_r_close = create_oa_damper_three_button_row("OA.DAMP(R)", right_layout)
+        self.aircon_oa_damper_right_open_button = oa_r_open  # OPEN 버튼
+        self.aircon_oa_damper_right_number_button = oa_r_number  # 숫자 버튼
+        self.aircon_oa_damper_right_close_button = oa_r_close  # CLOSE 버튼
+        # 기존 호환성 유지
+        self.aircon_oa_damper_right_button = oa_r_close  # 기존 참조는 CLOSE 버튼으로
+        self.aircon_oa_damper_right_number = oa_r_number  # 숫자 버튼 호환성
+        self.pushButton_11 = oa_r_close  # 기존 호환성 유지
         
         # RA.DAMPER(L) - Return Air Damper Left - 내기 댐퍼
         ra_damper_left_button = create_button_row("RA.DAMP(L)", QPushButton("CLOSE"), right_layout)
@@ -1382,7 +1408,7 @@ class ControlWindow(QtWidgets.QMainWindow):
             
         if self.damp_test_button.text() == "RUN":
             # RUN 실행
-            cmd = f"$CMD,DSCT,DAMPTEST,RUN\r\n"
+            cmd = f"$CMD,DSCT,DMPTEST,RUN\r\n"
             success = self.serial_manager.send_data(cmd)
             if success:
                 self.damp_test_button.setText("STOP")
@@ -1390,7 +1416,7 @@ class ControlWindow(QtWidgets.QMainWindow):
                 print(f"DAMP TEST RUN 명령 전송: {cmd.strip()}")
         else:
             # STOP 실행
-            cmd = f"$CMD,DSCT,DAMPTEST,STOP\r\n"
+            cmd = f"$CMD,DSCT,DMPTEST,STOP\r\n"
             success = self.serial_manager.send_data(cmd)
             if success:
                 self.damp_test_button.setText("RUN")

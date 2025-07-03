@@ -29,12 +29,7 @@ def setup_button_groups(window):
         })
 
     # 에어컨 왼쪽 위 DMP | Aircon LEFT TOP DMP
-    window.button_manager.add_group('aircon_left_top_DMP', {
-        window.pushButton_9: {
-            'on': f'{CMD_PREFIX},{AIR_SYSTEM},{ALTDMP_CMD},{OPEN_STATE}{TERMINATOR}',
-            'off': f'{CMD_PREFIX},{AIR_SYSTEM},{ALTDMP_CMD},{CLOSE_STATE}{TERMINATOR}'
-        }
-    })
+    # 토글 기능 제거됨 - pushButton_9
 
     # 에어컨 왼쪽 바닥 DMP | Aircon LEFT BOTTOM DMP
     window.button_manager.add_group('aircon_left_bottom_DMP', {
@@ -45,12 +40,7 @@ def setup_button_groups(window):
     })
 
     # 에어컨 오른쪽 위 DMP | Aircon RIGHT TOP DMP
-    window.button_manager.add_group('aircon_right_top_DMP', {
-        window.pushButton_11: {
-            'on': f'{CMD_PREFIX},{AIR_SYSTEM},{ARTDMP_CMD},{OPEN_STATE}{TERMINATOR}',
-            'off': f'{CMD_PREFIX},{AIR_SYSTEM},{ARTDMP_CMD},{CLOSE_STATE}{TERMINATOR}'
-        }
-    })
+    # 토글 기능 제거됨 - pushButton_11
 
     # 에어컨 오른쪽 바닥 DMP | Aircon RIGHT BOTTOM DMP
     window.button_manager.add_group('aircon_right_bottom_DMP', {
