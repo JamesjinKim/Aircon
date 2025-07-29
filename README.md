@@ -6,9 +6,10 @@ AIRCON은 PyQt5를 기반으로 한 에어컨 및 제습기 원격 제어 시스
 
 ### 🎛️ 제어 모드
 - **AIRCON 탭**: 에어컨 시스템 수동 제어 (EVA FAN, COMPRESSOR 등)
-- **PUMP & SOL 탭**: 펌프 및 솔레노이드 밸브 제어
+- **PUMP &amp; SOL 탭**: 펌프 및 솔레노이드 밸브 제어
 - **DESICCANT 탭**: 제습기 시스템 및 댐퍼 제어 (통합)
 - **SEMI AUTO 탭**: 반자동 제어 모드 (DESICCANT SEMI AUTO, DAMP TEST)
+- **SENSORS 탭**: 온습도 센서 12개 실시간 모니터링
 - **AUTO 탭**: 온도 및 풍량 자동 제어
 
 ### 🌡️ 에어컨 제어 (AIRCON 탭)
@@ -27,7 +28,7 @@ AIRCON은 PyQt5를 기반으로 한 에어컨 및 제습기 원격 제어 시스
 - **배기(L), 배기(R), 급기(L), 급기(R)**: CLOSE/OPEN 토글 + 위치 조절 (0→1→...→4→0)
 - 위치 0=CLOSE, 위치 1~4=OPEN 상태
 
-### 🔧 펌프 및 솔레노이드 제어 (PUMP & SOL 탭)
+### 🔧 펌프 및 솔레노이드 제어 (PUMP &amp; SOL 탭)
 **왼쪽 - PUMP CONTROLS:**
 - **PUMP1/PUMP2**: ON/OFF 토글 + 순환 숫자 버튼 (0→1→...→8→0)
 - 펌프 OFF 시 속도 자동 리셋, ON 시 속도 1부터 시작
@@ -45,6 +46,13 @@ AIRCON은 PyQt5를 기반으로 한 에어컨 및 제습기 원격 제어 시스
 - **DAMP**: RUN/STOP 토글 버튼  
 - Serial CMD: `$CMD,DSCT,DAMPTEST,RUN` / `$CMD,DSCT,DAMPTEST,STOP`
 
+### 🌡️ 온습도 센서 모니터링 (SENSORS 탭)
+- **12개 센서 실시간 모니터링**: ID01~ID12 센서 데이터 표시
+- **자동 갱신**: 5초 주기로 자동 데이터 업데이트
+- **상태 표시**: 정상(녹색), 타임아웃(빨간색), 대기중(회색)
+- **개별 센서 정보**: 온도(°C), 습도(%), 상태, 업데이트 시간
+- **요약 정보**: 정상/타임아웃/대기중 센서 개수 실시간 표시
+
 ### 🔄 환기 시스템 (AUTO 탭)
 - 외기유입 모드
 - 내기순환 모드
@@ -57,19 +65,56 @@ AIRCON은 PyQt5를 기반으로 한 에어컨 및 제습기 원격 제어 시스
 
 ## 시스템 요구사항
 
-- Python 3.12
+- Python 3.11 이상
 - PyQt5 5.15.0 이상
 - pyserial 3.5 이상
 
 ## 설치 및 실행
 
-### 1. 의존성 설치
+### Raspberry Pi에서 설치 방법
+
+Raspberry Pi OS (Debian 기반)에서는 시스템 Python 환경 보호를 위해 직접 pip 설치가 제한됩니다. 다음 방법으로 설치하세요:
+
+#### 1. 가상환경 생성 및 활성화
+```bash
+# 가상환경 생성
+python3 -m venv mvenv
+
+# 가상환경 활성화
+source mvenv/bin/activate
+```
+
+#### 2. 시스템 PyQt5 패키지 설치
+```bash
+# 시스템에 PyQt5 설치 (가상환경 밖에서 실행)
+sudo apt update
+sudo apt install -y python3-pyqt5 python3-pyqt5.qtserialport
+```
+
+#### 3. 가상환경에 시스템 PyQt5 연결
+```bash
+# 가상환경에 시스템 PyQt5 심볼릭 링크 생성
+cd mvenv/lib/python3.11/site-packages
+ln -sf /usr/lib/python3/dist-packages/PyQt5* .
+```
+
+#### 4. pyserial 설치
+```bash
+# 가상환경 활성화 상태에서
+pip install pyserial
+```
+
+### 일반 시스템에서 설치 방법
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. 애플리케이션 실행
+### 애플리케이션 실행
 ```bash
+# 가상환경 활성화 (Raspberry Pi의 경우)
+source mvenv/bin/activate
+
+# 프로그램 실행
 python main.py
 ```
 
@@ -91,12 +136,15 @@ Aircon/
 │   ├── ui_components.py    # UI 컴포넌트 생성 함수
 │   ├── constants.py        # UI 상수 정의
 │   ├── helpers.py          # UI 도우미 함수
-│   └── setup_buttons.py    # 버튼 설정
+│   ├── setup_buttons.py    # 버튼 설정
+│   ├── sensor_widget.py    # 개별 센서 위젯 (NEW)
+│   └── sensor_tab.py       # 센서 탭 레이아웃 (NEW)
 └── managers/               # 비즈니스 로직 매니저
     ├── serial_manager.py   # 시리얼 통신 관리
     ├── button_manager.py   # 버튼 동작 관리
     ├── speed_manager.py    # 속도 버튼 관리
-    └── auto_manager.py     # AUTO 모드 관리
+    ├── auto_manager.py     # AUTO 모드 관리
+    └── sensor_manager.py   # 센서 데이터 관리 (NEW)
 ```
 
 ## 사용 방법
@@ -108,6 +156,15 @@ Aircon/
 4. 연결 상태가 "Connected"로 변경되면 제어 가능
 
 ### 2. 탭별 사용법
+
+#### SENSORS 탭
+- **자동 모니터링**: 시리얼 연결 시 자동으로 5초마다 센서 데이터 갱신
+- **수동 새로고침**: "수동 새로고침" 버튼으로 즉시 데이터 요청
+- **센서 상태 확인**:
+  - 녹색 표시: 센서 정상 작동
+  - 빨간색 표시: 센서 응답 없음 (타임아웃)
+  - 회색 표시: 데이터 대기중
+- **요약 정보**: 하단에 전체 센서 상태 요약 표시
 
 #### AIRCON 탭
 - **FAN CONTROLS 그룹**:
@@ -180,6 +237,12 @@ $CMD,<DEVICE>,<VALUE>\r
 - DESICCANT SEMI AUTO: `$CMD,DSCT,SEMIAUTO,RUN,300` / `$CMD,DSCT,SEMIAUTO,STOP`
 - DAMP TEST: `$CMD,DSCT,DAMPTEST,RUN` / `$CMD,DSCT,DAMPTEST,STOP`
 
+#### SENSORS 시스템  
+- 센서 데이터 요청: `$CMD,DSCT,TH`
+- 응답 형식:
+  - 정상: `[DSCT] ID01,TEMP: 28.3, HUMI: 67.7`
+  - 에러: `[DSCT] ID07,Sensor Check TIMEOUT!`
+
 #### AUTO 모드
 - AUTO 모드: `$CMD,AUTO,ON` / `$CMD,AUTO,OFF`
 - 온도 제어: `$CMD,TEMP,22`
@@ -200,7 +263,7 @@ $CMD,<DEVICE>,<VALUE>\r
 - 명령 전송 실패 시 에러 로깅
 
 ### 🎨 사용자 친화적 UI
-- 탭 기반 인터페이스 (AIRCON | PUMP & SOL | DESICCANT | SEMI AUTO | AUTO)
+- 탭 기반 인터페이스 (AIRCON | "PUMP & SOL" | DESICCANT | SEMI AUTO | AUTO)
 - 직관적인 2컬럼 레이아웃 설계 (모든 탭 통일)
 - 실시간 상태 표시 및 버튼 색상 피드백
 - 통일된 버튼 스타일 (COMPRESSOR 버튼 기준)
@@ -235,7 +298,19 @@ $CMD,<DEVICE>,<VALUE>\r
 
 ## 업데이트 내역
 
-### v3.0 (2025년 7월 최신) 🎉
+### v3.2 (2025년 1월 29일) 🌡️
+- **NEW**: SENSORS 탭 추가 - 12개 온습도 센서 실시간 모니터링
+  - 4×3 그리드 레이아웃으로 센서 상태 한눈에 확인
+  - 5초 주기 자동 갱신 및 수동 새로고침 기능
+  - 시각적 상태 표시 (정상: 녹색, 타임아웃: 빨간색)
+- **IMPROVED**: 시리얼 통신 확장
+  - 센서 데이터 수신 콜백 메커니즘 추가
+  - 연결/해제 시 센서 모니터링 자동 시작/중지
+- **ENHANCED**: 사용자 경험 개선
+  - 실시간 센서 상태 요약 정보 표시
+  - 마지막 업데이트 시간 표시로 데이터 신뢰성 확인
+
+### v3.0 (2025년 7월) 🎉
 - **NEW**: SEMI AUTO 탭 추가
   - DESICCANT SEMI AUTO 기능 (RUN/STOP + 주기 조절 1~999초)
   - DAMP TEST 기능 (RUN/STOP)

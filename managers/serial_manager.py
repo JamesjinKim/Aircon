@@ -14,6 +14,9 @@ class SerialManager:
         self.last_heartbeat_time = 0
         self.heartbeat_timeout = 10.0  # 10초 타임아웃
         self.connection_healthy = True
+        
+        # 센서 데이터 콜백
+        self.sensor_data_callback = None
 
     def get_available_ports(self) -> List[Dict[str, str]]:
         """연결 가능한 시리얼 포트 목록을 반환하는 함수"""
@@ -68,7 +71,14 @@ class SerialManager:
             
             if self.shinho_serial_connection.in_waiting:
                 data = self.shinho_serial_connection.readline()
-                return data.decode('ascii').strip()
+                decoded_data = data.decode('ascii').strip()
+                
+                # 센서 데이터 체크 및 콜백 호출
+                if self.sensor_data_callback and decoded_data:
+                    if '[DSCT]' in decoded_data:
+                        self.sensor_data_callback(decoded_data)
+                
+                return decoded_data
             return None
         except Exception as e:
             print(f"Error reading serial data: {e}")
@@ -110,3 +120,14 @@ class SerialManager:
         return (self.is_connected() and 
                 self.connection_healthy and 
                 self.check_heartbeat_timeout())
+    
+    def send_serial_command(self, command):
+        """시리얼 명령 전송 함수 (종료 문자 자동 추가)"""
+        if self.is_connected():
+            full_command = f"{command}\r"
+            return self.send_data(full_command)
+        return False
+    
+    def set_sensor_data_callback(self, callback):
+        """센서 데이터 수신 콜백 설정"""
+        self.sensor_data_callback = callback

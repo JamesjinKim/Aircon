@@ -13,6 +13,7 @@ from managers.serial_manager import SerialManager
 from managers.button_manager import ButtonManager
 from managers.speed_manager import SpeedButtonManager
 from managers.auto_manager import AutoSpeedManager
+from managers.sensor_manager import SensorManager
 
 from ui.constants import BUTTON_ON_STYLE, BUTTON_OFF_STYLE, BUTTON_DEFAULT_STYLE, BUTTON_SPEED_STYLE, BUTTON_PUMP_STYLE, BUTTON_STANDARD_STYLE
 from ui.helpers import get_file_path, configure_display_settings
@@ -20,6 +21,7 @@ from ui.ui_components import (create_group_box, create_button_row, create_port_s
                             create_speed_buttons, create_fan_speed_control,
                             create_auto_control_tab, create_speed_buttons_with_text, create_button_row_with_number, create_oa_damper_three_button_row)
 from ui.setup_buttons import setup_button_groups
+from ui.sensor_tab import SensorTab
 
 class ControlWindow(QtWidgets.QMainWindow):
     def __init__(self):
@@ -35,6 +37,9 @@ class ControlWindow(QtWidgets.QMainWindow):
             
         # 시리얼 매니저 초기화
         self.serial_manager = SerialManager()
+        
+        # 센서 매니저 초기화
+        self.sensor_manager = SensorManager(self.serial_manager)
         
         # AUTO 스피드 매니저 초기화 (UI 요소 생성 전에 초기화)
         self.auto_speed_manager = AutoSpeedManager(
@@ -350,7 +355,7 @@ class ControlWindow(QtWidgets.QMainWindow):
         # 두 번째 탭 - PUMP & SOL
         self.pumper_sol_tab = QWidget()
         self.setup_pumper_sol_tab()
-        self.tab_widget.addTab(self.pumper_sol_tab, "PUMP & SOL")
+        self.tab_widget.addTab(self.pumper_sol_tab, "PUMP && SOL")
         
         # 세 번째 탭 - DESICCANT (DAMPER 포함)
         self.desiccant_tab = QWidget()
@@ -362,7 +367,11 @@ class ControlWindow(QtWidgets.QMainWindow):
         self.setup_semi_auto_tab()
         self.tab_widget.addTab(self.semi_auto_tab, "SEMI AUTO")
         
-        # 다섯 번째 탭 - AUTO 모드
+        # 다섯 번째 탭 - SENSORS
+        self.sensors_tab = SensorTab(self.sensor_manager)
+        self.tab_widget.addTab(self.sensors_tab, "SENSORS")
+        
+        # 여섯 번째 탭 - AUTO 모드
         self.auto_tab = QWidget()
         self.setup_auto_tab()
         self.tab_widget.addTab(self.auto_tab, "AUTO")
@@ -1044,6 +1053,11 @@ class ControlWindow(QtWidgets.QMainWindow):
                     # self.serial_manager.update_heartbeat()  # 하트비트 비활성화
                     self.was_connected = True
                     self.connection_error_count = 0  # 에러 카운터 리셋
+                    
+                    # 센서 매니저 콜백 설정 및 자동 새로고침 시작
+                    self.serial_manager.set_sensor_data_callback(self.sensor_manager.parse_sensor_data)
+                    self.sensor_manager.start_auto_refresh()
+                    self.sensors_tab.set_auto_refresh_status(True)
                     self.last_connection_check = time.time()
                     self.last_error_log_time = 0
                     self.update_status_indicator("connected")
@@ -1072,6 +1086,11 @@ class ControlWindow(QtWidgets.QMainWindow):
         """시리얼 연결 해제"""
         try:
             if self.serial_manager.is_connected():
+                # 센서 자동 새로고침 중지
+                self.sensor_manager.stop_auto_refresh()
+                self.sensors_tab.set_auto_refresh_status(False)
+                self.sensors_tab.reset_all_sensors()
+                
                 self.serial_manager.disconnect_serial()
                 # 연결 상태 초기화
                 self.was_connected = False
