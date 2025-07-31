@@ -1,21 +1,21 @@
-# SENSORS 탭의 전체 레이아웃을 관리하는 모듈
+# AIRCON T/H 탭의 전체 레이아웃을 관리하는 모듈
 from PyQt5.QtWidgets import QWidget, QGridLayout, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QGroupBox
 from PyQt5.QtCore import Qt, pyqtSlot
 from PyQt5.QtGui import QFont
 from ui.sensor_widget import SensorWidget
 
-class SensorTab(QWidget):
-    """SENSORS 탭 위젯"""
+class AirconSensorTab(QWidget):
+    """AIRCON T/H 탭 위젯"""
     
-    def __init__(self, sensor_manager=None, parent=None):
+    def __init__(self, air_sensor_manager=None, parent=None):
         super().__init__(parent)
-        self.sensor_manager = sensor_manager
+        self.air_sensor_manager = air_sensor_manager
         self.sensor_widgets = {}  # sensor_id: widget 매핑
         
         self.setup_ui()
         
         # 센서 매니저 연결
-        if self.sensor_manager:
+        if self.air_sensor_manager:
             self.connect_sensor_manager()
             
     def setup_ui(self):
@@ -29,7 +29,7 @@ class SensorTab(QWidget):
         control_layout.setSpacing(10)
         
         # 제목 레이블
-        title_label = QLabel("온습도 센서 모니터링")
+        title_label = QLabel("AIRCON 온습도 센서 모니터링")
         title_font = QFont()
         title_font.setPointSize(16)
         title_font.setBold(True)
@@ -71,12 +71,12 @@ class SensorTab(QWidget):
         sensor_group = QGroupBox("센서 상태")
         sensor_group_layout = QVBoxLayout()
         
-        # 센서 그리드 레이아웃 (4x3)
+        # 센서 그리드 레이아웃 (4x2 - AIRCON은 8개만)
         sensor_grid = QGridLayout()
         sensor_grid.setSpacing(5)
         
-        # 12개 센서 위젯 생성
-        for i in range(12):
+        # 8개 센서 위젯 생성
+        for i in range(8):
             row = i // 4
             col = i % 4
             sensor_id = f"ID{i+1:02d}"
@@ -94,7 +94,7 @@ class SensorTab(QWidget):
         info_layout.setSpacing(20)
         
         # 요약 정보
-        self.summary_label = QLabel("정상: 0개, 타임아웃: 0개, 대기중: 12개")
+        self.summary_label = QLabel("정상: 0개, 타임아웃: 0개, 대기중: 8개")
         self.summary_label.setStyleSheet("QLabel { font-size: 12px; }")
         info_layout.addWidget(self.summary_label)
         
@@ -112,22 +112,22 @@ class SensorTab(QWidget):
         
     def connect_sensor_manager(self):
         """센서 매니저 시그널 연결"""
-        if self.sensor_manager:
+        if self.air_sensor_manager:
             # 개별 센서 업데이트
-            self.sensor_manager.sensor_data_updated.connect(self.on_sensor_data_updated)
+            self.air_sensor_manager.sensor_data_updated.connect(self.on_sensor_data_updated)
             # 전체 센서 업데이트
-            self.sensor_manager.all_sensors_updated.connect(self.on_all_sensors_updated)
+            self.air_sensor_manager.all_sensors_updated.connect(self.on_all_sensors_updated)
             
-    def set_sensor_manager(self, sensor_manager):
+    def set_sensor_manager(self, air_sensor_manager):
         """센서 매니저 설정"""
-        self.sensor_manager = sensor_manager
+        self.air_sensor_manager = air_sensor_manager
         self.connect_sensor_manager()
         
     @pyqtSlot()
     def on_refresh_clicked(self):
         """새로고침 버튼 클릭"""
-        if self.sensor_manager:
-            self.sensor_manager.request_sensor_data()
+        if self.air_sensor_manager:
+            self.air_sensor_manager.request_sensor_data()
             self.refresh_button.setText("새로고침 중...")
             self.refresh_button.setEnabled(False)
             
@@ -185,5 +185,5 @@ class SensorTab(QWidget):
                 'last_update': None
             })
         
-        self.summary_label.setText("정상: 0개, 타임아웃: 0개, 대기중: 12개")
+        self.summary_label.setText("정상: 0개, 타임아웃: 0개, 대기중: 8개")
         self.last_scan_label.setText("마지막 스캔: -")

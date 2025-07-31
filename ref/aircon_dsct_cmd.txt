@@ -473,3 +473,79 @@ DAMP TEST RUN 명령 전송: $CMD,DSCT,DMPTEST,RUN 으로 수정 해주세요.
 
 AIR CON TAB의 
 DAMPER CONTROLS 그룹 명칭은  DAMP CONTROLS 로 수정 해줘요.
+
+
+  ┌───────────────────────────┐
+  │          ID00             │
+  │ 온도:             --.- C   │
+  │ 습도:             --.- %   │
+  └───────────────────────────┘
+
+
+다음은 1.가상의 테스트용 온습도 센서 12개의 데이터를 발생하는 테스트 코드를 만들어 
+현재 이 프로그램과 연동하여 온습도 센서 가져오기를 클릭하면 랜덤하게 가상의 더미데이터를 보내주는 코드를 만들어 줘.
+2.현재 이코드가 온도와 습도 데이터를 받게되면 그 정보를 타임스템프 기준으로 csv파일로 저장하여 현재 폴더의 data 폴더에 저장되게 해줘.
+
+
+현장의 요구사항 변화가 있어.
+1.기존 온습도 센서관련 SENSOR 탭을 "DSCT T/H" 로 명칭을 바꿔 주고 그 옆에 탭을 하나더 추가하여 "AIRCON T/H"를 만들어 줘.
+2."AIRCON T/H" 명령과 응답 받는 방식은 아래와 같아.
+$CMD,AIR,TH<CR><LF>
+2025-07-29 13:19:52.844 [RX] - [AIR] Temp/Humi SCAN START!<CR><LF>
+[AIR] ID01,TEMP: 28.3, HUMI: 67.7<CR><LF>
+[AIR] ID02,TEMP: 28.8, HUMI: 68.6<CR><LF>
+[AIR] ID02,TEMP: 28.8, HUMI: 68.6<CR><LF>
+[AIR] ID03,TEMP: 28.8, HUMI: 68.2<CR><LF>
+[AIR] ID04,TEMP: 25.7, HUMI: 72.9<CR><LF>
+[AIR] ID05,TEMP: 28.5, HUMI: 70.0<CR><LF>
+[AIR] ID06,TEMP: 28.8, HUMI: 68.1<CR><LF>
+[AIR] ID07,Sensor Check TIMEOUT!<CR><LF>
+[AIR] ID08,Sensor Check TIMEOUT!<CR><LF>
+[AIR] ID09,Sensor Check TIMEOUT!<CR><LF>
+[AIR] ID10,Sensor Check TIMEOUT!<CR><LF>
+[AIR] ID11,Sensor Check TIMEOUT!<CR><LF>
+[AIR] ID12,Sensor Check TIMEOUT!<CR><LF>
+[AIR] SEQUENTIAL SCAN COMPLETE: Total: 8, Success: 6, Error: 2, Time: 7470ms<CR><LF>
+
+이 내용을 반영해주되
+3.테스트 프로그램과 CSV 파일 저장기능도 구현해줘.
+
+
+DSCT T/H TAB, AIRCON T/H TAB UI 개선이 필요합니다.
+1.온도 습도 위젯 내의 정상, 타임아웃, 업데이트 타임 레이블을 삭제하고 온도 습도의 라벨의 폰트를 키워 가독성을 키워 주세요.
+
+● CSV 파일 크기 문제를 해결할 수 있는 여러 방법을 제안드립니다:
+
+  1. 파일 분할 저장
+
+  - 일별/주별/월별 파일 분할: sensor_data_2025-01-31.csv 형식
+  - 크기 기반 분할: 10MB 도달 시 새 파일 생성
+  - 센서별 분할: 각 센서마다 별도 파일
+
+  2. 데이터 압축
+
+  - 실시간 압축: gzip으로 CSV 압축 저장 (.csv.gz)
+  - 주기적 압축: 오래된 파일 자동 압축
+  - 데이터 샘플링: 5초마다 저장 → 30초/1분 간격으로 변경
+
+  3. 데이터베이스 활용
+
+  - SQLite: 파일 기반 경량 DB, 인덱싱으로 빠른 조회
+  - 시계열 DB: InfluxDB 같은 특화 DB 사용
+  - 하이브리드: 최근 데이터는 CSV, 과거 데이터는 DB
+
+  4. 스마트 저장 전략
+
+  - 변화 감지 저장: 온도/습도 변화가 있을 때만 저장
+  - 평균값 저장: 1분간 평균값만 저장
+  - 순환 버퍼: 최근 N일치만 유지, 오래된 데이터 자동 삭제
+
+  5. 데이터 포맷 최적화
+
+  - 바이너리 형식: HDF5, Parquet 등 효율적 포맷
+  - 필드 최적화: 타임스탬프 형식 간소화, 소수점 자릿수 제한
+
+  추천 조합
+
+  단기 해결책: 일별 파일 분할 + gzip 압축
+  장기 해결책: SQLite DB + 주기적 아카이빙

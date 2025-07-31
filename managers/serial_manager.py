@@ -17,6 +17,7 @@ class SerialManager:
         
         # 센서 데이터 콜백
         self.sensor_data_callback = None
+        self.air_sensor_data_callback = None
 
     def get_available_ports(self) -> List[Dict[str, str]]:
         """연결 가능한 시리얼 포트 목록을 반환하는 함수"""
@@ -77,6 +78,8 @@ class SerialManager:
                 if self.sensor_data_callback and decoded_data:
                     if '[DSCT]' in decoded_data:
                         self.sensor_data_callback(decoded_data)
+                    elif '[AIR]' in decoded_data and hasattr(self, 'air_sensor_data_callback'):
+                        self.air_sensor_data_callback(decoded_data)
                 
                 return decoded_data
             return None
@@ -131,3 +134,7 @@ class SerialManager:
     def set_sensor_data_callback(self, callback):
         """센서 데이터 수신 콜백 설정"""
         self.sensor_data_callback = callback
+    
+    def set_air_sensor_data_callback(self, callback):
+        """AIR 센서 데이터 수신 콜백 설정"""
+        self.air_sensor_data_callback = callback

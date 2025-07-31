@@ -14,6 +14,7 @@ from managers.button_manager import ButtonManager
 from managers.speed_manager import SpeedButtonManager
 from managers.auto_manager import AutoSpeedManager
 from managers.sensor_manager import SensorManager
+from managers.air_sensor_manager import AirSensorManager
 
 from ui.constants import BUTTON_ON_STYLE, BUTTON_OFF_STYLE, BUTTON_DEFAULT_STYLE, BUTTON_SPEED_STYLE, BUTTON_PUMP_STYLE, BUTTON_STANDARD_STYLE
 from ui.helpers import get_file_path, configure_display_settings
@@ -22,10 +23,12 @@ from ui.ui_components import (create_group_box, create_button_row, create_port_s
                             create_auto_control_tab, create_speed_buttons_with_text, create_button_row_with_number, create_oa_damper_three_button_row)
 from ui.setup_buttons import setup_button_groups
 from ui.sensor_tab import SensorTab
+from ui.aircon_sensor_tab import AirconSensorTab
 
 class ControlWindow(QtWidgets.QMainWindow):
-    def __init__(self):
+    def __init__(self, test_mode=False):
         super().__init__()
+        self.test_mode = test_mode
         
         # 창 설정
         self.setWindowTitle('Aircon Remote Control')
@@ -39,7 +42,10 @@ class ControlWindow(QtWidgets.QMainWindow):
         self.serial_manager = SerialManager()
         
         # 센서 매니저 초기화
-        self.sensor_manager = SensorManager(self.serial_manager)
+        self.sensor_manager = SensorManager(self.serial_manager, test_mode=self.test_mode)
+        
+        # AIR 센서 매니저 초기화
+        self.air_sensor_manager = AirSensorManager(self.serial_manager, test_mode=self.test_mode)
         
         # AUTO 스피드 매니저 초기화 (UI 요소 생성 전에 초기화)
         self.auto_speed_manager = AutoSpeedManager(
@@ -367,11 +373,15 @@ class ControlWindow(QtWidgets.QMainWindow):
         self.setup_semi_auto_tab()
         self.tab_widget.addTab(self.semi_auto_tab, "SEMI AUTO")
         
-        # 다섯 번째 탭 - SENSORS
+        # 다섯 번째 탭 - DSCT T/H
         self.sensors_tab = SensorTab(self.sensor_manager)
-        self.tab_widget.addTab(self.sensors_tab, "SENSORS")
+        self.tab_widget.addTab(self.sensors_tab, "DSCT T/H")
         
-        # 여섯 번째 탭 - AUTO 모드
+        # 여섯 번째 탭 - AIRCON T/H
+        self.aircon_sensors_tab = AirconSensorTab(self.air_sensor_manager)
+        self.tab_widget.addTab(self.aircon_sensors_tab, "AIRCON T/H")
+        
+        # 일곱 번째 탭 - AUTO 모드
         self.auto_tab = QWidget()
         self.setup_auto_tab()
         self.tab_widget.addTab(self.auto_tab, "AUTO")
@@ -1058,6 +1068,11 @@ class ControlWindow(QtWidgets.QMainWindow):
                     self.serial_manager.set_sensor_data_callback(self.sensor_manager.parse_sensor_data)
                     self.sensor_manager.start_auto_refresh()
                     self.sensors_tab.set_auto_refresh_status(True)
+                    
+                    # AIR 센서 매니저 콜백 설정 및 자동 새로고침 시작
+                    self.serial_manager.set_air_sensor_data_callback(self.air_sensor_manager.parse_sensor_data)
+                    self.air_sensor_manager.start_auto_refresh()
+                    self.aircon_sensors_tab.set_auto_refresh_status(True)
                     self.last_connection_check = time.time()
                     self.last_error_log_time = 0
                     self.update_status_indicator("connected")
@@ -1090,6 +1105,11 @@ class ControlWindow(QtWidgets.QMainWindow):
                 self.sensor_manager.stop_auto_refresh()
                 self.sensors_tab.set_auto_refresh_status(False)
                 self.sensors_tab.reset_all_sensors()
+                
+                # AIR 센서 자동 새로고침 중지
+                self.air_sensor_manager.stop_auto_refresh()
+                self.aircon_sensors_tab.set_auto_refresh_status(False)
+                self.aircon_sensors_tab.reset_all_sensors()
                 
                 self.serial_manager.disconnect_serial()
                 # 연결 상태 초기화
