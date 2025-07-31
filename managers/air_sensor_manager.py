@@ -1,12 +1,12 @@
-# 온습도 센서 12개를 관리하는 매니저 클래스
+# AIRCON 온습도 센서 8개를 관리하는 매니저 클래스
 from PyQt5.QtCore import QObject, pyqtSignal, QTimer
 from datetime import datetime
 import re
 import os
 import csv
 
-class SensorManager(QObject):
-    """온습도 센서 12개의 데이터를 관리하는 매니저 클래스"""
+class AirSensorManager(QObject):
+    """AIRCON 온습도 센서 8개의 데이터를 관리하는 매니저 클래스"""
     
     # 센서 데이터 업데이트 시그널
     sensor_data_updated = pyqtSignal(str, dict)  # sensor_id, data
@@ -17,9 +17,9 @@ class SensorManager(QObject):
         self.serial_manager = serial_manager
         self.test_mode = test_mode  # 테스트 모드 플래그
         
-        # 12개 센서 데이터 저장소
+        # 8개 센서 데이터 저장소 (AIRCON은 8개만 사용)
         self.sensor_data = {}
-        for i in range(1, 13):
+        for i in range(1, 9):  # 1부터 8까지
             sensor_id = f"ID{i:02d}"
             self.sensor_data[sensor_id] = {
                 'temp': None,
@@ -29,9 +29,9 @@ class SensorManager(QObject):
             }
         
         # 파싱 패턴
-        self.data_pattern = re.compile(r'\[DSCT\]\s+(ID\d{2}),TEMP:\s*([\d.]+),\s*HUMI:\s*([\d.]+)')
-        self.timeout_pattern = re.compile(r'\[DSCT\]\s+(ID\d{2}),Sensor Check TIMEOUT!')
-        self.scan_complete_pattern = re.compile(r'\[DSCT\]\s*SEQUENTIAL SCAN COMPLETE:.*Total:\s*(\d+).*Success:\s*(\d+).*Error:\s*(\d+).*Time:\s*(\d+)ms')
+        self.data_pattern = re.compile(r'\[AIR\]\s+(ID\d{2}),TEMP:\s*([\d.]+),\s*HUMI:\s*([\d.]+)')
+        self.timeout_pattern = re.compile(r'\[AIR\]\s+(ID\d{2}),Sensor Check TIMEOUT!')
+        self.scan_complete_pattern = re.compile(r'\[AIR\]\s*SEQUENTIAL SCAN COMPLETE:.*Total:\s*(\d+).*Success:\s*(\d+).*Error:\s*(\d+).*Time:\s*(\d+)ms')
         
         # 자동 갱신 타이머
         self.auto_refresh_timer = QTimer()
@@ -43,8 +43,8 @@ class SensorManager(QObject):
         
         # 테스트 모드용 더미 데이터 생성기
         if self.test_mode:
-            from test.dummy_sensor_generator import DummySensorGenerator
-            self.dummy_generator = DummySensorGenerator()
+            from test.dummy_air_sensor_generator import DummyAirSensorGenerator
+            self.dummy_generator = DummyAirSensorGenerator()
         
         # CSV 저장 설정
         self.csv_enabled = True
@@ -72,7 +72,7 @@ class SensorManager(QObject):
             self.is_scanning = True
             self._generate_dummy_data()
         elif self.serial_manager and self.serial_manager.is_connection_healthy():
-            command = "$CMD,DSCT,TH"
+            command = "$CMD,AIR,TH"
             self.serial_manager.send_serial_command(command)
             self.is_scanning = True
             
@@ -88,18 +88,20 @@ class SensorManager(QObject):
             temp = float(match.group(2))
             humi = float(match.group(3))
             
-            self.sensor_data[sensor_id] = {
-                'temp': temp,
-                'humi': humi,
-                'status': 'active',
-                'last_update': datetime.now()
-            }
-            
-            # CSV 저장
-            self._save_to_csv(sensor_id, self.sensor_data[sensor_id])
-            
-            # 개별 센서 업데이트 시그널
-            self.sensor_data_updated.emit(sensor_id, self.sensor_data[sensor_id])
+            # ID01~ID08만 처리
+            if sensor_id in self.sensor_data:
+                self.sensor_data[sensor_id] = {
+                    'temp': temp,
+                    'humi': humi,
+                    'status': 'active',
+                    'last_update': datetime.now()
+                }
+                
+                # CSV 저장
+                self._save_to_csv(sensor_id, self.sensor_data[sensor_id])
+                
+                # 개별 센서 업데이트 시그널
+                self.sensor_data_updated.emit(sensor_id, self.sensor_data[sensor_id])
             return
             
         # 타임아웃 파싱
@@ -107,15 +109,17 @@ class SensorManager(QObject):
         if timeout_match:
             sensor_id = timeout_match.group(1)
             
-            self.sensor_data[sensor_id] = {
-                'temp': None,
-                'humi': None,
-                'status': 'timeout',
-                'last_update': datetime.now()
-            }
-            
-            # 개별 센서 업데이트 시그널
-            self.sensor_data_updated.emit(sensor_id, self.sensor_data[sensor_id])
+            # ID01~ID08만 처리
+            if sensor_id in self.sensor_data:
+                self.sensor_data[sensor_id] = {
+                    'temp': None,
+                    'humi': None,
+                    'status': 'timeout',
+                    'last_update': datetime.now()
+                }
+                
+                # 개별 센서 업데이트 시그널
+                self.sensor_data_updated.emit(sensor_id, self.sensor_data[sensor_id])
             return
             
         # 스캔 완료 파싱
@@ -133,7 +137,7 @@ class SensorManager(QObject):
     def _get_csv_filename(self):
         """현재 날짜와 파일 크기를 고려하여 CSV 파일명 생성"""
         today = datetime.now().strftime('%Y-%m-%d')
-        base_filename = f'DSCT_{today}'
+        base_filename = f'AIRCON_{today}'
         
         # 기존 파일들 확인
         file_index = 0

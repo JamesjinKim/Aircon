@@ -14,7 +14,7 @@ class SensorWidget(QFrame):
         # 프레임 스타일 설정
         self.setFrameStyle(QFrame.Box)
         self.setLineWidth(2)
-        self.setFixedSize(180, 120)
+        self.setFixedSize(180, 80)
         
         # 레이아웃 설정
         self.setup_ui()
@@ -30,14 +30,14 @@ class SensorWidget(QFrame):
     def setup_ui(self):
         """UI 설정"""
         layout = QVBoxLayout()
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(5)
+        layout.setContentsMargins(8, 5, 8, 5)
+        layout.setSpacing(2)
         
         # 센서 ID 레이블
         self.id_label = QLabel(self.sensor_id)
         self.id_label.setAlignment(Qt.AlignCenter)
         font = QFont()
-        font.setPointSize(12)
+        font.setPointSize(11)
         font.setBold(True)
         self.id_label.setFont(font)
         layout.addWidget(self.id_label)
@@ -47,15 +47,18 @@ class SensorWidget(QFrame):
         temp_layout.setSpacing(5)
         
         temp_title = QLabel("온도:")
-        temp_title.setFixedWidth(40)
+        temp_title.setFixedWidth(45)
+        temp_title.setStyleSheet("QLabel { font-size: 14px; font-weight: bold; }")
         temp_layout.addWidget(temp_title)
         
         self.temp_value = QLabel("--.-")
         self.temp_value.setAlignment(Qt.AlignRight)
+        self.temp_value.setStyleSheet("QLabel { font-size: 16px; font-weight: bold; }")
         temp_layout.addWidget(self.temp_value)
         
         self.temp_unit = QLabel("°C")
-        self.temp_unit.setFixedWidth(20)
+        self.temp_unit.setFixedWidth(25)
+        self.temp_unit.setStyleSheet("QLabel { font-size: 14px; }")
         temp_layout.addWidget(self.temp_unit)
         
         layout.addLayout(temp_layout)
@@ -65,30 +68,21 @@ class SensorWidget(QFrame):
         humi_layout.setSpacing(5)
         
         humi_title = QLabel("습도:")
-        humi_title.setFixedWidth(40)
+        humi_title.setFixedWidth(45)
+        humi_title.setStyleSheet("QLabel { font-size: 14px; font-weight: bold; }")
         humi_layout.addWidget(humi_title)
         
         self.humi_value = QLabel("--.-")
         self.humi_value.setAlignment(Qt.AlignRight)
+        self.humi_value.setStyleSheet("QLabel { font-size: 16px; font-weight: bold; }")
         humi_layout.addWidget(self.humi_value)
         
         self.humi_unit = QLabel("%")
-        self.humi_unit.setFixedWidth(20)
+        self.humi_unit.setFixedWidth(25)
+        self.humi_unit.setStyleSheet("QLabel { font-size: 14px; }")
         humi_layout.addWidget(self.humi_unit)
         
         layout.addLayout(humi_layout)
-        
-        # 상태 표시
-        self.status_label = QLabel("대기중")
-        self.status_label.setAlignment(Qt.AlignCenter)
-        self.status_label.setStyleSheet("QLabel { font-size: 10px; }")
-        layout.addWidget(self.status_label)
-        
-        # 마지막 업데이트 시간
-        self.update_time_label = QLabel("")
-        self.update_time_label.setAlignment(Qt.AlignCenter)
-        self.update_time_label.setStyleSheet("QLabel { font-size: 9px; color: #666; }")
-        layout.addWidget(self.update_time_label)
         
         self.setLayout(layout)
         
@@ -112,8 +106,6 @@ class SensorWidget(QFrame):
             else:
                 self.humi_value.setText("--.-")
                 
-            self.status_label.setText("정상")
-            self.status_label.setStyleSheet("QLabel { font-size: 10px; color: green; }")
             self.setStyleSheet("""
                 SensorWidget {
                     background-color: #f0fff0;
@@ -125,8 +117,6 @@ class SensorWidget(QFrame):
             # 타임아웃
             self.temp_value.setText("--.-")
             self.humi_value.setText("--.-")
-            self.status_label.setText("타임아웃")
-            self.status_label.setStyleSheet("QLabel { font-size: 10px; color: red; }")
             self.setStyleSheet("""
                 SensorWidget {
                     background-color: #fff0f0;
@@ -138,19 +128,9 @@ class SensorWidget(QFrame):
             # 대기중 또는 알 수 없음
             self.temp_value.setText("--.-")
             self.humi_value.setText("--.-")
-            self.status_label.setText("대기중")
-            self.status_label.setStyleSheet("QLabel { font-size: 10px; color: #666; }")
             self.setStyleSheet("""
                 SensorWidget {
                     background-color: #f5f5f5;
                     border: 2px solid #ccc;
                 }
             """)
-            
-        # 업데이트 시간 표시
-        last_update = data.get('last_update')
-        if last_update:
-            time_str = last_update.strftime("%H:%M:%S")
-            self.update_time_label.setText(f"업데이트: {time_str}")
-        else:
-            self.update_time_label.setText("")
