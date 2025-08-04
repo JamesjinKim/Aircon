@@ -14,7 +14,7 @@ class SensorWidget(QFrame):
         # 프레임 스타일 설정
         self.setFrameStyle(QFrame.Box)
         self.setLineWidth(2)
-        self.setFixedSize(180, 80)
+        self.setFixedSize(180, 70)
         
         # 레이아웃 설정
         self.setup_ui()
@@ -30,56 +30,56 @@ class SensorWidget(QFrame):
     def setup_ui(self):
         """UI 설정"""
         layout = QVBoxLayout()
-        layout.setContentsMargins(8, 5, 8, 5)
-        layout.setSpacing(2)
+        layout.setContentsMargins(6, 3, 6, 3)
+        layout.setSpacing(1)
         
         # 센서 ID 레이블
         self.id_label = QLabel(self.sensor_id)
         self.id_label.setAlignment(Qt.AlignCenter)
         font = QFont()
-        font.setPointSize(11)
+        font.setPointSize(10)
         font.setBold(True)
         self.id_label.setFont(font)
         layout.addWidget(self.id_label)
         
         # 온도 표시
         temp_layout = QHBoxLayout()
-        temp_layout.setSpacing(5)
+        temp_layout.setSpacing(3)
         
         temp_title = QLabel("온도:")
-        temp_title.setFixedWidth(45)
-        temp_title.setStyleSheet("QLabel { font-size: 14px; font-weight: bold; }")
+        temp_title.setFixedWidth(40)
+        temp_title.setStyleSheet("QLabel { font-size: 12px; font-weight: bold; }")
         temp_layout.addWidget(temp_title)
         
         self.temp_value = QLabel("--.-")
         self.temp_value.setAlignment(Qt.AlignRight)
-        self.temp_value.setStyleSheet("QLabel { font-size: 16px; font-weight: bold; }")
+        self.temp_value.setStyleSheet("QLabel { font-size: 14px; font-weight: bold; }")
         temp_layout.addWidget(self.temp_value)
         
         self.temp_unit = QLabel("°C")
-        self.temp_unit.setFixedWidth(25)
-        self.temp_unit.setStyleSheet("QLabel { font-size: 14px; }")
+        self.temp_unit.setFixedWidth(20)
+        self.temp_unit.setStyleSheet("QLabel { font-size: 12px; }")
         temp_layout.addWidget(self.temp_unit)
         
         layout.addLayout(temp_layout)
         
         # 습도 표시
         humi_layout = QHBoxLayout()
-        humi_layout.setSpacing(5)
+        humi_layout.setSpacing(3)
         
         humi_title = QLabel("습도:")
-        humi_title.setFixedWidth(45)
-        humi_title.setStyleSheet("QLabel { font-size: 14px; font-weight: bold; }")
+        humi_title.setFixedWidth(40)
+        humi_title.setStyleSheet("QLabel { font-size: 12px; font-weight: bold; }")
         humi_layout.addWidget(humi_title)
         
         self.humi_value = QLabel("--.-")
         self.humi_value.setAlignment(Qt.AlignRight)
-        self.humi_value.setStyleSheet("QLabel { font-size: 16px; font-weight: bold; }")
+        self.humi_value.setStyleSheet("QLabel { font-size: 14px; font-weight: bold; }")
         humi_layout.addWidget(self.humi_value)
         
         self.humi_unit = QLabel("%")
-        self.humi_unit.setFixedWidth(25)
-        self.humi_unit.setStyleSheet("QLabel { font-size: 14px; }")
+        self.humi_unit.setFixedWidth(20)
+        self.humi_unit.setStyleSheet("QLabel { font-size: 12px; }")
         humi_layout.addWidget(self.humi_unit)
         
         layout.addLayout(humi_layout)

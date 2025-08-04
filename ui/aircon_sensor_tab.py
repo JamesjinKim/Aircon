@@ -3,6 +3,8 @@ from PyQt5.QtWidgets import QWidget, QGridLayout, QVBoxLayout, QHBoxLayout, QPus
 from PyQt5.QtCore import Qt, pyqtSlot
 from PyQt5.QtGui import QFont
 from ui.sensor_widget import SensorWidget
+from utils.usb_detector import USBDetector
+from config.config_manager import get_config_manager
 
 class AirconSensorTab(QWidget):
     """AIRCON T/H 탭 위젯"""
@@ -11,6 +13,18 @@ class AirconSensorTab(QWidget):
         super().__init__(parent)
         self.air_sensor_manager = air_sensor_manager
         self.sensor_widgets = {}  # sensor_id: widget 매핑
+        
+        # 설정 관리자 초기화
+        self.config_manager = get_config_manager()
+        
+        # 저장된 새로고침 간격 로드 (기본값: 5초)
+        self.refresh_interval = self.config_manager.load_refresh_interval('aircon_sensor')
+        
+        # USB 감지기 초기화
+        self.usb_detector = USBDetector()
+        self.usb_detector.usb_connected.connect(self.on_usb_connected)
+        self.usb_detector.usb_disconnected.connect(self.on_usb_disconnected)
+        self.usb_detector.start_monitoring()
         
         self.setup_ui()
         
@@ -29,7 +43,7 @@ class AirconSensorTab(QWidget):
         control_layout.setSpacing(10)
         
         # 제목 레이블
-        title_label = QLabel("AIRCON 온습도 센서 모니터링")
+        title_label = QLabel("AIRCON 온습도 모니터링")
         title_font = QFont()
         title_font.setPointSize(16)
         title_font.setBold(True)
@@ -38,9 +52,36 @@ class AirconSensorTab(QWidget):
         
         control_layout.addStretch()
         
+        # CSV 파일 저장 버튼
+        self.csv_save_button = QPushButton("CSV 파일 저장")
+        self.csv_save_button.setFixedSize(120, 35)
+        self.csv_save_button.setEnabled(False)  # 초기에는 비활성화
+        self.csv_save_button.setStyleSheet("""
+            QPushButton {
+                font-size: 12px;
+                font-weight: bold;
+                background-color: #2196F3;
+                color: white;
+                border: none;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background-color: #1976D2;
+            }
+            QPushButton:pressed {
+                background-color: #0D47A1;
+            }
+            QPushButton:disabled {
+                background-color: #CCCCCC;
+                color: #666666;
+            }
+        """)
+        self.csv_save_button.clicked.connect(self.on_csv_save_clicked)
+        control_layout.addWidget(self.csv_save_button)
+        
         # 새로고침 버튼
-        self.refresh_button = QPushButton("수동 새로고침")
-        self.refresh_button.setFixedSize(120, 35)
+        self.refresh_button = QPushButton("새로고침")
+        self.refresh_button.setFixedSize(100, 35)
         self.refresh_button.setStyleSheet("""
             QPushButton {
                 font-size: 12px;
@@ -60,12 +101,96 @@ class AirconSensorTab(QWidget):
         self.refresh_button.clicked.connect(self.on_refresh_clicked)
         control_layout.addWidget(self.refresh_button)
         
+        # USB 상태 레이블
+        self.usb_status_label = QLabel("USB: 연결 안됨")
+        self.usb_status_label.setStyleSheet("QLabel { font-size: 12px; color: #666; }")
+        control_layout.addWidget(self.usb_status_label)
+        
         # 자동 새로고침 상태 레이블
         self.auto_refresh_label = QLabel("자동 새로고침: OFF")
         self.auto_refresh_label.setStyleSheet("QLabel { font-size: 12px; color: #666; }")
         control_layout.addWidget(self.auto_refresh_label)
         
         main_layout.addLayout(control_layout)
+        
+        # 시간 간격 조절 영역
+        time_control_layout = QHBoxLayout()
+        time_control_layout.setSpacing(5)
+        
+        # 왼쪽 빈 공간 추가 (오른쪽 정렬을 위해)
+        time_control_layout.addStretch()
+        
+        # 시간 간격 레이블
+        time_label = QLabel("새로고침 간격:")
+        time_label.setStyleSheet("QLabel { font-size: 12px; font-weight: bold; }")
+        time_control_layout.addWidget(time_label)
+        
+        # 감소 버튼
+        self.decrease_button = QPushButton("-")
+        self.decrease_button.setFixedSize(30, 30)
+        self.decrease_button.setStyleSheet("""
+            QPushButton {
+                font-size: 14px;
+                font-weight: bold;
+                background-color: #FF5722;
+                color: white;
+                border: none;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background-color: #E64A19;
+            }
+            QPushButton:pressed {
+                background-color: #D84315;
+            }
+        """)
+        self.decrease_button.clicked.connect(self.on_decrease_interval)
+        time_control_layout.addWidget(self.decrease_button)
+        
+        # 시간 표시 레이블
+        self.interval_label = QPushButton(f"{self.refresh_interval}")
+        self.interval_label.setFixedSize(50, 30)
+        self.interval_label.setEnabled(False)
+        self.interval_label.setStyleSheet("""
+            QPushButton {
+                font-size: 12px;
+                font-weight: bold;
+                background-color: #E0E0E0;
+                color: black;
+                border: 1px solid #CCCCCC;
+                border-radius: 4px;
+            }
+        """)
+        time_control_layout.addWidget(self.interval_label)
+        
+        # 증가 버튼
+        self.increase_button = QPushButton("+")
+        self.increase_button.setFixedSize(30, 30)
+        self.increase_button.setStyleSheet("""
+            QPushButton {
+                font-size: 14px;
+                font-weight: bold;
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+            QPushButton:pressed {
+                background-color: #3d8b40;
+            }
+        """)
+        self.increase_button.clicked.connect(self.on_increase_interval)
+        time_control_layout.addWidget(self.increase_button)
+        
+        # 초 단위 레이블
+        seconds_label = QLabel("초")
+        seconds_label.setStyleSheet("QLabel { font-size: 12px; }")
+        time_control_layout.addWidget(seconds_label)
+        
+        main_layout.addLayout(time_control_layout)
         
         # 센서 그룹박스
         sensor_group = QGroupBox("센서 상태")
@@ -124,6 +249,11 @@ class AirconSensorTab(QWidget):
         self.connect_sensor_manager()
         
     @pyqtSlot()
+    def on_csv_save_clicked(self):
+        """CSV 파일 저장 버튼 클릭"""
+        self.csv_save_to_usb()
+            
+    @pyqtSlot()
     def on_refresh_clicked(self):
         """새로고침 버튼 클릭"""
         if self.air_sensor_manager:
@@ -169,7 +299,7 @@ class AirconSensorTab(QWidget):
     def set_auto_refresh_status(self, is_active):
         """자동 새로고침 상태 표시"""
         if is_active:
-            self.auto_refresh_label.setText("자동 새로고침: ON (5초)")
+            self.auto_refresh_label.setText(f"자동 새로고침: ON ({self.refresh_interval}초)")
             self.auto_refresh_label.setStyleSheet("QLabel { font-size: 12px; color: green; }")
         else:
             self.auto_refresh_label.setText("자동 새로고침: OFF")
@@ -187,3 +317,101 @@ class AirconSensorTab(QWidget):
         
         self.summary_label.setText("정상: 0개, 타임아웃: 0개, 대기중: 8개")
         self.last_scan_label.setText("마지막 스캔: -")
+        
+    def csv_save_to_usb(self):
+        """CSV 파일을 USB로 저장"""
+        import os
+        import shutil
+        from PyQt5.QtWidgets import QMessageBox
+        
+        # USB 연결 확인
+        if not self.usb_detector.is_usb_available():
+            QMessageBox.warning(self, "경고", "USB 저장장치가 연결되지 않았습니다.\nUSB를 연결한 후 다시 시도해주세요.")
+            return
+            
+        # /data 폴더 확인
+        data_folder = "/home/shinho/shinho/Aircon/data"
+        if not os.path.exists(data_folder):
+            QMessageBox.warning(self, "경고", "/data 폴더가 존재하지 않습니다.")
+            return
+            
+        # CSV 파일 찾기
+        csv_files = []
+        for filename in os.listdir(data_folder):
+            if filename.endswith('.csv'):
+                csv_files.append(os.path.join(data_folder, filename))
+                
+        if not csv_files:
+            QMessageBox.information(self, "정보", "/data 폴더에 CSV 파일이 없습니다.")
+            return
+            
+        try:
+            # USB에 CSV 저장 폴더 생성
+            csv_folder = self.usb_detector.create_csv_folder("AIRCON_CSV")
+            if not csv_folder:
+                QMessageBox.critical(self, "오류", "USB에 폴더를 생성할 수 없습니다.")
+                return
+                
+            # CSV 파일 복사
+            copied_count = 0
+            for csv_file in csv_files:
+                filename = os.path.basename(csv_file)
+                dest_path = os.path.join(csv_folder, filename)
+                shutil.copy2(csv_file, dest_path)
+                copied_count += 1
+                
+            QMessageBox.information(
+                self, 
+                "완료", 
+                f"{copied_count}개의 CSV 파일이 성공적으로 복사되었습니다.\n저장 위치: {csv_folder}"
+            )
+            
+        except Exception as e:
+            QMessageBox.critical(self, "오류", f"파일 복사 중 오류가 발생했습니다:\n{str(e)}")
+            
+    @pyqtSlot(str)
+    def on_usb_connected(self, usb_path):
+        """USB 연결됨"""
+        import os
+        self.usb_status_label.setText(f"USB: 연결됨 ({os.path.basename(usb_path)})")
+        self.usb_status_label.setStyleSheet("QLabel { font-size: 12px; color: green; }")
+        self.csv_save_button.setEnabled(True)
+        
+    @pyqtSlot()
+    def on_usb_disconnected(self):
+        """USB 연결 해제됨"""
+        self.usb_status_label.setText("USB: 연결 안됨")
+        self.usb_status_label.setStyleSheet("QLabel { font-size: 12px; color: #666; }")
+        self.csv_save_button.setEnabled(False)
+        
+    @pyqtSlot()
+    def on_decrease_interval(self):
+        """새로고침 간격 감소"""
+        if self.refresh_interval > 1:
+            self.refresh_interval -= 1
+            self.update_interval_display()
+            self.update_sensor_manager_interval()
+            # 설정 저장
+            self.config_manager.save_refresh_interval('aircon_sensor', self.refresh_interval)
+            
+    @pyqtSlot()
+    def on_increase_interval(self):
+        """새로고침 간격 증가"""
+        if self.refresh_interval < 360:
+            self.refresh_interval += 1
+            self.update_interval_display()
+            self.update_sensor_manager_interval()
+            # 설정 저장
+            self.config_manager.save_refresh_interval('aircon_sensor', self.refresh_interval)
+            
+    def update_interval_display(self):
+        """간격 표시 업데이트"""
+        self.interval_label.setText(f"{self.refresh_interval}")
+        
+    def update_sensor_manager_interval(self):
+        """센서 매니저의 간격 업데이트"""
+        if self.air_sensor_manager and hasattr(self.air_sensor_manager, 'set_refresh_interval'):
+            self.air_sensor_manager.set_refresh_interval(self.refresh_interval)
+            # 자동 새로고침이 활성화되어 있다면 레이블 업데이트
+            if self.air_sensor_manager.auto_refresh_timer.isActive():
+                self.set_auto_refresh_status(True)

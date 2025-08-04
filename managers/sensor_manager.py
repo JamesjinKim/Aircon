@@ -1,4 +1,4 @@
-# 온습도 센서 12개를 관리하는 매니저 클래스
+# DSCT 온습도 센서 12개를 관리하는 매니저 클래스
 from PyQt5.QtCore import QObject, pyqtSignal, QTimer
 from datetime import datetime
 import re
@@ -6,7 +6,7 @@ import os
 import csv
 
 class SensorManager(QObject):
-    """온습도 센서 12개의 데이터를 관리하는 매니저 클래스"""
+    """DSCT 온습도 센서 12개의 데이터를 관리하는 매니저 클래스"""
     
     # 센서 데이터 업데이트 시그널
     sensor_data_updated = pyqtSignal(str, dict)  # sensor_id, data
@@ -36,7 +36,7 @@ class SensorManager(QObject):
         # 자동 갱신 타이머
         self.auto_refresh_timer = QTimer()
         self.auto_refresh_timer.timeout.connect(self.request_sensor_data)
-        self.auto_refresh_interval = 5000  # 5초
+        self.auto_refresh_interval = 5000  # 5초 (기본값)
         
         # 스캔 진행 상태
         self.is_scanning = False
@@ -64,6 +64,14 @@ class SensorManager(QObject):
     def stop_auto_refresh(self):
         """자동 갱신 중지"""
         self.auto_refresh_timer.stop()
+        
+    def set_refresh_interval(self, seconds):
+        """새로고침 간격 설정 (초 단위)"""
+        self.auto_refresh_interval = seconds * 1000  # 밀리초로 변환
+        if self.auto_refresh_timer.isActive():
+            # 타이머가 활성화되어 있으면 새 간격으로 재시작
+            self.auto_refresh_timer.stop()
+            self.auto_refresh_timer.start(self.auto_refresh_interval)
         
     def request_sensor_data(self):
         """센서 데이터 요청"""
