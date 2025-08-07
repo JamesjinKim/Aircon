@@ -71,20 +71,48 @@ class SerialManager:
                 raise Exception("Serial port is not connected")
             
             if self.shinho_serial_connection.in_waiting:
-                data = self.shinho_serial_connection.readline()
-                decoded_data = data.decode('ascii').strip()
+                # 원본 바이트 데이터 확인
+                raw_data = self.shinho_serial_connection.readline()
+                print(f"[RX RAW] 수신된 원본 바이트: {raw_data}")
+                print(f"[RX RAW] 바이트 길이: {len(raw_data)}")
+                
+                # 디코딩 시도
+                try:
+                    decoded_data = raw_data.decode('ascii').strip()
+                    print(f"[RX DECODED] 디코딩된 데이터: '{decoded_data}'")
+                    print(f"[RX DECODED] 디코딩 길이: {len(decoded_data)}")
+                except UnicodeDecodeError as decode_error:
+                    print(f"[RX ERROR] 디코딩 실패: {decode_error}")
+                    # UTF-8로 재시도
+                    try:
+                        decoded_data = raw_data.decode('utf-8').strip()
+                        print(f"[RX UTF8] UTF-8 디코딩 성공: '{decoded_data}'")
+                    except:
+                        decoded_data = str(raw_data)
+                        print(f"[RX FALLBACK] 바이트 문자열로 처리: {decoded_data}")
+                
+                # 빈 문자열도 로그 출력
+                if not decoded_data:
+                    print("[RX] 빈 문자열 수신됨")
                 
                 # 센서 데이터 체크 및 콜백 호출
                 if self.sensor_data_callback and decoded_data:
+                    print(f"[RX CALLBACK] 센서 데이터 콜백 체크 중: '{decoded_data}'")
                     if '[DSCT]' in decoded_data:
+                        print(f"[RX CALLBACK] DSCT 콜백 호출")
                         self.sensor_data_callback(decoded_data)
-                    elif '[AIR]' in decoded_data and hasattr(self, 'air_sensor_data_callback'):
+                    elif ('[AIR]' in decoded_data or '[AIRCON]' in decoded_data) and hasattr(self, 'air_sensor_data_callback') and self.air_sensor_data_callback:
+                        print(f"[RX CALLBACK] AIR/AIRCON 콜백 호출")
                         self.air_sensor_data_callback(decoded_data)
+                    else:
+                        print(f"[RX CALLBACK] 콜백 조건 미충족 - DSCT: {'[DSCT]' in decoded_data}, AIR: {'[AIR]' in decoded_data or '[AIRCON]' in decoded_data}, AIR콜백존재: {hasattr(self, 'air_sensor_data_callback') and self.air_sensor_data_callback is not None}")
                 
                 return decoded_data
-            return None
+            else:
+                # 대기 중인 데이터가 없음
+                return None
         except Exception as e:
-            print(f"Error reading serial data: {e}")
+            print(f"[RX ERROR] 시리얼 데이터 읽기 오류: {e}")
             return None 
 
     def disconnect_serial(self) -> None:
@@ -127,8 +155,15 @@ class SerialManager:
     def send_serial_command(self, command):
         """시리얼 명령 전송 함수 (종료 문자 자동 추가)"""
         if self.is_connected():
-            full_command = f"{command}\r"
-            return self.send_data(full_command)
+            full_command = f"{command}\r\n"
+            result = self.send_data(full_command)
+            if result:
+                print(f"[TX] 시리얼 명령 전송: {command} (with <CR><LF>)")
+            else:
+                print(f"[TX ERROR] 시리얼 명령 전송 실패: {command}")
+            return result
+        else:
+            print(f"[TX ERROR] 시리얼 연결 안됨, 명령 전송 실패: {command}")
         return False
     
     def set_sensor_data_callback(self, callback):

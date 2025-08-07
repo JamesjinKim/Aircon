@@ -9,9 +9,10 @@ from config.config_manager import get_config_manager
 class SensorTab(QWidget):
     """SENSORS 탭 위젯"""
     
-    def __init__(self, sensor_manager=None, parent=None):
+    def __init__(self, sensor_manager=None, sensor_scheduler=None, parent=None):
         super().__init__(parent)
         self.sensor_manager = sensor_manager
+        self.sensor_scheduler = sensor_scheduler  # 스케줄러 참조 추가
         self.sensor_widgets = {}  # sensor_id: widget 매핑
         
         # 설정 관리자 초기화
@@ -80,7 +81,7 @@ class SensorTab(QWidget):
         control_layout.addWidget(self.csv_save_button)
         
         # 새로고침 버튼
-        self.refresh_button = QPushButton("새로고침")
+        self.refresh_button = QPushButton("명령 전송")
         self.refresh_button.setFixedSize(100, 35)
         self.refresh_button.setStyleSheet("""
             QPushButton {
@@ -251,6 +252,14 @@ class SensorTab(QWidget):
         self.sensor_manager = sensor_manager
         self.connect_sensor_manager()
         
+    def set_sensor_scheduler(self, sensor_scheduler):
+        """센서 스케줄러 설정"""
+        self.sensor_scheduler = sensor_scheduler
+        # 스케줄러 시그널 연결
+        if self.sensor_scheduler:
+            self.sensor_scheduler.dsct_sensor_updated.connect(self.on_sensor_data_updated)
+            self.sensor_scheduler.dsct_all_sensors_updated.connect(self.on_all_sensors_updated)
+        
     @pyqtSlot()
     def on_csv_save_clicked(self):
         """CSV 파일 저장 버튼 클릭"""
@@ -258,10 +267,16 @@ class SensorTab(QWidget):
             
     @pyqtSlot()
     def on_refresh_clicked(self):
-        """새로고침 버튼 클릭"""
-        if self.sensor_manager:
+        """수동 명령 전송 버튼 클릭"""
+        if self.sensor_scheduler:
+            # 스케줄러를 통한 수동 DSCT 요청
+            self.sensor_scheduler.manual_request_dsct()
+            self.refresh_button.setText("전송 중...")
+            self.refresh_button.setEnabled(False)
+        elif self.sensor_manager:
+            # 스케줄러가 없으면 직접 요청 (호환성)
             self.sensor_manager.request_sensor_data()
-            self.refresh_button.setText("새로고침 중...")
+            self.refresh_button.setText("전송 중...")
             self.refresh_button.setEnabled(False)
             
     @pyqtSlot(str, dict)
@@ -296,7 +311,7 @@ class SensorTab(QWidget):
         self.last_scan_label.setText(f"마지막 스캔: {now.strftime('%H:%M:%S')}")
         
         # 새로고침 버튼 복원
-        self.refresh_button.setText("수동 새로고침")
+        self.refresh_button.setText("명령 전송")
         self.refresh_button.setEnabled(True)
         
     def set_auto_refresh_status(self, is_active):
@@ -412,9 +427,11 @@ class SensorTab(QWidget):
         self.interval_label.setText(f"{self.refresh_interval}")
         
     def update_sensor_manager_interval(self):
-        """센서 매니저의 간격 업데이트"""
-        if self.sensor_manager and hasattr(self.sensor_manager, 'set_refresh_interval'):
-            self.sensor_manager.set_refresh_interval(self.refresh_interval)
+        """센서 스케줄러의 간격 업데이트"""
+        if self.sensor_scheduler:
+            self.sensor_scheduler.set_cycle_interval(self.refresh_interval)
             # 자동 새로고침이 활성화되어 있다면 레이블 업데이트
-            if self.sensor_manager.auto_refresh_timer.isActive():
-                self.set_auto_refresh_status(True)
+            self.set_auto_refresh_status(True)
+        # 호환성을 위한 기존 코드 (스케줄러가 없으면)
+        elif self.sensor_manager and hasattr(self.sensor_manager, 'set_refresh_interval'):
+            self.sensor_manager.set_refresh_interval(self.refresh_interval)

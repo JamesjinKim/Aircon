@@ -21,9 +21,9 @@
 - 응답 형식: `[DSCT] ID01,TEMP: 28.3, HUMI: 67.7`
 
 **신규 요구사항:**
-- AIRCON T/H: 8개 센서 (ID01~ID08)
+- AIRCON T/H: 6개 센서 (ID01~ID06)
 - 시리얼 명령어: `$CMD,AIR,TH`
-- 응답 형식: `[AIR] ID01,TEMP: 28.3, HUMI: 67.7`
+- 응답 형식: `[AIR]` ID01,TEMP: 28.3, HUMI: 67.7`
 
 ### 2. 새로운 모듈 개발
 
@@ -31,7 +31,7 @@
 **파일**: `managers/air_sensor_manager.py`
 
 **주요 기능:**
-- 8개 AIRCON 센서 데이터 관리
+- 6개 AIRCON 센서 데이터 관리
 - 시리얼 데이터 파싱 (정상/타임아웃 응답 처리)
 - CSV 파일 자동 저장
 - 5초 주기 자동 갱신
@@ -55,7 +55,7 @@
 **파일**: `test/dummy_air_sensor_generator.py`
 
 **주요 기능:**
-- 8개 센서용 가상 데이터 생성
+- 6개 센서용 가상 데이터 생성
 - AIRCON 환경에 최적화된 온도/습도 범위
 - ID07, ID08 센서 타임아웃 시뮬레이션
 - 실제 시리얼 응답 형식 생성
@@ -81,7 +81,7 @@
 
 #### 4.1 파일 분리
 - **DSCT 센서**: `DSCT_YYYYMMDD.csv` (12개 센서)
-- **AIRCON 센서**: `AIRCON_YYYYMMDD.csv` (8개 센서)
+- **AIRCON 센서**: `AIRCON_YYYYMMDD.csv` (6개 센서)
 
 #### 4.2 CSV 형식
 ```csv
@@ -165,7 +165,7 @@ Aircon/
 ## 주요 특징
 
 ### 🌡️ 실시간 모니터링
-- 8개 센서 동시 모니터링
+- 6개 센서 동시 모니터링
 - 5초 주기 자동 갱신
 - 시각적 상태 표시 (정상/타임아웃/대기중)
 
@@ -415,4 +415,211 @@ v3.4 업데이트를 통해 사용자 편의성이 크게 향상되었습니다:
 - **지속성**: 설정값 영구 저장으로 재시작 후에도 유지
 - **최적화**: 12개 센서 위젯 완전 표시로 모니터링 효율성 극대화
 
-이러한 개선으로 산업용 환경에서의 장기간 안정적인 센서 모니터링이 가능해졌습니다.
+---
+
+## v3.5 업데이트 - 순차 CMD 전송 시스템 (2025년 8월 7일)
+
+### 문제 상황
+DSCT T/H TAB와 AIRCON T/H TAB에서 센서 데이터 CMD 명령이 정상적으로 전송되지 않고, 동시에 전송되어 충돌하는 문제가 발생했습니다.
+
+### 해결 방안
+기존의 독립적인 센서 매니저 방식에서 **중앙 스케줄러 기반의 순차 처리 시스템**으로 완전히 재설계했습니다.
+
+### 1. 핵심 아키텍처 변경
+
+#### 1.1 SensorScheduler 클래스 신규 개발
+**파일**: `managers/sensor_scheduler.py`
+
+**주요 기능:**
+- **상태 머신 패턴**: IDLE → AIRCON_REQUESTING → AIRCON_WAITING → DSCT_REQUESTING → DSCT_WAITING → INTERVAL_WAITING 순으로 진행
+- **순차 처리**: AIRCON CMD 전송 → 응답 대기 → DSCT CMD 전송 → 응답 대기 → 주기 대기 → 반복
+- **타임아웃 처리**: 각 단계별 10초 타임아웃으로 무응답 상황 방지
+- **중앙 집중**: 모든 센서 요청을 스케줄러가 통제
+
+```python
+class SchedulerState(Enum):
+    IDLE = "idle"
+    AIRCON_REQUESTING = "aircon_requesting" 
+    AIRCON_WAITING = "aircon_waiting"
+    DSCT_REQUESTING = "dsct_requesting"
+    DSCT_WAITING = "dsct_waiting"
+    INTERVAL_WAITING = "interval_waiting"
+    PAUSED = "paused"
+```
+
+#### 1.2 시리얼 통신 프로토콜 수정
+**파일**: `managers/serial_manager.py`
+
+**문제점 발견 및 수정:**
+- **잘못된 종료 문자**: `\r` → `\r\n` (<CR><LF>)로 수정
+- **원시 데이터 로깅**: 수신된 바이트 데이터를 16진수로 표시하여 디버깅 강화
+- **콜백 조건 개선**: [AIRCON] 태그도 인식하도록 확장
+
+```python
+def send_serial_command(self, command):
+    """시리얼 명령 전송 함수 (종료 문자 자동 추가)"""
+    if self.is_connected():
+        full_command = f"{command}\r\n"  # <CR><LF> 추가
+        result = self.send_data(full_command)
+        if result:
+            print(f"[TX] 시리얼 명령 전송: {command} (with <CR><LF>)")
+        return result
+```
+
+### 2. 태그 표준화 및 호환성
+
+#### 2.1 [AIR] → [AIRCON] 표준화
+**목적**: 시스템 내 일관성 확보 및 향후 확장성 고려
+
+**수정된 파일:**
+- `managers/air_sensor_manager.py`: 정규식 패턴 수정
+- `managers/serial_manager.py`: 콜백 조건 확장
+
+```python
+# 기존
+self.data_pattern = re.compile(r'\[AIR\]\s+(ID\d{2}),TEMP:\s*([\d.]+),\s*HUMI:\s*([\d.]+)')
+
+# 변경후
+self.data_pattern = re.compile(r'\[AIRCON\]\s+(ID\d{2}),TEMP:\s*([\d.]+),\s*HUMI:\s*([\d.]+)')
+```
+
+#### 2.2 ID07, ID08 센서 제거
+**목적**: 현장 요구사항에 따른 AIRCON 센서 개수 조정 (6개로 제한)
+
+**변경사항:**
+- AIRCON 센서 데이터 저장소: ID01~ID06만 관리
+- UI 위젯: 6개 센서만 표시
+- 수신 데이터: ID07, ID08은 파싱되지만 무시 처리
+
+### 3. UI/UX 개선
+
+#### 3.1 버튼 텍스트 변경
+- **변경 전**: "새로고침"
+- **변경 후**: "명령 전송"
+- **목적**: 사용자에게 명확한 동작 의미 전달
+
+#### 3.2 자동 CMD 전송 시작
+- **시리얼 연결 완료 시**: 자동으로 스케줄러 시작
+- **사용자 개입 불필요**: 연결만으로 모니터링 시작
+- **수동 버튼**: 즉시 CMD 전송이 필요한 경우 사용
+
+### 4. 센서 매니저 리팩토링
+
+#### 4.1 자동 타이머 제거
+**기존 구조 문제:**
+- 각 센서 매니저가 독립적인 타이머 보유
+- 동시 CMD 전송으로 인한 충돌 발생
+
+**해결 방안:**
+- 모든 자동 타이머를 스케줄러로 이관
+- 센서 매니저는 순수하게 데이터 파싱과 저장만 담당
+
+```python
+# 제거된 코드 (주석 처리)
+# self.auto_refresh_timer = QTimer()
+# self.auto_refresh_timer.timeout.connect(self.request_sensor_data)
+
+# 스케줄러 관리 모드로 변경
+def set_serial_manager(self, serial_manager):
+    """시리얼 매니저 설정 (자동 요청 제거, 스케줄러가 관리)"""
+    self.serial_manager = serial_manager
+    print("[AIRCON] 시리얼 매니저 설정 완료 (스케줄러 관리 모드)")
+```
+
+### 5. 시스템 통합 및 연동
+
+#### 5.1 MainWindow 통합
+**파일**: `ui/main_window.py`
+
+**추가된 기능:**
+- SensorScheduler 인스턴스 생성 및 관리
+- 시리얼 연결 시 스케줄러 자동 시작
+- 연결 해제 시 스케줄러 자동 중지
+- 오류 발생 시 스케줄러 일시정지
+
+```python
+def __init__(self):
+    # 센서 스케줄러 초기화
+    self.sensor_scheduler = SensorScheduler(self.serial_manager, test_mode=self.test_mode)
+    self.sensor_scheduler.set_sensor_managers(self.air_sensor_manager, self.sensor_manager)
+```
+
+#### 5.2 UI 탭 연동
+**파일**: `ui/sensor_tab.py`, `ui/aircon_sensor_tab.py`
+
+**변경사항:**
+- 스케줄러 참조 추가
+- 수동 요청을 스케줄러를 통해 처리
+- 간격 조정 시 스케줄러에 반영
+
+### 6. 디버깅 및 로깅 강화
+
+#### 6.1 상세한 로그 시스템
+- **상태 변화 추적**: 스케줄러 상태 전환 로그
+- **시리얼 통신 로그**: 송수신 데이터 원시 바이트 표시
+- **타임아웃 처리**: 무응답 시간 측정 및 로그
+- **콜백 조건 체크**: 데이터 파싱 성공/실패 상세 로그
+
+#### 6.2 실시간 상태 모니터링
+```
+[SCHEDULER] 상태 변경: idle → aircon_requesting
+[TX] 시리얼 명령 전송: $CMD,AIR,TH (with <CR><LF>)
+[SCHEDULER] 상태 변경: aircon_requesting → aircon_waiting
+[RX RAW] 수신된 원본 바이트: b'[AIRCON] ID01,TEMP: 28.3, HUMI: 67.7\r\n'
+[AIRCON RX] ID01 센서 데이터 파싱 성공: 온도=28.3°C, 습도=67.7%
+[SCHEDULER] AIRCON 응답 완료, DSCT로 이동
+```
+
+### 7. 테스트 및 검증
+
+#### 7.1 실제 하드웨어 테스트
+- ✅ AIRCON 센서 데이터 정상 수신 및 위젯 표시
+- ✅ 순차 처리 시스템 정상 작동 (AIRCON → DSCT → 대기)
+- ✅ 타임아웃 처리 정상 작동 (DSCT 하드웨어 무응답 시)
+- ✅ 수동 명령 전송 버튼 정상 작동
+
+#### 7.2 발견된 이슈
+- **DSCT 하드웨어 미응답**: DSCT 명령은 전송되지만 응답이 없음
+- **프레임워크 완성도**: DSCT 데이터가 수신되면 정상 처리될 것으로 예상
+
+### 8. 기술적 성과
+
+#### 8.1 아키텍처 개선
+- **단일 책임 원칙**: 스케줄러는 순서 제어, 매니저는 데이터 처리
+- **상태 머신 패턴**: 복잡한 순차 처리를 명확한 상태로 관리
+- **중앙 집중 제어**: 모든 센서 요청을 하나의 지점에서 통제
+
+#### 8.2 신뢰성 향상
+- **충돌 방지**: 동시 CMD 전송 문제 완전 해결
+- **타임아웃 처리**: 무응답 상황에서도 시스템 계속 작동
+- **오류 복구**: 연결 상태 체크로 자동 복구
+
+#### 8.3 사용자 경험 개선
+- **자동 시작**: 연결만으로 모니터링 시작
+- **명확한 버튼**: "명령 전송"으로 의미 명확화
+- **실시간 피드백**: 상태 변화 즉시 반영
+
+### 수정된 파일 목록
+
+#### 신규 파일
+- `managers/sensor_scheduler.py` - 중앙 센서 스케줄러 (핵심 신규)
+
+#### 주요 수정 파일
+- `managers/serial_manager.py` - 프로토콜 수정 및 로깅 강화
+- `managers/air_sensor_manager.py` - [AIRCON] 태그 적용, ID07/ID08 제거
+- `managers/sensor_manager.py` - 스케줄러 연동을 위한 로직 수정
+- `ui/main_window.py` - 스케줄러 통합
+- `ui/sensor_tab.py` - 스케줄러 연동 및 UI 개선
+- `ui/aircon_sensor_tab.py` - 스케줄러 연동 및 UI 개선
+
+### 결론
+
+v3.5는 시스템의 근본적인 안정성 문제를 해결한 핵심 업데이트입니다:
+
+- **순차 처리**: CMD 전송 충돌 문제 완전 해결
+- **프로토콜 수정**: 시리얼 통신 안정성 확보
+- **중앙 관리**: 스케줄러 기반의 체계적인 센서 제어
+- **자동화**: 사용자 개입 없는 자동 모니터링 시작
+- **표준화**: [AIRCON] 태그 통일로 시스템 일관성 확보
+
+이제 AIRCON과 DSCT 센서가 서로 간섭 없이 순차적으로 모니터링되며, 하나의 하드웨어가 응답하지 않아도 시스템 전체가 안정적으로 동작합니다.

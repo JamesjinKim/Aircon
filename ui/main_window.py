@@ -15,6 +15,7 @@ from managers.speed_manager import SpeedButtonManager
 from managers.auto_manager import AutoSpeedManager
 from managers.sensor_manager import SensorManager
 from managers.air_sensor_manager import AirSensorManager
+from managers.sensor_scheduler import SensorScheduler
 
 from ui.constants import BUTTON_ON_STYLE, BUTTON_OFF_STYLE, BUTTON_DEFAULT_STYLE, BUTTON_SPEED_STYLE, BUTTON_PUMP_STYLE, BUTTON_STANDARD_STYLE
 from ui.helpers import get_file_path, configure_display_settings
@@ -46,6 +47,10 @@ class ControlWindow(QtWidgets.QMainWindow):
         
         # AIR 센서 매니저 초기화
         self.air_sensor_manager = AirSensorManager(self.serial_manager, test_mode=self.test_mode)
+        
+        # 센서 스케줄러 초기화 (중앙 관리)
+        self.sensor_scheduler = SensorScheduler(self.serial_manager, test_mode=self.test_mode)
+        self.sensor_scheduler.set_sensor_managers(self.air_sensor_manager, self.sensor_manager)
         
         # AUTO 스피드 매니저 초기화 (UI 요소 생성 전에 초기화)
         self.auto_speed_manager = AutoSpeedManager(
@@ -107,10 +112,10 @@ class ControlWindow(QtWidgets.QMainWindow):
         # 창을 항상 최상위로 유지
         self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
 
-        # 타이머 및 상태바 초기화 (1000ms = 1초)
+        # 타이머 및 상태바 초기화 (100ms로 빠른 수신 확인)
         self.read_timer = QTimer(self)
         self.read_timer.timeout.connect(self.read_serial_data)
-        self.read_timer.start(1000)
+        self.read_timer.start(100)  # 100ms마다 시리얼 데이터 확인
 
         self.status_timer = QTimer(self)
         self.status_timer.timeout.connect(self.update_status_time)
@@ -374,11 +379,11 @@ class ControlWindow(QtWidgets.QMainWindow):
         self.tab_widget.addTab(self.semi_auto_tab, "SEMI AUTO")
         
         # 다섯 번째 탭 - DSCT T/H
-        self.sensors_tab = SensorTab(self.sensor_manager)
+        self.sensors_tab = SensorTab(self.sensor_manager, self.sensor_scheduler)
         self.tab_widget.addTab(self.sensors_tab, "DSCT T/H")
         
         # 여섯 번째 탭 - AIRCON T/H
-        self.aircon_sensors_tab = AirconSensorTab(self.air_sensor_manager)
+        self.aircon_sensors_tab = AirconSensorTab(self.air_sensor_manager, self.sensor_scheduler)
         self.tab_widget.addTab(self.aircon_sensors_tab, "AIRCON T/H")
         
         # 일곱 번째 탭 - AUTO 모드
@@ -1064,14 +1069,16 @@ class ControlWindow(QtWidgets.QMainWindow):
                     self.was_connected = True
                     self.connection_error_count = 0  # 에러 카운터 리셋
                     
-                    # 센서 매니저 콜백 설정 및 자동 새로고침 시작
+                    # 센서 매니저 콜백 설정 (스케줄러 통합)
                     self.serial_manager.set_sensor_data_callback(self.sensor_manager.parse_sensor_data)
-                    self.sensor_manager.start_auto_refresh()
-                    self.sensors_tab.set_auto_refresh_status(True)
-                    
-                    # AIR 센서 매니저 콜백 설정 및 자동 새로고침 시작
                     self.serial_manager.set_air_sensor_data_callback(self.air_sensor_manager.parse_sensor_data)
-                    self.air_sensor_manager.start_auto_refresh()
+                    
+                    # 센서 스케줄러 시작 (순차 실행)
+                    self.sensor_scheduler.set_serial_manager(self.serial_manager)
+                    self.sensor_scheduler.start_scheduling()
+                    
+                    # UI 상태 업데이트
+                    self.sensors_tab.set_auto_refresh_status(True)
                     self.aircon_sensors_tab.set_auto_refresh_status(True)
                     self.last_connection_check = time.time()
                     self.last_error_log_time = 0
@@ -1101,13 +1108,12 @@ class ControlWindow(QtWidgets.QMainWindow):
         """시리얼 연결 해제"""
         try:
             if self.serial_manager.is_connected():
-                # 센서 자동 새로고침 중지
-                self.sensor_manager.stop_auto_refresh()
+                # 센서 스케줄러 중지
+                self.sensor_scheduler.stop_scheduling()
+                
+                # UI 상태 초기화
                 self.sensors_tab.set_auto_refresh_status(False)
                 self.sensors_tab.reset_all_sensors()
-                
-                # AIR 센서 자동 새로고침 중지
-                self.air_sensor_manager.stop_auto_refresh()
                 self.aircon_sensors_tab.set_auto_refresh_status(False)
                 self.aircon_sensors_tab.reset_all_sensors()
                 
@@ -1213,7 +1219,7 @@ class ControlWindow(QtWidgets.QMainWindow):
             self.semi_auto_period_value_button.setText("200")
 
     def read_serial_data(self):
-        """시리얼 데이터 읽기 - 1000ms마다 실행"""
+        """시리얼 데이터 읽기 - 100ms마다 실행"""
         # 연결된 상태에서만 처리
         if not self.was_connected:
             return
@@ -1224,7 +1230,7 @@ class ControlWindow(QtWidgets.QMainWindow):
             if data:
                 # 데이터 수신 성공 - 에러 카운터 리셋
                 self.connection_error_count = 0
-                print(f"수신된 데이터: {data}")
+                print(f"[MAIN] ✅ 수신된 데이터: '{data}'")
                 self.saved_data_to_file(data)
                     
         except Exception as e:
@@ -1233,11 +1239,11 @@ class ControlWindow(QtWidgets.QMainWindow):
             
             # 5회까지만 에러 메시지 출력
             if self.connection_error_count <= 5:
-                print(f"Error reading serial data: {e} (에러 {self.connection_error_count}/5)")
+                print(f"[MAIN ERROR] 시리얼 데이터 읽기 오류: {e} (에러 {self.connection_error_count}/5)")
             
             # 5회 도달 시 즉시 처리
             if self.connection_error_count >= 5:
-                print("갑작스런 연결 끊김 감지 (5회) - 연결 해제 및 초기화")
+                print("[MAIN ERROR] 갑작스런 연결 끊김 감지 (5회) - 연결 해제 및 초기화")
                 self.handle_sudden_disconnect_simple()
                 return
 
@@ -1258,7 +1264,14 @@ class ControlWindow(QtWidgets.QMainWindow):
         self.was_connected = False
         print("연결 상태 즉시 False 설정")
         
-        # 2. Serial 포트 강제 닫기
+        # 2. 센서 스케줄러 중지
+        try:
+            self.sensor_scheduler.stop_scheduling()
+            print("센서 스케줄러 중지 완료")
+        except Exception as e:
+            print(f"센서 스케줄러 중지 오류: {e}")
+        
+        # 3. Serial 포트 강제 닫기
         try:
             if hasattr(self.serial_manager, 'shinho_serial_connection') and self.serial_manager.shinho_serial_connection:
                 self.serial_manager.shinho_serial_connection.close()
@@ -1267,13 +1280,13 @@ class ControlWindow(QtWidgets.QMainWindow):
         except Exception as e:
             print(f"Serial port 닫기 오류: {e}")
         
-        # 3. 모든 상태 변수 리셋
+        # 4. 모든 상태 변수 리셋
         self.connection_error_count = 0
         self.last_connection_check = 0
         self.last_error_log_time = 0
         print("상태 변수 초기화 완료")
         
-        # 4. UI 업데이트
+        # 5. UI 업데이트
         self.update_status_indicator("disconnected")
         self.update_connect_button("disconnected")
         self.update_button_states()

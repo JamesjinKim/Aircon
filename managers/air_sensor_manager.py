@@ -28,15 +28,15 @@ class AirSensorManager(QObject):
                 'last_update': None
             }
         
-        # 파싱 패턴
-        self.data_pattern = re.compile(r'\[AIR\]\s+(ID\d{2}),TEMP:\s*([\d.]+),\s*HUMI:\s*([\d.]+)')
-        self.timeout_pattern = re.compile(r'\[AIR\]\s+(ID\d{2}),Sensor Check TIMEOUT!')
-        self.scan_complete_pattern = re.compile(r'\[AIR\]\s*SEQUENTIAL SCAN COMPLETE:.*Total:\s*(\d+).*Success:\s*(\d+).*Error:\s*(\d+).*Time:\s*(\d+)ms')
+        # 파싱 패턴 ([AIRCON] 태그로 표준화)
+        self.data_pattern = re.compile(r'\[AIRCON\]\s+(ID\d{2}),TEMP:\s*([\d.]+),\s*HUMI:\s*([\d.]+)')
+        self.timeout_pattern = re.compile(r'\[AIRCON\]\s+(ID\d{2}),Sensor Check TIMEOUT!')
+        self.scan_complete_pattern = re.compile(r'\[AIRCON\]\s*SEQUENTIAL SCAN COMPLETE:.*Total:\s*(\d+).*Success:\s*(\d+).*Error:\s*(\d+).*Time:\s*(\d+)ms')
         
-        # 자동 갱신 타이머
-        self.auto_refresh_timer = QTimer()
-        self.auto_refresh_timer.timeout.connect(self.request_sensor_data)
-        self.auto_refresh_interval = 5000  # 5초 (기본값)
+        # 자동 갱신 타이머 (스케줄러로 이관되어 제거됨)
+        # self.auto_refresh_timer = QTimer()
+        # self.auto_refresh_timer.timeout.connect(self.request_sensor_data)
+        # self.auto_refresh_interval = 5000  # 5초 (기본값)
         
         # 스캔 진행 상태
         self.is_scanning = False
@@ -52,41 +52,50 @@ class AirSensorManager(QObject):
         self._ensure_data_directory()
         
     def set_serial_manager(self, serial_manager):
-        """시리얼 매니저 설정"""
+        """시리얼 매니저 설정 (자동 요청 제거, 스케줄러가 관리)"""
         self.serial_manager = serial_manager
+        print("[AIRCON] 시리얼 매니저 설정 완료 (스케줄러 관리 모드)")
         
-    def start_auto_refresh(self):
-        """자동 갱신 시작"""
-        if self.test_mode or (self.serial_manager and self.serial_manager.is_connection_healthy()):
-            self.auto_refresh_timer.start(self.auto_refresh_interval)
-            self.request_sensor_data()  # 즉시 첫 요청
+    # 자동 갱신 관련 메서드들은 스케줄러로 이관되어 제거됨
+    # def start_auto_refresh(self):
+    #     """자동 갱신 시작"""
+    #     if self.test_mode or (self.serial_manager and self.serial_manager.is_connection_healthy()):
+    #         self.auto_refresh_timer.start(self.auto_refresh_interval)
+    #         self.request_sensor_data()  # 즉시 첫 요청
             
-    def stop_auto_refresh(self):
-        """자동 갱신 중지"""
-        self.auto_refresh_timer.stop()
+    # def stop_auto_refresh(self):
+    #     """자동 갱신 중지"""
+    #     self.auto_refresh_timer.stop()
         
-    def set_refresh_interval(self, seconds):
-        """새로고침 간격 설정 (초 단위)"""
-        self.auto_refresh_interval = seconds * 1000  # 밀리초로 변환
-        if self.auto_refresh_timer.isActive():
-            # 타이머가 활성화되어 있으면 새 간격으로 재시작
-            self.auto_refresh_timer.stop()
-            self.auto_refresh_timer.start(self.auto_refresh_interval)
+    # def set_refresh_interval(self, seconds):
+    #     """새로고침 간격 설정 (초 단위)"""
+    #     self.auto_refresh_interval = seconds * 1000  # 밀리초로 변환
+    #     if self.auto_refresh_timer.isActive():
+    #         # 타이머가 활성화되어 있으면 새 간격으로 재시작
+    #         self.auto_refresh_timer.stop()
+    #         self.auto_refresh_timer.start(self.auto_refresh_interval)
         
     def request_sensor_data(self):
         """센서 데이터 요청"""
         if self.test_mode:
             # 테스트 모드: 더미 데이터 생성
+            print("[AIRCON] 테스트 모드: 더미 데이터 생성 시작")
             self.is_scanning = True
             self._generate_dummy_data()
         elif self.serial_manager and self.serial_manager.is_connection_healthy():
             command = "$CMD,AIR,TH"
+            print(f"[AIRCON] 센서 데이터 요청: {command}")
             self.serial_manager.send_serial_command(command)
             self.is_scanning = True
+        else:
+            print("[AIRCON] 센서 데이터 요청 실패: 시리얼 연결 상태 불량")
             
     def parse_sensor_data(self, data):
         """시리얼 데이터 파싱"""
+        print(f"[AIRCON RX] 수신된 데이터: {data}")
+        
         if not self.is_scanning:
+            print("[AIRCON RX] 스캔 진행 중이 아님, 데이터 파싱 건너뜀")
             return
             
         # 정상 데이터 파싱
@@ -98,6 +107,8 @@ class AirSensorManager(QObject):
             
             # ID01~ID06만 처리 (ID07, ID08 무시)
             if sensor_id in self.sensor_data:
+                print(f"[AIRCON RX] {sensor_id} 센서 데이터 파싱 성공: 온도={temp}°C, 습도={humi}%")
+                
                 self.sensor_data[sensor_id] = {
                     'temp': temp,
                     'humi': humi,
@@ -110,6 +121,8 @@ class AirSensorManager(QObject):
                 
                 # 개별 센서 업데이트 시그널
                 self.sensor_data_updated.emit(sensor_id, self.sensor_data[sensor_id])
+            else:
+                print(f"[AIRCON RX] {sensor_id} 센서 무시됨 (ID07, ID08 제외됨)")
             return
             
         # 타임아웃 파싱
@@ -119,6 +132,8 @@ class AirSensorManager(QObject):
             
             # ID01~ID06만 처리 (ID07, ID08 무시)
             if sensor_id in self.sensor_data:
+                print(f"[AIRCON RX] {sensor_id} 센서 타임아웃 파싱")
+                
                 self.sensor_data[sensor_id] = {
                     'temp': None,
                     'humi': None,
@@ -128,14 +143,30 @@ class AirSensorManager(QObject):
                 
                 # 개별 센서 업데이트 시그널
                 self.sensor_data_updated.emit(sensor_id, self.sensor_data[sensor_id])
+            else:
+                print(f"[AIRCON RX] {sensor_id} 센서 타임아웃 무시됨 (ID07, ID08 제외됨)")
             return
             
         # 스캔 완료 파싱
         complete_match = self.scan_complete_pattern.match(data)
         if complete_match:
+            total = complete_match.group(1)
+            success = complete_match.group(2)
+            error = complete_match.group(3)
+            time_ms = complete_match.group(4)
+            
+            print(f"[AIRCON RX] 스캔 완료: 총 {total}개, 성공 {success}개, 오류 {error}개, 소요시간 {time_ms}ms")
+            
             self.is_scanning = False
             # 전체 센서 데이터 업데이트 시그널
             self.all_sensors_updated.emit(self.sensor_data)
+            return
+            
+        # 기타 메시지 로그
+        if '[AIRCON]' in data:
+            print(f"[AIRCON RX] 기타 메시지: {data}")
+        else:
+            print(f"[AIRCON RX] 파싱되지 않은 데이터: {data}")
     
     def _ensure_data_directory(self):
         """데이터 디렉토리 확인 및 생성"""
