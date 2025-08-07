@@ -9,14 +9,14 @@ class DummyAirSensorGenerator:
     def __init__(self):
         # 센서별 기준값 설정 (실제 센서처럼 각각 다른 특성을 가지도록)
         self.sensor_base_values = {}
-        for i in range(8):  # AIRCON은 8개 센서만 사용
+        for i in range(6):  # AIRCON은 6개 센서만 사용 (ID01~ID06)
             sensor_id = f"ID{i+1:02d}"
             self.sensor_base_values[sensor_id] = {
                 'temp_base': random.uniform(25.0, 30.0),  # 기준 온도 25-30도 (에어컨 환경)
                 'humi_base': random.uniform(65.0, 75.0),  # 기준 습도 65-75%
                 'temp_variation': random.uniform(0.3, 1.0),  # 온도 변동폭 (작게)
                 'humi_variation': random.uniform(1.0, 3.0),  # 습도 변동폭 (작게)
-                'error_rate': random.uniform(0.1, 0.3) if i >= 6 else 0.0  # ID07, ID08은 높은 오류율
+                'error_rate': 0.0  # 모든 센서 정상 작동 (ID07, ID08 제거됨)
             }
     
     def generate_sensor_data(self, sensor_id: str) -> Dict:
@@ -94,7 +94,7 @@ class DummyAirSensorGenerator:
         
         # 스캔 완료 메시지
         total = len(all_data)
-        scan_time = random.randint(7000, 8000)  # 7-8초
+        scan_time = random.randint(5000, 6000)  # 5-6초 (센서 6개로 줄어서 시간 단축)
         complete_msg = f"[AIR] SEQUENTIAL SCAN COMPLETE: Total: {total}, Success: {success_count}, Error: {error_count}, Time: {scan_time}ms"
         responses.append(complete_msg)
             

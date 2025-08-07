@@ -196,12 +196,12 @@ class AirconSensorTab(QWidget):
         sensor_group = QGroupBox("센서 상태")
         sensor_group_layout = QVBoxLayout()
         
-        # 센서 그리드 레이아웃 (4x2 - AIRCON은 8개만)
+        # 센서 그리드 레이아웃 (4x2 - AIRCON은 6개만, ID07, ID08 제거)
         sensor_grid = QGridLayout()
         sensor_grid.setSpacing(5)
         
-        # 8개 센서 위젯 생성
-        for i in range(8):
+        # 6개 센서 위젯 생성 (ID01~ID06만, ID07, ID08 제거)
+        for i in range(6):
             row = i // 4
             col = i % 4
             sensor_id = f"ID{i+1:02d}"
@@ -219,7 +219,7 @@ class AirconSensorTab(QWidget):
         info_layout.setSpacing(20)
         
         # 요약 정보
-        self.summary_label = QLabel("정상: 0개, 타임아웃: 0개, 대기중: 8개")
+        self.summary_label = QLabel("정상: 0개, 타임아웃: 0개, 대기중: 6개")
         self.summary_label.setStyleSheet("QLabel { font-size: 12px; }")
         info_layout.addWidget(self.summary_label)
         
@@ -315,7 +315,7 @@ class AirconSensorTab(QWidget):
                 'last_update': None
             })
         
-        self.summary_label.setText("정상: 0개, 타임아웃: 0개, 대기중: 8개")
+        self.summary_label.setText("정상: 0개, 타임아웃: 0개, 대기중: 6개")
         self.last_scan_label.setText("마지막 스캔: -")
         
     def csv_save_to_usb(self):

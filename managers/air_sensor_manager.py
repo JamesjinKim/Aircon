@@ -17,9 +17,9 @@ class AirSensorManager(QObject):
         self.serial_manager = serial_manager
         self.test_mode = test_mode  # 테스트 모드 플래그
         
-        # 8개 센서 데이터 저장소 (AIRCON은 8개만 사용)
+        # 6개 센서 데이터 저장소 (AIRCON은 6개만 사용, ID07, ID08 제거)
         self.sensor_data = {}
-        for i in range(1, 9):  # 1부터 8까지
+        for i in range(1, 7):  # 1부터 6까지 (ID01~ID06)
             sensor_id = f"ID{i:02d}"
             self.sensor_data[sensor_id] = {
                 'temp': None,
@@ -96,7 +96,7 @@ class AirSensorManager(QObject):
             temp = float(match.group(2))
             humi = float(match.group(3))
             
-            # ID01~ID08만 처리
+            # ID01~ID06만 처리 (ID07, ID08 무시)
             if sensor_id in self.sensor_data:
                 self.sensor_data[sensor_id] = {
                     'temp': temp,
@@ -117,7 +117,7 @@ class AirSensorManager(QObject):
         if timeout_match:
             sensor_id = timeout_match.group(1)
             
-            # ID01~ID08만 처리
+            # ID01~ID06만 처리 (ID07, ID08 무시)
             if sensor_id in self.sensor_data:
                 self.sensor_data[sensor_id] = {
                     'temp': None,
