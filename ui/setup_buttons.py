@@ -50,25 +50,11 @@ def setup_button_groups(window):
         }
     })
 
-    # pump (기존 inverter를 pump on/off 연속 전송으로 변경)
-    def pump_on_off_sequence():
-        """PUMP ON 후 즉시 PUMP OFF 전송"""
-        import time
-        # PUMP ON 전송
-        pump_on_cmd = f'{CMD_PREFIX},{AIR_SYSTEM},{PUMP_CMD},{ON_STATE}{TERMINATOR}'
-        if window.serial_manager.send_serial_command(pump_on_cmd.rstrip('\r\n')):
-            print(f"[TX] PUMP ON 명령 전송: {pump_on_cmd.rstrip()}")
-        
-        # 짧은 지연 후 PUMP OFF 전송
-        time.sleep(0.1)  # 100ms 지연
-        pump_off_cmd = f'{CMD_PREFIX},{AIR_SYSTEM},{PUMP_CMD},{OFF_STATE}{TERMINATOR}'
-        if window.serial_manager.send_serial_command(pump_off_cmd.rstrip('\r\n')):
-            print(f"[TX] PUMP OFF 명령 전송: {pump_off_cmd.rstrip()}")
-    
+    # pump (기존 inverter를 pump 토글 방식으로 변경)
     window.button_manager.add_group('inverter', {
         window.pushButton_13: {
-            'on': pump_on_off_sequence,
-            'off': pump_on_off_sequence
+            'on': f'{CMD_PREFIX},{AIR_SYSTEM},{PUMP_CMD},{ON_STATE}{TERMINATOR}',
+            'off': f'{CMD_PREFIX},{AIR_SYSTEM},{PUMP_CMD},{OFF_STATE}{TERMINATOR}'
         }
     })
 
