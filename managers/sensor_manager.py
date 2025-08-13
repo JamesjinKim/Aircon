@@ -33,11 +33,6 @@ class SensorManager(QObject):
         self.timeout_pattern = re.compile(r'\[DSCT\]\s+(ID\d{2}),Sensor Check TIMEOUT!')
         self.scan_complete_pattern = re.compile(r'\[DSCT\]\s*SEQUENTIAL SCAN COMPLETE:.*Total:\s*(\d+).*Success:\s*(\d+).*Error:\s*(\d+).*Time:\s*(\d+)ms')
         
-        # 자동 갱신 타이머 (스케줄러로 이관되어 제거됨)
-        # self.auto_refresh_timer = QTimer()
-        # self.auto_refresh_timer.timeout.connect(self.request_sensor_data)
-        # self.auto_refresh_interval = 5000  # 5초 (기본값)
-        
         # 스캔 진행 상태
         self.is_scanning = False
         
@@ -56,24 +51,6 @@ class SensorManager(QObject):
         self.serial_manager = serial_manager
         print("[DSCT] 시리얼 매니저 설정 완료 (스케줄러 관리 모드)")
         
-    # 자동 갱신 관련 메서드들은 스케줄러로 이관되어 제거됨
-    # def start_auto_refresh(self):
-    #     """자동 갱신 시작"""
-    #     if self.test_mode or (self.serial_manager and self.serial_manager.is_connection_healthy()):
-    #         self.auto_refresh_timer.start(self.auto_refresh_interval)
-    #         self.request_sensor_data()  # 즉시 첫 요청
-            
-    # def stop_auto_refresh(self):
-    #     """자동 갱신 중지"""
-    #     self.auto_refresh_timer.stop()
-        
-    # def set_refresh_interval(self, seconds):
-    #     """새로고침 간격 설정 (초 단위)"""
-    #     self.auto_refresh_interval = seconds * 1000  # 밀리초로 변환
-    #     if self.auto_refresh_timer.isActive():
-    #         # 타이머가 활성화되어 있으면 새 간격으로 재시작
-    #         self.auto_refresh_timer.stop()
-    #         self.auto_refresh_timer.start(self.auto_refresh_interval)
         
     def request_sensor_data(self):
         """센서 데이터 요청"""

@@ -9,15 +9,16 @@ AIRCON은 PyQt5를 기반으로 한 에어컨 및 제습기 원격 제어 시스
 - **PUMP &amp; SOL 탭**: 펌프 및 솔레노이드 밸브 제어
 - **DESICCANT 탭**: 제습기 시스템 및 댐퍼 제어 (통합)
 - **SEMI AUTO 탭**: 반자동 제어 모드 (DESICCANT SEMI AUTO, DAMP TEST)
-- **SENSORS 탭**: 온습도 센서 12개 실시간 모니터링
+- **DSCT T/H 탭**: DSCT 온습도 센서 12개 실시간 모니터링
+- **AIRCON T/H 탭**: AIRCON 온습도 센서 6개 실시간 모니터링
 - **AUTO 탭**: 온도 및 풍량 자동 제어
 
 ### 🌡️ 에어컨 제어 (AIRCON 탭)
-- **EVA FAN**: 순환 버튼으로 OFF→1→2→3→4→5→OFF 제어
+- **EVA FAN**: 순환 버튼으로 OFF→1→2→3→4→5→6→7→8→OFF 제어
 - **COMPRESSOR**: 압축기 ON/OFF 토글 제어
 - **COMP CLUCH**: 압축기 클러치 ON/OFF 토글 제어
-- **CONDENSOR FAN**: 순환 버튼으로 OFF→1→2→3→4→5→OFF 제어
-- **댐퍼 제어**: OA.DAMP(L/R), RA.DAMP(L/R) CLOSE/OPEN 토글
+- **CONDENSOR FAN**: 순환 버튼으로 OFF→1→2→3→4→5→6→7→8→OFF 제어
+- **댐퍼 제어**: OA.DAMP(L/R), RA.DAMP(L/R) OPEN/CLOSE 버튼 및 위치 조절 (0~9)
 
 ### 💨 제습기 및 댐퍼 제어 (DESICCANT 탭)
 **왼쪽 - DESICCANT CONTROLS:**
@@ -27,6 +28,7 @@ AIRCON은 PyQt5를 기반으로 한 에어컨 및 제습기 원격 제어 시스
 **오른쪽 - DAMP CONTROLS:**
 - **배기(L), 배기(R), 급기(L), 급기(R)**: CLOSE/OPEN 토글 + 위치 조절 (0→1→...→4→0)
 - 위치 0=CLOSE, 위치 1~4=OPEN 상태
+- 버튼 순서: 배기(L), 배기(R), 급기(L), 급기(R)
 
 ### 🔧 펌프 및 솔레노이드 제어 (PUMP &amp; SOL 탭)
 **왼쪽 - PUMP CONTROLS:**
@@ -44,14 +46,28 @@ AIRCON은 PyQt5를 기반으로 한 에어컨 및 제습기 원격 제어 시스
 
 **오른쪽 - DAMP TEST:**
 - **DAMP**: RUN/STOP 토글 버튼  
-- Serial CMD: `$CMD,DSCT,DAMPTEST,RUN` / `$CMD,DSCT,DAMPTEST,STOP`
+- Serial CMD: `$CMD,DSCT,DMPTEST,RUN` / `$CMD,DSCT,DMPTEST,STOP`
 
-### 🌡️ 온습도 센서 모니터링 (SENSORS 탭)
+### 🌡️ 온습도 센서 모니터링
+**DSCT T/H 탭:**
 - **12개 센서 실시간 모니터링**: ID01~ID12 센서 데이터 표시
-- **자동 갱신**: 5초 주기로 자동 데이터 업데이트
+- **센서 라벨**: L_HEX1, L_HEX2, L_DCH1, L_DCH2, L_급기, R_급기, R_DCH1, R_DCH2, R_HEX2, R_HEX1, R_외기, L_외기
+- **가변 새로고침 간격**: 1~360초 조절 가능 (기본값: 5초)
+- **자동 갱신**: 설정된 주기로 자동 데이터 업데이트
 - **상태 표시**: 정상(녹색), 타임아웃(빨간색), 대기중(회색)
-- **개별 센서 정보**: 온도(°C), 습도(%), 상태, 업데이트 시간
+- **개별 센서 정보**: 온도(°C), 습도(%)
 - **요약 정보**: 정상/타임아웃/대기중 센서 개수 실시간 표시
+- **CSV 파일 저장**: USB 연결 시 데이터 저장 기능
+
+**AIRCON T/H 탭:**
+- **6개 센서 실시간 모니터링**: ID01~ID06 센서 데이터 표시 (ID07, ID08 제거)
+- **센서 라벨**: L_RA1, L_RA2, L_실내, R_실내, R_RA2, R_RA1
+- **가변 새로고침 간격**: 1~360초 조절 가능 (기본값: 5초)
+- **자동 갱신**: 설정된 주기로 자동 데이터 업데이트
+- **상태 표시**: 정상(녹색), 타임아웃(빨간색), 대기중(회색)
+- **개별 센서 정보**: 온도(°C), 습도(%)
+- **요약 정보**: 정상/타임아웃/대기중 센서 개수 실시간 표시
+- **CSV 파일 저장**: USB 연결 시 데이터 저장 기능
 
 ### 🔄 환기 시스템 (AUTO 탭)
 - 외기유입 모드
@@ -137,14 +153,25 @@ Aircon/
 │   ├── constants.py        # UI 상수 정의
 │   ├── helpers.py          # UI 도우미 함수
 │   ├── setup_buttons.py    # 버튼 설정
-│   ├── sensor_widget.py    # 개별 센서 위젯 (NEW)
-│   └── sensor_tab.py       # 센서 탭 레이아웃 (NEW)
+│   ├── sensor_widget.py    # 개별 센서 위젯
+│   ├── sensor_tab.py       # DSCT T/H 탭 레이아웃
+│   └── aircon_sensor_tab.py # AIRCON T/H 탭 레이아웃
+├── data/                   # 센서 데이터 저장 폴더
+│   ├── DSCT_2025-08-*.csv  # DSCT 센서 데이터
+│   └── AIRCON_2025-08-*.csv # AIRCON 센서 데이터
+├── config/                 # 설정 관리
+│   ├── config_manager.py   # 설정 저장/로드
+│   └── settings.json       # 새로고침 간격 등 저장
+├── utils/                  # 유틸리티 모듈
+│   └── usb_detector.py     # USB 감지기
 └── managers/               # 비즈니스 로직 매니저
     ├── serial_manager.py   # 시리얼 통신 관리
     ├── button_manager.py   # 버튼 동작 관리
     ├── speed_manager.py    # 속도 버튼 관리
     ├── auto_manager.py     # AUTO 모드 관리
-    └── sensor_manager.py   # 센서 데이터 관리 (NEW)
+    ├── sensor_manager.py   # DSCT 센서 데이터 관리
+    ├── air_sensor_manager.py # AIRCON 센서 데이터 관리
+    └── sensor_scheduler.py # 센서 스케줄러 관리
 ```
 
 ## 사용 방법
@@ -157,14 +184,15 @@ Aircon/
 
 ### 2. 탭별 사용법
 
-#### SENSORS 탭
-- **자동 모니터링**: 시리얼 연결 시 자동으로 5초마다 센서 데이터 갱신
-- **수동 새로고침**: "수동 새로고침" 버튼으로 즉시 데이터 요청
+#### DSCT T/H 탭 및 AIRCON T/H 탭
+- **자동 모니터링**: 시리얼 연결 시 설정된 간격으로 자동 센서 데이터 갱신
+- **새로고침 간격 조절**: [-] [숫자] [+] 버튼으로 1~360초 조절 가능
 - **센서 상태 확인**:
   - 녹색 표시: 센서 정상 작동
   - 빨간색 표시: 센서 응답 없음 (타임아웃)
   - 회색 표시: 데이터 대기중
 - **요약 정보**: 하단에 전체 센서 상태 요약 표시
+- **CSV 파일 저장**: USB 연결 시 데이터 폴더의 모든 CSV 파일을 USB로 복사
 
 #### AIRCON 탭
 - **FAN CONTROLS 그룹**:
@@ -235,13 +263,19 @@ $CMD,<DEVICE>,<VALUE>\r
 
 #### SEMI AUTO 시스템
 - DESICCANT SEMI AUTO: `$CMD,DSCT,SEMIAUTO,RUN,300` / `$CMD,DSCT,SEMIAUTO,STOP`
-- DAMP TEST: `$CMD,DSCT,DAMPTEST,RUN` / `$CMD,DSCT,DAMPTEST,STOP`
+- DAMP TEST: `$CMD,DSCT,DMPTEST,RUN` / `$CMD,DSCT,DMPTEST,STOP`
 
-#### SENSORS 시스템  
+#### DSCT T/H 시스템  
 - 센서 데이터 요청: `$CMD,DSCT,TH`
 - 응답 형식:
   - 정상: `[DSCT] ID01,TEMP: 28.3, HUMI: 67.7`
   - 에러: `[DSCT] ID07,Sensor Check TIMEOUT!`
+
+#### AIRCON T/H 시스템
+- 센서 데이터 요청: `$CMD,AIR,TH`
+- 응답 형식:
+  - 정상: `[AIRCON] ID01,TEMP: 28.3, HUMI: 67.7`
+  - 에러: `[AIRCON] ID07,Sensor Check TIMEOUT!`
 
 #### AUTO 모드
 - AUTO 모드: `$CMD,AUTO,ON` / `$CMD,AUTO,OFF`
@@ -263,7 +297,7 @@ $CMD,<DEVICE>,<VALUE>\r
 - 명령 전송 실패 시 에러 로깅
 
 ### 🎨 사용자 친화적 UI
-- 탭 기반 인터페이스 (AIRCON | "PUMP & SOL" | DESICCANT | SEMI AUTO | AUTO)
+- 탭 기반 인터페이스 (AIRCON | PUMP & SOL | DESICCANT | DSCT T/H | AIRCON T/H | SEMI AUTO | AUTO)
 - 직관적인 2컬럼 레이아웃 설계 (모든 탭 통일)
 - 실시간 상태 표시 및 버튼 색상 피드백
 - 통일된 버튼 스타일 (COMPRESSOR 버튼 기준)
@@ -298,17 +332,26 @@ $CMD,<DEVICE>,<VALUE>\r
 
 ## 업데이트 내역
 
-### v3.2 (2025년 1월 29일) 🌡️
-- **NEW**: SENSORS 탭 추가 - 12개 온습도 센서 실시간 모니터링
-  - 4×3 그리드 레이아웃으로 센서 상태 한눈에 확인
-  - 5초 주기 자동 갱신 및 수동 새로고침 기능
-  - 시각적 상태 표시 (정상: 녹색, 타임아웃: 빨간색)
-- **IMPROVED**: 시리얼 통신 확장
-  - 센서 데이터 수신 콜백 메커니즘 추가
-  - 연결/해제 시 센서 모니터링 자동 시작/중지
-- **ENHANCED**: 사용자 경험 개선
-  - 실시간 센서 상태 요약 정보 표시
-  - 마지막 업데이트 시간 표시로 데이터 신뢰성 확인
+### v3.6 (2025년 8월 13일) 🌡️
+- **NEW**: 듀얼 센서 모니터링 시스템
+  - DSCT T/H 탭: 12개 센서 모니터링 (L_HEX1~L_외기)
+  - AIRCON T/H 탭: 6개 센서 모니터링 (L_RA1~R_RA1, ID07/08 제거)
+- **NEW**: 가변 새로고침 간격 시스템
+  - [-] [숫자] [+] 버튼으로 1~360초 조절 가능
+  - 설정 자동 저장 및 복원 기능
+- **NEW**: CSV 데이터 저장 및 USB 백업
+  - 센서 데이터 자동 CSV 저장 (파일 크기 10MB 단위 분할)
+  - USB 연결 감지 및 원클릭 백업 기능
+- **NEW**: AIRCON 댐퍼 제어 개선
+  - OPEN/CLOSE 별도 버튼 + 위치 표시 (0~9)
+  - CLOSE 시 위치 0에서 멈춤 기능
+- **NEW**: SEMI AUTO 탭 DMPTEST 명령어 수정
+  - $CMD,DSCT,DAMPTEST,RUN → $CMD,DSCT,DMPTEST,RUN
+- **IMPROVED**: 펌프 모드 변경
+  - PUMP 명령을 sequential → toggle 모드로 변경
+- **ENHANCED**: 센서 스케줄러 중앙 관리
+  - 통합된 센서 요청 스케줄링 시스템
+  - 에어컨/DSCT 센서 독립적 관리
 
 ### v3.0 (2025년 7월) 🎉
 - **NEW**: SEMI AUTO 탭 추가

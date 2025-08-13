@@ -574,3 +574,38 @@ AIRCON T/H Tab의 온습도 위젯 중 ID07, ID08 이 현장 요구에 의해 �
 
 그리고 cmd message 처리에서도 07,08의 메시지는 회신 되지 않으므로 깔끔하게 정리해줘.
 기존의 다른 요소가 영향을 받으면 안되니까. 진행 계획을 먼저 세우고 나에게 승인 받고 수정 해줘.
+
+
+# 6개 센서 위젯 생성 (ID01~ID06)
+for i in range(6):
+    row = i // 4
+    col = i % 4
+    sensor_id = f"ID{i+1:02d}"
+    
+    sensor_widget = SensorWidget(sensor_id)
+    self.sensor_widgets[sensor_id] = sensor_widget
+    sensor_grid.addWidget(sensor_widget, row, col)
+
+위의 표현 방식을 
+#ID01=L_RA1, ID02=L_RA2, ID03=L_실내, ID04=R_실내, ID05=R_RA2, ID06=R_RA1 로 Label 표시 변경해야 합니다.
+새로운 표현이 라벨로 표시되도록 수정해 줘요.
+
+다음은 DSCT T/H TAB의 라벨 변경으로 현재는 아래와 같아요. 
+# 12개 센서 위젯 생성
+  for i in range(12):
+      row = i // 4
+      col = i % 4
+      sensor_id = f"ID{i+1:02d}"
+      
+      sensor_widget = SensorWidget(sensor_id)
+      self.sensor_widgets[sensor_id] = sensor_widget
+      sensor_grid.addWidget(sensor_widget, row, col)
+      
+  sensor_group_layout.addLayout(sensor_grid)
+  sensor_group.setLayout(sensor_group_layout)
+  main_layout.addWidget(sensor_group)
+
+  위 라벨표시 방법을 아래와 같이 변경해줘요.
+  ID01=L_HEX1, ID02=L_HEX2,ID03=L_DCH1,ID04=L_DCH2,ID05=L_급기,ID06=R_급기,
+  ID07=R_DCH1, ID08=R_DCH2, ID09=R_HEX2, ID10=R_HEX1,ID11=R_외기,ID12=L_외기
+  변경 계획을 수립 후 나의 승인을 받고 수정 진행 해줘요.

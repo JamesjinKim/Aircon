@@ -81,26 +81,26 @@ class SensorTab(QWidget):
         control_layout.addWidget(self.csv_save_button)
         
         # 새로고침 버튼
-        self.refresh_button = QPushButton("명령 전송")
-        self.refresh_button.setFixedSize(100, 35)
-        self.refresh_button.setStyleSheet("""
-            QPushButton {
-                font-size: 12px;
-                font-weight: bold;
-                background-color: #4CAF50;
-                color: white;
-                border: none;
-                border-radius: 4px;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-            QPushButton:pressed {
-                background-color: #3d8b40;
-            }
-        """)
-        self.refresh_button.clicked.connect(self.on_refresh_clicked)
-        control_layout.addWidget(self.refresh_button)
+        #self.refresh_button = QPushButton("명령 전송")
+        #self.refresh_button.setFixedSize(100, 35)
+        #self.refresh_button.setStyleSheet("""
+        #    QPushButton {
+        #        font-size: 12px;
+        #        font-weight: bold;
+        #        background-color: #4CAF50;
+        #        color: white;
+        #        border: none;
+        #        border-radius: 4px;
+        #    }
+        #    QPushButton:hover {
+        #        background-color: #45a049;
+        #    }
+        #    QPushButton:pressed {
+        #        background-color: #3d8b40;
+        #    }
+        #""")
+        #self.refresh_button.clicked.connect(self.on_refresh_clicked)
+        #control_layout.addWidget(self.refresh_button)
         
         # USB 상태 레이블
         self.usb_status_label = QLabel("USB: 연결 안됨")
@@ -108,9 +108,9 @@ class SensorTab(QWidget):
         control_layout.addWidget(self.usb_status_label)
         
         # 자동 새로고침 상태 레이블
-        self.auto_refresh_label = QLabel("자동 새로고침: OFF")
-        self.auto_refresh_label.setStyleSheet("QLabel { font-size: 12px; color: #666; }")
-        control_layout.addWidget(self.auto_refresh_label)
+        #self.auto_refresh_label = QLabel("자동 새로고침: OFF")
+        #self.auto_refresh_label.setStyleSheet("QLabel { font-size: 12px; color: #666; }")
+        #control_layout.addWidget(self.auto_refresh_label)
         
         main_layout.addLayout(control_layout)
         
@@ -332,13 +332,8 @@ class SensorTab(QWidget):
         self.refresh_button.setEnabled(True)
         
     def set_auto_refresh_status(self, is_active):
-        """자동 새로고침 상태 표시"""
-        if is_active:
-            self.auto_refresh_label.setText(f"자동 새로고침: ON ({self.refresh_interval}초)")
-            self.auto_refresh_label.setStyleSheet("QLabel { font-size: 12px; color: green; }")
-        else:
-            self.auto_refresh_label.setText("자동 새로고침: OFF")
-            self.auto_refresh_label.setStyleSheet("QLabel { font-size: 12px; color: #666; }")
+        """자동 새로고침 상태 표시 (UI에 표시하지 않음)"""
+        pass
             
     def reset_all_sensors(self):
         """모든 센서 위젯 초기화"""

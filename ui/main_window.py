@@ -336,7 +336,7 @@ class ControlWindow(QtWidgets.QMainWindow):
         self.tab_widget.setStyleSheet("""
             QTabWidget::pane { 
                 border: 1px solid #C2C7CB;
-                background: #f0f0f0; 
+                background: #f0f0f0;
             }
             QTabBar::tab {
                 background: #e0e0e0;
@@ -345,7 +345,7 @@ class ControlWindow(QtWidgets.QMainWindow):
                 font-weight: bold;
             }
             QTabBar::tab:selected {
-                background: #f0f0f0;
+                background: #969696;
             }
             QTabBar::tab:!selected {
                 margin-top: 2px;
@@ -377,19 +377,20 @@ class ControlWindow(QtWidgets.QMainWindow):
         self.semi_auto_tab = QWidget()
         self.setup_semi_auto_tab()
         self.tab_widget.addTab(self.semi_auto_tab, "SEMI AUTO")
-        
-        # 다섯 번째 탭 - DSCT T/H
-        self.sensors_tab = SensorTab(self.sensor_manager, self.sensor_scheduler)
-        self.tab_widget.addTab(self.sensors_tab, "DSCT T/H")
-        
-        # 여섯 번째 탭 - AIRCON T/H
-        self.aircon_sensors_tab = AirconSensorTab(self.air_sensor_manager, self.sensor_scheduler)
-        self.tab_widget.addTab(self.aircon_sensors_tab, "AIRCON T/H")
-        
-        # 일곱 번째 탭 - AUTO 모드
+
+        # 다섯 번째 탭 - AUTO 모드
         self.auto_tab = QWidget()
         self.setup_auto_tab()
         self.tab_widget.addTab(self.auto_tab, "AUTO")
+
+        # 여섯 번째 탭 - DSCT T/H
+        self.sensors_tab = SensorTab(self.sensor_manager, self.sensor_scheduler)
+        self.tab_widget.addTab(self.sensors_tab, "DSCT T/H")
+        
+        # 일곱 번째 탭 - AIRCON T/H
+        self.aircon_sensors_tab = AirconSensorTab(self.air_sensor_manager, self.sensor_scheduler)
+        self.tab_widget.addTab(self.aircon_sensors_tab, "AIRCON T/H")
+        
         
         # 메인 레이아웃에 모든 영역 추가
         self.main_layout.addLayout(top_layout)
@@ -561,10 +562,12 @@ class ControlWindow(QtWidgets.QMainWindow):
         row_layout = QHBoxLayout()
         row_layout.setContentsMargins(5, 8, 5, 8)
         row_layout.setSpacing(10)  # 버튼 간 간격
-        
-        # FAN 라벨
-        fan_label = QLabel(f"FAN{fan_num}")
-        fan_label.setFixedWidth(60)
+
+        # FAN 라벨 - 번호별 한글 라벨 매핑
+        fan_labels = {1: "배기FAN1", 2: "급기FAN2", 3: "배기FAN3", 4: "급기FAN4"}
+        fan_label_text = fan_labels.get(fan_num, f"FAN{fan_num}")
+        fan_label = QLabel(fan_label_text)
+        fan_label.setFixedWidth(80)
         fan_label.setStyleSheet("font-size: 15px; font-weight: bold;")
         fan_label.setAlignment(Qt.AlignCenter)
         
@@ -616,9 +619,11 @@ class ControlWindow(QtWidgets.QMainWindow):
         row_layout.setSpacing(15)  # 버튼 간 충분한 간격
         
         # FAN 라벨
-        fan_label = QLabel(f"FAN{fan_num}")
-        fan_label.setFixedWidth(60)
-        fan_label.setStyleSheet("font-size: 15px; font-weight: bold;")
+        fan_labels = {1: "배기FAN1", 2: "급기FAN2", 3: "배기FAN3", 4: "급기FAN4"}
+        fan_label_text = fan_labels.get(fan_num, f"FAN{fan_num}")
+        fan_label = QLabel(fan_label_text)
+        fan_label.setFixedWidth(80)
+        fan_label.setStyleSheet("font-size: 14px; font-weight: bold;")
         fan_label.setAlignment(Qt.AlignCenter)
         
         # ON/OFF 토글 버튼 - COMPRESSOR 버튼과 동일한 스타일
