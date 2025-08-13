@@ -2,7 +2,7 @@ from ui.constants import (
     CMD_PREFIX, TERMINATOR, AIR_SYSTEM, DSCT_SYSTEM,
     ON_STATE, OFF_STATE, OPEN_STATE, CLOSE_STATE,
     FAN_CMD, CON_F_CMD, ALTDMP_CMD, ALBDMP_CMD, ARTDMP_CMD, ARBDMP_CMD,
-    INVERTER_CMD, CLUCH_CMD, DSCT_FAN_CMD, LDMP_CMD, RDMP_CMD,
+    PUMP_CMD, CLUCH_CMD, DSCT_FAN_CMD, LDMP_CMD, RDMP_CMD,
     LHOT_CMD, LCOOL_CMD, RHOT_CMD, RCOOL_CMD,
     FAN1_CMD, FAN2_CMD, FAN3_CMD, FAN4_CMD, SPD_CMD,
     PUMP1_CMD, PUMP2_CMD, SOL1_CMD, SOL2_CMD, SOL3_CMD, SOL4_CMD
@@ -50,11 +50,25 @@ def setup_button_groups(window):
         }
     })
 
-    # inverter 
+    # pump (기존 inverter를 pump on/off 연속 전송으로 변경)
+    def pump_on_off_sequence():
+        """PUMP ON 후 즉시 PUMP OFF 전송"""
+        import time
+        # PUMP ON 전송
+        pump_on_cmd = f'{CMD_PREFIX},{AIR_SYSTEM},{PUMP_CMD},{ON_STATE}{TERMINATOR}'
+        if window.serial_manager.send_serial_command(pump_on_cmd.rstrip('\r\n')):
+            print(f"[TX] PUMP ON 명령 전송: {pump_on_cmd.rstrip()}")
+        
+        # 짧은 지연 후 PUMP OFF 전송
+        time.sleep(0.1)  # 100ms 지연
+        pump_off_cmd = f'{CMD_PREFIX},{AIR_SYSTEM},{PUMP_CMD},{OFF_STATE}{TERMINATOR}'
+        if window.serial_manager.send_serial_command(pump_off_cmd.rstrip('\r\n')):
+            print(f"[TX] PUMP OFF 명령 전송: {pump_off_cmd.rstrip()}")
+    
     window.button_manager.add_group('inverter', {
         window.pushButton_13: {
-            'on': f'{CMD_PREFIX},{AIR_SYSTEM},{INVERTER_CMD},{ON_STATE}{TERMINATOR}',
-            'off': f'{CMD_PREFIX},{AIR_SYSTEM},{INVERTER_CMD},{OFF_STATE}{TERMINATOR}'
+            'on': pump_on_off_sequence,
+            'off': pump_on_off_sequence
         }
     })
 
