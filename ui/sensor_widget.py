@@ -7,9 +7,10 @@ from datetime import datetime
 class SensorWidget(QFrame):
     """개별 온습도 센서 표시 위젯"""
     
-    def __init__(self, sensor_id, parent=None):
+    def __init__(self, sensor_id, display_label=None, parent=None):
         super().__init__(parent)
         self.sensor_id = sensor_id
+        self.display_label = display_label or sensor_id
         
         # 프레임 스타일 설정
         self.setFrameStyle(QFrame.Box)
@@ -34,7 +35,7 @@ class SensorWidget(QFrame):
         layout.setSpacing(1)
         
         # 센서 ID 레이블
-        self.id_label = QLabel(self.sensor_id)
+        self.id_label = QLabel(self.display_label)
         self.id_label.setAlignment(Qt.AlignCenter)
         font = QFont()
         font.setPointSize(10)

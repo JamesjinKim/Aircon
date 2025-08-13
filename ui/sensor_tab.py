@@ -202,13 +202,30 @@ class SensorTab(QWidget):
         sensor_grid = QGridLayout()
         sensor_grid.setSpacing(4)
         
+        # 센서 라벨 매핑
+        sensor_labels = {
+            "ID01": "L_HEX1",
+            "ID02": "L_HEX2", 
+            "ID03": "L_DCH1",
+            "ID04": "L_DCH2",
+            "ID05": "L_급기",
+            "ID06": "R_급기",
+            "ID07": "R_DCH1",
+            "ID08": "R_DCH2",
+            "ID09": "R_HEX2",
+            "ID10": "R_HEX1",
+            "ID11": "R_외기",
+            "ID12": "L_외기"
+        }
+        
         # 12개 센서 위젯 생성
         for i in range(12):
             row = i // 4
             col = i % 4
             sensor_id = f"ID{i+1:02d}"
+            display_label = sensor_labels[sensor_id]
             
-            sensor_widget = SensorWidget(sensor_id)
+            sensor_widget = SensorWidget(sensor_id, display_label)
             self.sensor_widgets[sensor_id] = sensor_widget
             sensor_grid.addWidget(sensor_widget, row, col)
             

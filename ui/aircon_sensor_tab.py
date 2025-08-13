@@ -201,13 +201,24 @@ class AirconSensorTab(QWidget):
         sensor_grid = QGridLayout()
         sensor_grid.setSpacing(5)
         
-        # 6개 센서 위젯 생성 (ID01~ID06만, ID07, ID08 제거)
+        # 센서 라벨 매핑
+        sensor_labels = {
+            "ID01": "L_RA1",
+            "ID02": "L_RA2", 
+            "ID03": "L_실내",
+            "ID04": "R_실내",
+            "ID05": "R_RA2",
+            "ID06": "R_RA1"
+        }
+        
+        # 6개 센서 위젯 생성 (ID01~ID06)
         for i in range(6):
             row = i // 4
             col = i % 4
             sensor_id = f"ID{i+1:02d}"
+            display_label = sensor_labels[sensor_id]
             
-            sensor_widget = SensorWidget(sensor_id)
+            sensor_widget = SensorWidget(sensor_id, display_label)
             self.sensor_widgets[sensor_id] = sensor_widget
             sensor_grid.addWidget(sensor_widget, row, col)
             
