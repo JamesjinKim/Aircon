@@ -56,13 +56,24 @@ class ButtonManager:
             # 원래 크기 저장
             original_size = button.size()
             
-            # 명령어 문자열에 따라 버튼 텍스트 결정
-            if "OPEN" in commands.get('on', '').upper():
-                on_text = "OPEN"
-                off_text = "CLOSE"
+            # 명령어 문자열에 따라 버튼 텍스트 결정 (함수인 경우 처리)
+            on_command = commands.get('on')
+            if callable(on_command):
+                # 함수인 경우 그룹 이름으로 판단
+                if group_name == 'inverter':
+                    on_text = "ON" 
+                    off_text = "OFF"
+                else:
+                    on_text = "ON"
+                    off_text = "OFF"
             else:
-                on_text = "ON"
-                off_text = "OFF"
+                # 문자열인 경우 기존 로직
+                if on_command and "OPEN" in str(on_command).upper():
+                    on_text = "OPEN"
+                    off_text = "CLOSE"
+                else:
+                    on_text = "ON"
+                    off_text = "OFF"
 
             # 단일 버튼 토글인 경우 (버튼이 1개만 등록된 그룹)
             if len(group['buttons']) == 1:
@@ -71,7 +82,7 @@ class ButtonManager:
                     # OFF 상태 -> ON 상태로 전환
                     button.setStyleSheet(BUTTON_ON_STYLE)  
                     button.setText(on_text)
-                    self.send_command(commands.get('on'))
+                    self.send_command_or_call_function(commands.get('on'))
                     group['active'] = True
                     
                     # FAN이 ON될 때 해당 SPD 버튼을 1로 설정
@@ -80,7 +91,7 @@ class ButtonManager:
                     # ON 상태 -> OFF 상태로 전환
                     button.setStyleSheet(BUTTON_OFF_STYLE)
                     button.setText(off_text)
-                    self.send_command(commands.get('off'))
+                    self.send_command_or_call_function(commands.get('off'))
                     group['active'] = False
                     
                     # FAN이나 Con Fan이 OFF될 때 해당 SPD 버튼들 초기화
@@ -90,7 +101,7 @@ class ButtonManager:
                 if group['active'] == button:
                     # 같은 버튼을 다시 눌렀을 때 -> OFF 상태로 전환
                     button.setStyleSheet(BUTTON_OFF_STYLE)
-                    self.send_command(commands.get('off'))
+                    self.send_command_or_call_function(commands.get('off'))
                     group['active'] = None
                     
                     # FAN이나 Con Fan이 OFF될 때 해당 SPD 버튼들 초기화
@@ -100,7 +111,7 @@ class ButtonManager:
                     for other_btn in group['buttons'].keys():
                         other_btn.setStyleSheet(BUTTON_OFF_STYLE)
                     button.setStyleSheet(BUTTON_ON_STYLE)
-                    self.send_command(commands.get('on'))
+                    self.send_command_or_call_function(commands.get('on'))
                     group['active'] = button
                     
                     # FAN이 ON될 때 해당 SPD 버튼을 1로 설정
@@ -113,6 +124,24 @@ class ButtonManager:
             print(f"버튼 토글 처리 중 오류 발생: {e}")
             if self.SendData_textEdit:
                 self.SendData_textEdit.append(f"버튼 토글 오류: {e}")
+
+    def send_command_or_call_function(self, command_or_function):
+        """명령어 전송 또는 함수 호출"""
+        try:
+            if callable(command_or_function):
+                # 함수인 경우 호출
+                print(f"함수 호출: {command_or_function.__name__}")
+                command_or_function()
+            else:
+                # 문자열 명령어인 경우 기존 로직 사용
+                self.send_command(command_or_function)
+        except Exception as e:
+            print(f"명령어 처리 실패: {e}")
+            if hasattr(self, 'SendData_textEdit') and self.SendData_textEdit:
+                self.SendData_textEdit.append(f"명령어 처리 실패: {e}")
+                self.SendData_textEdit.verticalScrollBar().setValue(
+                    self.SendData_textEdit.verticalScrollBar().maximum()
+                )
 
     def send_command(self, command):
         """명령어 전송"""
