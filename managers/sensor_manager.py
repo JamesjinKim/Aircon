@@ -46,6 +46,11 @@ class SensorManager(QObject):
         self.data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
         self._ensure_data_directory()
         
+        # CSV 정리기 초기화
+        from utils.csv_cleaner import CSVCleaner
+        self.csv_cleaner = CSVCleaner(self.data_dir)
+        self.save_count = 0  # 저장 횟수 카운터 (20회마다 정리)
+        
     def set_serial_manager(self, serial_manager):
         """시리얼 매니저 설정 (자동 요청 제거, 스케줄러가 관리)"""
         self.serial_manager = serial_manager
@@ -102,6 +107,12 @@ class SensorManager(QObject):
             
             # CSV 저장
             self._save_to_csv(sensor_id, self.sensor_data[sensor_id])
+            
+            # 주기적 CSV 정리 (20회 저장마다)
+            self.save_count += 1
+            if self.save_count >= 20:
+                self.save_count = 0
+                self._cleanup_old_csv_files()
             
             # 개별 센서 업데이트 시그널
             self.sensor_data_updated.emit(sensor_id, self.sensor_data[sensor_id])
@@ -200,6 +211,15 @@ class SensorManager(QObject):
                 'temperature': data['temp'],
                 'humidity': data['humi']
             })
+    
+    def _cleanup_old_csv_files(self):
+        """오래된 CSV 파일 정리 (DSCT 파일만)"""
+        try:
+            dsct_deleted, _ = self.csv_cleaner.auto_cleanup(max_files=20)
+            if dsct_deleted:
+                print(f"[DSCT] CSV 정리 완료: {len(dsct_deleted)}개 파일 삭제")
+        except Exception as e:
+            print(f"[DSCT] CSV 정리 중 오류: {e}")
     
     def _generate_dummy_data(self):
         """테스트 모드: 더미 데이터 생성 및 처리"""

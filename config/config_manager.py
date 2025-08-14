@@ -34,6 +34,10 @@ class ConfigManager:
                 "dsct_sensor": 5,
                 "aircon_sensor": 5
             },
+            "csv_cleanup": {
+                "enabled": True,
+                "max_files_per_type": 20  # 각 타입(DSCT, AIRCON)당 최대 20개 파일
+            },
             "last_updated": None
         }
         
