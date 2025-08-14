@@ -172,6 +172,7 @@ class SensorScheduler(QObject):
                 return
                 
             # 새 주기 시작
+            print(f"[SCHEDULER] 새 주기 시작 - 간격: {self.cycle_interval}초")
             if self.aircon_enabled:
                 self._start_aircon_request()
             elif self.dsct_enabled:
@@ -199,6 +200,7 @@ class SensorScheduler(QObject):
         elif self.current_state == SchedulerState.INTERVAL_WAITING:
             # 주기 간격 대기 완료 후 새 주기 시작
             self.last_cycle_time = current_time
+            print(f"[SCHEDULER] 주기 대기 완료, 다음 주기까지 {self.cycle_interval}초 대기")
             self._set_state(SchedulerState.IDLE)
             
     def _start_aircon_request(self):
@@ -264,9 +266,10 @@ class SensorScheduler(QObject):
         
     def _on_aircon_all_updated(self, all_data):
         """AIRCON 전체 센서 업데이트 완료"""
-        print("[SCHEDULER] AIRCON 응답 완료, DSCT로 이동")
+        print(f"[SCHEDULER] AIRCON 응답 완료, {len(all_data)}개 센서 → UI로 시그널 전송")
         self.timeout_timer.stop()
         self.aircon_all_sensors_updated.emit(all_data)
+        print("[SCHEDULER] AIRCON aircon_all_sensors_updated 시그널 전송 완료")
         self._move_to_dsct()
         
     def _on_dsct_sensor_updated(self, sensor_id, data):
@@ -275,9 +278,10 @@ class SensorScheduler(QObject):
         
     def _on_dsct_all_updated(self, all_data):
         """DSCT 전체 센서 업데이트 완료"""
-        print("[SCHEDULER] DSCT 응답 완료, 주기 대기로 이동")
+        print(f"[SCHEDULER] DSCT 응답 완료, {len(all_data)}개 센서 → UI로 시그널 전송")
         self.timeout_timer.stop()
         self.dsct_all_sensors_updated.emit(all_data)
+        print("[SCHEDULER] DSCT dsct_all_sensors_updated 시그널 전송 완료")
         self._set_state(SchedulerState.INTERVAL_WAITING)
         
     def get_status_info(self):
