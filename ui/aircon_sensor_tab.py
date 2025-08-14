@@ -313,6 +313,8 @@ class AirconSensorTab(QWidget):
     @pyqtSlot(dict)
     def on_all_sensors_updated(self, all_data):
         """전체 센서 데이터 업데이트 완료"""
+        print(f"[AIRCON UI] 전체 센서 데이터 업데이트: {len(all_data)}개 센서")
+        
         # 요약 정보 계산
         active_count = 0
         timeout_count = 0
@@ -497,8 +499,19 @@ class AirconSensorTab(QWidget):
                 }
             """)
             self.status_indicator.setToolTip("AIRCON 센서 통신 오류 또는 타임아웃")
-        else:
+        elif status == "waiting":
             # 회색 - 대기 상태
+            self.status_indicator.setStyleSheet("""
+                QLabel {
+                    font-size: 16px;
+                    color: #CCCCCC;
+                    background-color: transparent;
+                    border-radius: 10px;
+                }
+            """)
+            self.status_indicator.setToolTip("AIRCON 센서 대기 중")
+        else:
+            # 회색 - 기본 대기 상태
             self.status_indicator.setStyleSheet("""
                 QLabel {
                     font-size: 16px;
@@ -512,6 +525,7 @@ class AirconSensorTab(QWidget):
     @pyqtSlot(str)
     def on_scheduler_state_changed(self, state_name):
         """스케줄러 상태 변경 처리"""
+        print(f"[AIRCON UI] 스케줄러 상태 변경: {state_name}")
         if state_name == "aircon_requesting":
             self.update_status_indicator("requesting")
         elif state_name == "aircon_waiting":
