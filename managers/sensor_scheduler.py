@@ -47,8 +47,8 @@ class SensorScheduler(QObject):
         self.timeout_timer.timeout.connect(self._handle_timeout)
         self.timeout_timer.setSingleShot(True)
         
-        # 설정 가능한 옵션들
-        self.cycle_interval = 5.0  # 전체 주기 간격 (초)
+        # 설정 가능한 옵션들 - UI에서 설정되기 전까지의 초기값
+        self.cycle_interval = 5.0  # 전체 주기 간격 (초) - UI에서 덮어씀
         self.response_timeout = 10.0  # 응답 대기 시간 (초)
         self.aircon_enabled = True
         self.dsct_enabled = True

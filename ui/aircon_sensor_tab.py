@@ -36,6 +36,8 @@ class AirconSensorTab(QWidget):
         # 센서 스케줄러 연결
         if self.sensor_scheduler:
             self.set_sensor_scheduler(self.sensor_scheduler)
+            # 현재 UI 설정값으로 스케줄러 간격 초기화
+            self.update_sensor_manager_interval()
             
     def setup_ui(self):
         """UI 설정"""
