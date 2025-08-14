@@ -242,6 +242,21 @@ class SensorTab(QWidget):
         self.summary_label.setStyleSheet("QLabel { font-size: 12px; }")
         info_layout.addWidget(self.summary_label)
         
+        # 상태 신호등 (원형)
+        self.status_indicator = QLabel("●")
+        self.status_indicator.setFixedSize(20, 20)
+        self.status_indicator.setAlignment(Qt.AlignCenter)
+        self.status_indicator.setStyleSheet("""
+            QLabel {
+                font-size: 16px;
+                color: #CCCCCC;
+                background-color: transparent;
+                border-radius: 10px;
+            }
+        """)
+        self.status_indicator.setToolTip("DSCT 센서 통신 상태")
+        info_layout.addWidget(self.status_indicator)
+        
         info_layout.addStretch()
         
         # 마지막 스캔 시간
@@ -276,6 +291,8 @@ class SensorTab(QWidget):
         if self.sensor_scheduler:
             self.sensor_scheduler.dsct_sensor_updated.connect(self.on_sensor_data_updated)
             self.sensor_scheduler.dsct_all_sensors_updated.connect(self.on_all_sensors_updated)
+            # 스케줄러 상태 변경 시그널 연결
+            self.sensor_scheduler.state_changed.connect(self.on_scheduler_state_changed)
         
     @pyqtSlot()
     def on_csv_save_clicked(self):
@@ -327,9 +344,15 @@ class SensorTab(QWidget):
         now = datetime.now()
         self.last_scan_label.setText(f"마지막 스캔: {now.strftime('%H:%M:%S')}")
         
+        # 상태 신호등을 완료로 변경
+        if timeout_count > 0:
+            self.update_status_indicator("error")
+        else:
+            self.update_status_indicator("completed")
+        
         # 새로고침 버튼 복원
-        self.refresh_button.setText("명령 전송")
-        self.refresh_button.setEnabled(True)
+        #self.refresh_button.setText("명령 전송")
+        #self.refresh_button.setEnabled(True)
         
     def set_auto_refresh_status(self, is_active):
         """자동 새로고침 상태 표시 (UI에 표시하지 않음)"""
@@ -447,3 +470,61 @@ class SensorTab(QWidget):
         # 호환성을 위한 기존 코드 (스케줄러가 없으면)
         elif self.sensor_manager and hasattr(self.sensor_manager, 'set_refresh_interval'):
             self.sensor_manager.set_refresh_interval(self.refresh_interval)
+            
+    def update_status_indicator(self, status):
+        """상태 신호등 업데이트"""
+        if status == "requesting":
+            # 노랑 - 데이터 수신 중
+            self.status_indicator.setStyleSheet("""
+                QLabel {
+                    font-size: 16px;
+                    color: #FFC107;
+                    background-color: transparent;
+                    border-radius: 10px;
+                }
+            """)
+            self.status_indicator.setToolTip("DSCT 센서 데이터 요청 중...")
+        elif status == "completed":
+            # 녹색 - 수신 완료
+            self.status_indicator.setStyleSheet("""
+                QLabel {
+                    font-size: 16px;
+                    color: #4CAF50;
+                    background-color: transparent;
+                    border-radius: 10px;
+                }
+            """)
+            self.status_indicator.setToolTip("DSCT 센서 데이터 수신 완료")
+        elif status == "error":
+            # 빨강 - 에러/타임아웃
+            self.status_indicator.setStyleSheet("""
+                QLabel {
+                    font-size: 16px;
+                    color: #F44336;
+                    background-color: transparent;
+                    border-radius: 10px;
+                }
+            """)
+            self.status_indicator.setToolTip("DSCT 센서 통신 오류 또는 타임아웃")
+        else:
+            # 회색 - 대기 상태
+            self.status_indicator.setStyleSheet("""
+                QLabel {
+                    font-size: 16px;
+                    color: #CCCCCC;
+                    background-color: transparent;
+                    border-radius: 10px;
+                }
+            """)
+            self.status_indicator.setToolTip("DSCT 센서 대기 중")
+            
+    @pyqtSlot(str)
+    def on_scheduler_state_changed(self, state_name):
+        """스케줄러 상태 변경 처리"""
+        if state_name == "dsct_requesting":
+            self.update_status_indicator("requesting")
+        elif state_name == "dsct_waiting":
+            self.update_status_indicator("requesting")
+        elif state_name == "idle" or state_name == "interval_waiting":
+            # 대기 상태로 돌아감
+            self.update_status_indicator("waiting")
