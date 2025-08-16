@@ -522,15 +522,15 @@ class ControlWindow(QtWidgets.QMainWindow):
         main_grid.setContentsMargins(10, 10, 10, 10)
         main_grid.setSpacing(15)
         
-        # 왼쪽 그룹: DESICCANT CONTROLS
-        left_group, left_layout = create_group_box("DESICCANT CONTROLS", margins=(15, 30, 15, 15))
+        # 왼쪽 그룹: FAN Control
+        left_group, left_layout = create_group_box("FAN Control", margins=(15, 30, 15, 15))
         left_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
-        # FAN1~4 제어 - 새로운 단순화된 디자인
-        self.create_new_dsct_fan_row(left_layout, 1)
-        self.create_new_dsct_fan_row(left_layout, 2)
-        self.create_new_dsct_fan_row(left_layout, 3)
-        self.create_new_dsct_fan_row(left_layout, 4)
+        # FAN1~4 제어 - 새로운 단순화된 디자인 (라벨 변경된 순서)
+        self.create_new_dsct_fan_row(left_layout, 1)  # 배기L (FAN1 CMD)
+        self.create_new_dsct_fan_row(left_layout, 3)  # 배기R (FAN3 CMD)
+        self.create_new_dsct_fan_row(left_layout, 2)  # 급기L (FAN2 CMD)
+        self.create_new_dsct_fan_row(left_layout, 4)  # 급기R (FAN4 CMD)
         
         # 왼쪽 그룹 여백
         left_layout.addStretch(1)
@@ -539,11 +539,11 @@ class ControlWindow(QtWidgets.QMainWindow):
         right_group, right_layout = create_group_box("DAMP CONTROLS", margins=(15, 30, 15, 15))
         right_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
-        # DMP1~4 제어 - 새로운 토글 + 숫자 버튼 디자인
-        self.create_new_damper_row(right_layout, 1)
-        self.create_new_damper_row(right_layout, 3)
-        self.create_new_damper_row(right_layout, 2)
-        self.create_new_damper_row(right_layout, 4)
+        # DMP1~4 제어 - 새로운 토글 + 숫자 버튼 디자인 (라벨 변경된 순서)
+        self.create_new_damper_row(right_layout, 2)  # L DMP H (DMP2 CMD)
+        self.create_new_damper_row(right_layout, 1)  # L DMP L (DMP1 CMD)
+        self.create_new_damper_row(right_layout, 4)  # R DMP H (DMP4 CMD)
+        self.create_new_damper_row(right_layout, 3)  # R DMP L (DMP3 CMD)
         
         # 오른쪽 그룹 여백
         right_layout.addStretch(1)
@@ -618,8 +618,8 @@ class ControlWindow(QtWidgets.QMainWindow):
         row_layout.setContentsMargins(5, 10, 5, 10)
         row_layout.setSpacing(15)  # 버튼 간 충분한 간격
         
-        # FAN 라벨
-        fan_labels = {1: "배기FAN1", 2: "급기FAN2", 3: "배기FAN3", 4: "급기FAN4"}
+        # FAN 라벨 - 새로운 명명 규칙
+        fan_labels = {1: "배기L", 2: "급기L", 3: "배기R", 4: "급기R"}
         fan_label_text = fan_labels.get(fan_num, f"FAN{fan_num}")
         fan_label = QLabel(fan_label_text)
         fan_label.setFixedWidth(80)
@@ -659,10 +659,10 @@ class ControlWindow(QtWidgets.QMainWindow):
         row_layout.setContentsMargins(5, 10, 5, 10)
         row_layout.setSpacing(15)  # 버튼 간 충분한 간격
         
-        # DMP 라벨
-        dmp_labels = {1: "배기(L)", 2: "급기(L)", 3: "배기(R)", 4: "급기(R)"}
+        # DMP 라벨 - 새로운 명명 규칙
+        dmp_labels = {1: "L DMP L", 2: "L DMP H", 3: "R DMP L", 4: "R DMP H"}
         dmp_label = QLabel(dmp_labels[dmp_num])
-        dmp_label.setFixedWidth(60)
+        dmp_label.setFixedWidth(80)
         dmp_label.setStyleSheet("font-size: 15px; font-weight: bold;")
         dmp_label.setAlignment(Qt.AlignCenter)
         
