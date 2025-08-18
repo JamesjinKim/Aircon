@@ -50,11 +50,11 @@ def setup_button_groups(window):
         }
     })
 
-    # pump (기존 inverter를 pump 순차 전송으로 변경)
-    window.button_manager.add_group('inverter', {
+    # pump (정상적인 토글 버튼으로 수정)
+    window.button_manager.add_group('pump', {
         window.pushButton_13: {
-            'on': window.pump_on_off_sequence,  # 함수 참조
-            'off': window.pump_on_off_sequence  # 동일한 함수 (ON/OFF 순차 실행)
+            'on': f'{CMD_PREFIX},{AIR_SYSTEM},{PUMP_CMD},{ON_STATE}{TERMINATOR}',
+            'off': f'{CMD_PREFIX},{AIR_SYSTEM},{PUMP_CMD},{OFF_STATE}{TERMINATOR}'
         }
     })
 
