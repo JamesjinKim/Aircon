@@ -58,27 +58,14 @@ class AirSensorManager(QObject):
         
         
     def request_sensor_data(self):
-        """센서 데이터 요청"""
-        if self.test_mode:
-            # 테스트 모드: 더미 데이터 생성
-            print("[AIRCON] 테스트 모드: 더미 데이터 생성 시작")
-            self.is_scanning = True
-            self._generate_dummy_data()
-        elif self.serial_manager and self.serial_manager.is_connection_healthy():
-            command = "$CMD,AIR,TH"
-            print(f"[AIRCON] 센서 데이터 요청: {command}")
-            self.serial_manager.send_serial_command(command)
-            self.is_scanning = True
-        else:
-            print("[AIRCON] 센서 데이터 요청 실패: 시리얼 연결 상태 불량")
+        """센서 데이터 요청 (비활성화됨)"""
+        print(f"[AIRCON] request_sensor_data() 호출됨 - 온습도 데이터 처리 비활성화로 건너뜀")
+        return
             
     def parse_sensor_data(self, data):
-        """시리얼 데이터 파싱"""
-        print(f"[AIRCON RX] 수신된 데이터: {data}")
-        
-        if not self.is_scanning:
-            print("[AIRCON RX] 스캔 진행 중이 아님, 데이터 파싱 건너뜀")
-            return
+        """시리얼 데이터 파싱 (비활성화됨)"""
+        print(f"[AIRCON RX] 데이터 파싱 비활성화로 건너뜀: {data}")
+        return
             
         # 정상 데이터 파싱
         match = self.data_pattern.match(data)

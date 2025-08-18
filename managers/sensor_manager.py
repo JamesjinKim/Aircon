@@ -58,36 +58,14 @@ class SensorManager(QObject):
         
         
     def request_sensor_data(self):
-        """센서 데이터 요청"""
-        print(f"[DSCT] request_sensor_data() 호출됨")
-        print(f"[DSCT] 테스트 모드: {self.test_mode}")
-        print(f"[DSCT] 시리얼 매니저 존재: {self.serial_manager is not None}")
-        if self.serial_manager:
-            print(f"[DSCT] 시리얼 연결 상태: {self.serial_manager.is_connection_healthy()}")
-        
-        if self.test_mode:
-            # 테스트 모드: 더미 데이터 생성
-            print("[DSCT] 테스트 모드: 더미 데이터 생성 시작")
-            self.is_scanning = True
-            self._generate_dummy_data()
-        elif self.serial_manager and self.serial_manager.is_connection_healthy():
-            command = "$CMD,DSCT,TH"
-            print(f"[DSCT] 센서 데이터 요청: {command}")
-            print(f"[DSCT] is_scanning을 True로 설정")
-            self.is_scanning = True
-            result = self.serial_manager.send_serial_command(command)
-            print(f"[DSCT] 시리얼 명령 전송 결과: {result}")
-        else:
-            print("[DSCT] 센서 데이터 요청 실패: 시리얼 연결 상태 불량")
+        """센서 데이터 요청 (비활성화됨)"""
+        print(f"[DSCT] request_sensor_data() 호출됨 - 온습도 데이터 처리 비활성화로 건너뜀")
+        return
             
     def parse_sensor_data(self, data):
-        """시리얼 데이터 파싱"""
-        print(f"[DSCT RX] 수신된 데이터: {data}")
-        print(f"[DSCT RX] 스캔 상태: {self.is_scanning}")
-        
-        if not self.is_scanning:
-            print("[DSCT RX] 스캔 진행 중이 아님, 데이터 파싱 건너뜀")
-            return
+        """시리얼 데이터 파싱 (비활성화됨)"""
+        print(f"[DSCT RX] 데이터 파싱 비활성화로 건너뜀: {data}")
+        return
             
         # 정상 데이터 파싱
         match = self.data_pattern.match(data)
