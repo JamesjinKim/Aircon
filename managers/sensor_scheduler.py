@@ -133,16 +133,14 @@ class SensorScheduler(QObject):
             print("[SCHEDULER] 스케줄링 재개")
             
     def manual_request_aircon(self):
-        """수동 AIRCON 데이터 요청"""
-        if self.aircon_manager:
-            print("[SCHEDULER] 수동 AIRCON 데이터 요청")
-            self.aircon_manager.request_sensor_data()
+        """수동 AIRCON 데이터 요청 (비활성화됨)"""
+        print("[SCHEDULER] 수동 AIRCON 데이터 요청 비활성화로 건너뜀")
+        return
             
     def manual_request_dsct(self):
-        """수동 DSCT 데이터 요청"""
-        if self.dsct_manager:
-            print("[SCHEDULER] 수동 DSCT 데이터 요청")
-            self.dsct_manager.request_sensor_data()
+        """수동 DSCT 데이터 요청 (비활성화됨)"""
+        print("[SCHEDULER] 수동 DSCT 데이터 요청 비활성화로 건너뜀")
+        return
             
     def set_cycle_interval(self, seconds):
         """주기 간격 설정"""
@@ -210,42 +208,14 @@ class SensorScheduler(QObject):
             self._set_state(SchedulerState.IDLE)
             
     def _start_aircon_request(self):
-        """AIRCON 데이터 요청 시작"""
-        if not self.aircon_manager:
-            self._move_to_dsct()
-            return
-            
-        print("[SCHEDULER] AIRCON 데이터 요청 시작")
-        self._set_state(SchedulerState.AIRCON_REQUESTING)
-        self.current_request_start_time = time.time()
-        
-        # 타임아웃 타이머 시작
-        self.timeout_timer.start(int(self.response_timeout * 1000))
-        
-        # AIRCON 데이터 요청
-        self.aircon_manager.request_sensor_data()
-        self._set_state(SchedulerState.AIRCON_WAITING)
+        """AIRCON 데이터 요청 시작 (비활성화됨)"""
+        print("[SCHEDULER] AIRCON 데이터 요청 비활성화로 건너뜀")
+        self._move_to_dsct()
         
     def _start_dsct_request(self):
-        """DSCT 데이터 요청 시작"""
-        if not self.dsct_manager:
-            print("[SCHEDULER] DSCT 매니저가 없음, 주기 대기로 이동")
-            self._set_state(SchedulerState.INTERVAL_WAITING)
-            return
-            
-        print("[SCHEDULER] DSCT 데이터 요청 시작")
-        self._set_state(SchedulerState.DSCT_REQUESTING)
-        self.current_request_start_time = time.time()
-        
-        # 타임아웃 타이머 시작
-        self.timeout_timer.start(int(self.response_timeout * 1000))
-        print(f"[SCHEDULER] DSCT 타임아웃 타이머 시작: {self.response_timeout}초")
-        
-        # DSCT 데이터 요청
-        print("[SCHEDULER] DSCT 매니저에 데이터 요청 호출")
-        self.dsct_manager.request_sensor_data()
-        self._set_state(SchedulerState.DSCT_WAITING)
-        print("[SCHEDULER] DSCT 응답 대기 상태로 변경")
+        """DSCT 데이터 요청 시작 (비활성화됨)"""
+        print("[SCHEDULER] DSCT 데이터 요청 비활성화로 건너뜀")
+        self._set_state(SchedulerState.INTERVAL_WAITING)
         
     def _move_to_dsct(self):
         """DSCT로 이동"""
