@@ -24,6 +24,7 @@ class SerialManager(QObject):
         
         # 소켓 알림자 (인터럽트 방식)
         self.socket_notifier: Optional[QSocketNotifier] = None
+        self.use_interrupt_mode = False  # 인터럽트 방식 비활성화 (문제 해결 시까지)
 
     def get_available_ports(self) -> List[Dict[str, str]]:
         """연결 가능한 시리얼 포트 목록을 반환하는 함수"""
@@ -46,8 +47,8 @@ class SerialManager(QObject):
                 timeout=0.1  # 논블로킹에 가까운 타임아웃
             )
             
-            # 인터럽트 방식 설정 (Unix 계열에서만 가능)
-            if hasattr(self.shinho_serial_connection, 'fileno'):
+            # 인터럽트 방식 설정 (현재 비활성화)
+            if self.use_interrupt_mode and hasattr(self.shinho_serial_connection, 'fileno'):
                 try:
                     fd = self.shinho_serial_connection.fileno()
                     self.socket_notifier = QSocketNotifier(fd, QSocketNotifier.Read)
@@ -56,6 +57,8 @@ class SerialManager(QObject):
                     print(f"[SERIAL] 인터럽트 방식 활성화 (fd: {fd})")
                 except Exception as e:
                     print(f"[SERIAL] 인터럽트 방식 설정 실패, 폴링 방식 유지: {e}")
+            else:
+                print("[SERIAL] 인터럽트 방식 비활성화됨, 폴링 방식 사용")
             
             print("Serial port connected to", port)
             return True
@@ -127,41 +130,85 @@ class SerialManager(QObject):
     def _on_data_ready(self):
         """인터럽트 핸들러: 데이터 수신 가능할 때 호출"""
         try:
-            data = self._read_available_data()
-            if data:
-                print(f"[INTERRUPT] 수신된 데이터: '{data}'")
+            # 소켓 알림자 일시 비활성화 (재진입 방지)
+            if self.socket_notifier:
+                self.socket_notifier.setEnabled(False)
+            
+            # 사용 가능한 모든 데이터를 한 번에 읽기
+            processed_count = 0
+            max_iterations = 100  # 무한 루프 방지
+            
+            while processed_count < max_iterations:
+                data = self._read_available_data()
+                if not data:
+                    break
+                    
+                processed_count += 1
+                print(f"[INTERRUPT] 수신된 데이터 ({processed_count}): '{data}'")
+                
                 # 시그널 발생
                 self.data_received.emit(data)
                 
-                # 레거시 콜백 호출 (기존 코드와의 호환성)
-                if self.sensor_data_callback and '[DSCT]' in data:
-                    self.sensor_data_callback(data)
-                elif self.air_sensor_data_callback and ('[AIR]' in data or '[AIRCON]' in data):
-                    self.air_sensor_data_callback(data)
+                # 레거시 콜백 호출 (기존 코드와의 호환성) - 센서 기능 비활성화로 제거
+                # if self.sensor_data_callback and '[DSCT]' in data:
+                #     self.sensor_data_callback(data)
+                # elif self.air_sensor_data_callback and ('[AIR]' in data or '[AIRCON]' in data):
+                #     self.air_sensor_data_callback(data)
+            
+            if processed_count >= max_iterations:
+                print(f"[INTERRUPT WARNING] 최대 반복 횟수 도달: {max_iterations}")
+                
         except Exception as e:
             print(f"[INTERRUPT ERROR] 데이터 처리 오류: {e}")
+        finally:
+            # 소켓 알림자 재활성화
+            if self.socket_notifier and self.shinho_serial_connection and self.shinho_serial_connection.is_open:
+                self.socket_notifier.setEnabled(True)
 
     def _read_available_data(self) -> Optional[str]:
         """사용 가능한 데이터 즉시 읽기 (논블로킹)"""
         try:
             if not self.shinho_serial_connection or not self.shinho_serial_connection.is_open:
                 return None
-                
-            if not self.shinho_serial_connection.in_waiting:
+            
+            # 대기 중인 바이트 수 확인
+            waiting_bytes = self.shinho_serial_connection.in_waiting
+            if waiting_bytes == 0:
                 return None
+            
+            print(f"[READ] 대기 중인 바이트: {waiting_bytes}")
+            
+            # 논블로킹 읽기: 타임아웃을 매우 짧게 설정
+            original_timeout = self.shinho_serial_connection.timeout
+            self.shinho_serial_connection.timeout = 0.01  # 10ms
+            
+            try:
+                raw_data = self.shinho_serial_connection.readline()
+            finally:
+                # 타임아웃 복원
+                self.shinho_serial_connection.timeout = original_timeout
                 
-            raw_data = self.shinho_serial_connection.readline()
             if not raw_data:
                 return None
+            
+            print(f"[READ] 원본 바이트: {raw_data}")
                 
             # 디코딩
             try:
-                return raw_data.decode('ascii').strip()
+                decoded = raw_data.decode('ascii').strip()
+                if decoded:
+                    return decoded
+                else:
+                    return None
             except UnicodeDecodeError:
                 try:
-                    return raw_data.decode('utf-8').strip()
+                    decoded = raw_data.decode('utf-8').strip()
+                    if decoded:
+                        return decoded
+                    else:
+                        return None
                 except:
-                    return str(raw_data)
+                    return None
                     
         except Exception as e:
             print(f"[READ ERROR] {e}")
