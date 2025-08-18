@@ -3,9 +3,14 @@ import serial
 import serial.tools.list_ports
 import time
 from typing import Optional, List, Dict
+from PyQt5.QtCore import QObject, pyqtSignal, QSocketNotifier
 
-class SerialManager:
+class SerialManager(QObject):
+    # 데이터 수신 시그널
+    data_received = pyqtSignal(str)
+    
     def __init__(self):
+        super().__init__()
         # 시리얼 연결 객체, 연결 전이나 연결 해제 시 None으로, 연결 성공 시 Serial 객체로 설정 
         self.shinho_serial_connection: Optional[serial.Serial] = None
         self.supported_baudrates = [9600, 14400, 19200, 28800, 38400, 57600, 115200]
@@ -13,9 +18,12 @@ class SerialManager:
         # 연결 상태 관리
         self.connection_healthy = True
         
-        # 센서 데이터 콜백
+        # 센서 데이터 콜백 (레거시 호환성)
         self.sensor_data_callback = None
         self.air_sensor_data_callback = None
+        
+        # 소켓 알림자 (인터럽트 방식)
+        self.socket_notifier: Optional[QSocketNotifier] = None
 
     def get_available_ports(self) -> List[Dict[str, str]]:
         """연결 가능한 시리얼 포트 목록을 반환하는 함수"""
@@ -28,16 +36,27 @@ class SerialManager:
     def connect_serial(self, port: str, baudrate: int = 115200) -> bool:
         """지정된 포트와 보레이트로 시리얼 연결 시도하는 함수"""
         try:
-            #기존 연결 
-            if self.shinho_serial_connection and self.shinho_serial_connection.is_open:
-                self.shinho_serial_connection.close() # 새 연결 전에 기존 연결 닫기 
+            # 기존 연결 해제
+            self.disconnect_serial()
             
-            #새 연결 시도 
+            # 새 연결 시도 
             self.shinho_serial_connection = serial.Serial(
                 port=port,
                 baudrate=baudrate,
-                timeout=0.1 #읽기 시도 시 대기 시간(초) - UI 멈춤 방지를 위해 더 짧게 설정
+                timeout=0.1  # 논블로킹에 가까운 타임아웃
             )
+            
+            # 인터럽트 방식 설정 (Unix 계열에서만 가능)
+            if hasattr(self.shinho_serial_connection, 'fileno'):
+                try:
+                    fd = self.shinho_serial_connection.fileno()
+                    self.socket_notifier = QSocketNotifier(fd, QSocketNotifier.Read)
+                    self.socket_notifier.activated.connect(self._on_data_ready)
+                    self.socket_notifier.setEnabled(True)
+                    print(f"[SERIAL] 인터럽트 방식 활성화 (fd: {fd})")
+                except Exception as e:
+                    print(f"[SERIAL] 인터럽트 방식 설정 실패, 폴링 방식 유지: {e}")
+            
             print("Serial port connected to", port)
             return True
         except Exception as e:
@@ -105,9 +124,60 @@ class SerialManager:
             print("[RX ERROR] 시리얼 데이터 읽기 오류: %s" % e)
             return None 
 
+    def _on_data_ready(self):
+        """인터럽트 핸들러: 데이터 수신 가능할 때 호출"""
+        try:
+            data = self._read_available_data()
+            if data:
+                print(f"[INTERRUPT] 수신된 데이터: '{data}'")
+                # 시그널 발생
+                self.data_received.emit(data)
+                
+                # 레거시 콜백 호출 (기존 코드와의 호환성)
+                if self.sensor_data_callback and '[DSCT]' in data:
+                    self.sensor_data_callback(data)
+                elif self.air_sensor_data_callback and ('[AIR]' in data or '[AIRCON]' in data):
+                    self.air_sensor_data_callback(data)
+        except Exception as e:
+            print(f"[INTERRUPT ERROR] 데이터 처리 오류: {e}")
+
+    def _read_available_data(self) -> Optional[str]:
+        """사용 가능한 데이터 즉시 읽기 (논블로킹)"""
+        try:
+            if not self.shinho_serial_connection or not self.shinho_serial_connection.is_open:
+                return None
+                
+            if not self.shinho_serial_connection.in_waiting:
+                return None
+                
+            raw_data = self.shinho_serial_connection.readline()
+            if not raw_data:
+                return None
+                
+            # 디코딩
+            try:
+                return raw_data.decode('ascii').strip()
+            except UnicodeDecodeError:
+                try:
+                    return raw_data.decode('utf-8').strip()
+                except:
+                    return str(raw_data)
+                    
+        except Exception as e:
+            print(f"[READ ERROR] {e}")
+            return None
+
     def disconnect_serial(self) -> None:
         """시리얼 포트 닫기 함수, 연결 종료"""
         try:
+            # 소켓 알림자 해제
+            if self.socket_notifier:
+                self.socket_notifier.setEnabled(False)
+                self.socket_notifier.deleteLater()
+                self.socket_notifier = None
+                print("[SERIAL] 인터럽트 방식 해제")
+                
+            # 시리얼 연결 해제
             if self.shinho_serial_connection and self.shinho_serial_connection.is_open:
                 self.shinho_serial_connection.close()
                 print("Serial port closed.")

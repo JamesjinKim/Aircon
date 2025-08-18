@@ -112,10 +112,8 @@ class ControlWindow(QtWidgets.QMainWindow):
         # 창을 항상 최상위로 유지
         self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
 
-        # 타이머 및 상태바 초기화 (100ms로 빠른 수신 확인)
-        self.read_timer = QTimer(self)
-        self.read_timer.timeout.connect(self.read_serial_data)
-        self.read_timer.start(100)  # 100ms마다 시리얼 데이터 확인
+        # 인터럽트 방식으로 시리얼 데이터 수신
+        self.serial_manager.data_received.connect(self.handle_received_data)
 
         self.status_timer = QTimer(self)
         self.status_timer.timeout.connect(self.update_status_time)
@@ -1219,20 +1217,17 @@ class ControlWindow(QtWidgets.QMainWindow):
         if hasattr(self, 'semi_auto_period_value_button'):
             self.semi_auto_period_value_button.setText("200")
 
-    def read_serial_data(self):
-        """시리얼 데이터 읽기 - 100ms마다 실행"""
+    def handle_received_data(self, data: str):
+        """인터럽트 방식으로 수신된 데이터 처리"""
         # 연결된 상태에서만 처리
         if not self.was_connected:
             return
             
         try: 
-            # 데이터 읽기 시도
-            data = self.serial_manager.read_data()
-            if data:
-                # 데이터 수신 성공 - 에러 카운터 리셋
-                self.connection_error_count = 0
-                print(f"[MAIN] ✅ 수신된 데이터: '{data}'")
-                self.saved_data_to_file(data)
+            # 데이터 수신 성공 - 에러 카운터 리셋
+            self.connection_error_count = 0
+            print(f"[MAIN INTERRUPT] ✅ 수신된 데이터: '{data}'")
+            self.saved_data_to_file(data)
                     
         except Exception as e:
             # 에러 발생 - 카운터 증가
@@ -1240,7 +1235,7 @@ class ControlWindow(QtWidgets.QMainWindow):
             
             # 5회까지만 에러 메시지 출력
             if self.connection_error_count <= 5:
-                print(f"[MAIN ERROR] 시리얼 데이터 읽기 오류: {e} (에러 {self.connection_error_count}/5)")
+                print(f"[MAIN ERROR] 시리얼 데이터 처리 오류: {e} (에러 {self.connection_error_count}/5)")
             
             # 5회 도달 시 즉시 처리
             if self.connection_error_count >= 5:
