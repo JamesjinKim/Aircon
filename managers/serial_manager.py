@@ -83,49 +83,9 @@ class SerialManager(QObject):
             return False 
 
     def read_data(self) -> Optional[str]:
-        """데이터 읽기(수신) 함수 / 시리얼 포트로부터 데이터를 읽어옴"""
-        try:
-            if not self.shinho_serial_connection or not self.shinho_serial_connection.is_open:
-                return None
-            
-            # 대기 중인 데이터가 없으면 즉시 반환
-            if not self.shinho_serial_connection.in_waiting:
-                return None
-                
-            # 대기 중인 데이터가 있을 때만 읽기 시도
-            raw_data = self.shinho_serial_connection.readline()
-            if not raw_data:
-                return None
-                
-            print("[RX RAW] 수신된 원본 바이트: %s" % raw_data)
-            print("[RX RAW] 바이트 길이: %d" % len(raw_data))
-            
-            # 디코딩 시도
-            try:
-                decoded_data = raw_data.decode('ascii').strip()
-                print("[RX DECODED] 디코딩된 데이터: '%s'" % decoded_data)
-                print("[RX DECODED] 디코딩 길이: %d" % len(decoded_data))
-            except UnicodeDecodeError as decode_error:
-                print("[RX ERROR] 디코딩 실패: %s" % decode_error)
-                # UTF-8로 재시도
-                try:
-                    decoded_data = raw_data.decode('utf-8').strip()
-                    print("[RX UTF8] UTF-8 디코딩 성공: '%s'" % decoded_data)
-                except:
-                    decoded_data = str(raw_data)
-                    print("[RX FALLBACK] 바이트 문자열로 처리: %s" % decoded_data)
-            
-            # 빈 문자열도 로그 출력
-            if not decoded_data:
-                print("[RX] 빈 문자열 수신됨")
-            
-            # 센서 데이터 체크 및 콜백 호출 - 센서 기능 비활성화로 콜백 호출 안 함
-            # 이전 콜백 로직은 센서 데이터 처리 비활성화로 제거됨
-            
-            return decoded_data
-        except Exception as e:
-            print("[RX ERROR] 시리얼 데이터 읽기 오류: %s" % e)
-            return None 
+        """데이터 읽기 함수 (완전 비활성화)"""
+        # 시리얼 데이터 읽기를 완전히 비활성화하여 행 걸림 문제 해결
+        return None 
 
     def _on_data_ready(self):
         """인터럽트 핸들러: 데이터 수신 가능할 때 호출"""

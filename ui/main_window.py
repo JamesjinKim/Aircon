@@ -112,17 +112,8 @@ class ControlWindow(QtWidgets.QMainWindow):
         # 창을 항상 최상위로 유지
         self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
 
-        # 시리얼 데이터 수신 방식 설정
-        if getattr(self.serial_manager, 'use_interrupt_mode', False):
-            # 인터럽트 방식
-            self.serial_manager.data_received.connect(self.handle_received_data)
-            print("[MAIN] 인터럽트 방식 시리얼 수신 설정")
-        else:
-            # 폴링 방식 (더 안전한 방식)
-            self.read_timer = QTimer(self)
-            self.read_timer.timeout.connect(self.read_serial_data)
-            self.read_timer.start(50)  # 50ms마다 체크 (더 빠른 응답)
-            print("[MAIN] 폴링 방식 시리얼 수신 설정 (50ms)")
+        # 시리얼 데이터 수신 완전 비활성화 (행 걸림 문제 해결)
+        print("[MAIN] 시리얼 데이터 수신 비활성화 - 명령 전송만 사용")
 
         self.status_timer = QTimer(self)
         self.status_timer.timeout.connect(self.update_status_time)
@@ -1227,33 +1218,9 @@ class ControlWindow(QtWidgets.QMainWindow):
             self.semi_auto_period_value_button.setText("200")
 
     def read_serial_data(self):
-        """시리얼 데이터 읽기 - 개선된 폴링 방식"""
-        # 연결된 상태에서만 처리
-        if not self.was_connected:
-            return
-            
-        try: 
-            # 데이터 읽기 시도 (개선된 read_data 사용)
-            data = self.serial_manager.read_data()
-            if data:
-                # 데이터 수신 성공 - 에러 카운터 리셋
-                self.connection_error_count = 0
-                print(f"[MAIN POLLING] ✅ 수신된 데이터: '{data}'")
-                self.saved_data_to_file(data)
-                    
-        except Exception as e:
-            # 에러 발생 - 카운터 증가
-            self.connection_error_count += 1
-            
-            # 5회까지만 에러 메시지 출력
-            if self.connection_error_count <= 5:
-                print(f"[MAIN ERROR] 시리얼 데이터 읽기 오류: {e} (에러 {self.connection_error_count}/5)")
-            
-            # 5회 도달 시 즉시 처리
-            if self.connection_error_count >= 5:
-                print("[MAIN ERROR] 갑작스런 연결 끊김 감지 (5회) - 연결 해제 및 초기화")
-                self.handle_sudden_disconnect_simple()
-                return
+        """시리얼 데이터 읽기 (완전 비활성화)"""
+        # 행 걸림 문제 해결을 위해 시리얼 데이터 읽기 완전 비활성화
+        return
 
     def handle_received_data(self, data: str):
         """인터럽트 방식으로 수신된 데이터 처리"""
@@ -1282,13 +1249,9 @@ class ControlWindow(QtWidgets.QMainWindow):
                 return
 
     def saved_data_to_file(self, data):
-        """수신된 데이터 파일에 저장"""
-        try: 
-            file_path = os.path.join(os.path.dirname(__file__), '..', 'serial_data_log.txt')
-            with open(file_path, "a") as file:
-                file.write(data + "\n")
-        except Exception as e:
-            print(f"파일 저장 오류: {e}")
+        """수신된 데이터 파일에 저장 (비활성화)"""
+        # 시리얼 데이터 수신 비활성화로 파일 저장도 비활성화
+        pass
     
     def handle_sudden_disconnect_simple(self):
         """간단하고 확실한 갑작스런 연결 끊김 처리"""
