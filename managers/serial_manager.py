@@ -18,6 +18,10 @@ class SerialManager:
         # 센서 데이터 콜백
         self.sensor_data_callback = None
         self.air_sensor_data_callback = None
+        
+        # Non-blocking 읽기를 위한 버퍼
+        self.read_buffer = b''
+        self.line_ending = b'\r\n'  # CR+LF 표준
 
     def get_available_ports(self) -> List[Dict[str, str]]:
         """연결 가능한 시리얼 포트 목록을 반환하는 함수"""
@@ -38,8 +42,11 @@ class SerialManager:
             self.shinho_serial_connection = serial.Serial(
                 port=port,
                 baudrate=baudrate,
-                timeout=1 #읽기 시도 시 대기 시간(초)
+                timeout=0 #Non-blocking 읽기 (즉시 반환)
             )
+            
+            # 버퍼 초기화
+            self.read_buffer = b''
             print(f"Serial port connected to {port}")
             return True
         except Exception as e:
@@ -65,35 +72,55 @@ class SerialManager:
             return False 
 
     def read_data(self) -> Optional[str]:
-        """데이터 읽기(수신) 함수 / 시리얼 포트로부터 데이터를 읽어옴"""
+        """Non-blocking 데이터 읽기 함수 (UI 멈춤 방지)"""
         try:
             if not self.shinho_serial_connection or not self.shinho_serial_connection.is_open:
-                raise Exception("Serial port is not connected")
+                return None
             
-            if self.shinho_serial_connection.in_waiting:
-                # 원본 바이트 데이터 확인
-                raw_data = self.shinho_serial_connection.readline()
-                print(f"[RX RAW] 수신된 원본 바이트: {raw_data}")
-                print(f"[RX RAW] 바이트 길이: {len(raw_data)}")
+            # Non-blocking으로 사용 가능한 모든 바이트 읽기
+            in_waiting_size = self.shinho_serial_connection.in_waiting
+            if in_waiting_size > 0:
+                print(f"[RX LOG] {time.time():.4f} - in_waiting: {in_waiting_size} bytes. Non-blocking read.")
+                start_time = time.time()
+                
+                # 사용 가능한 바이트를 모두 읽어서 버퍼에 추가
+                new_data = self.shinho_serial_connection.read(in_waiting_size)
+                self.read_buffer += new_data
+                
+                end_time = time.time()
+                print(f"[RX LOG] {end_time:.4f} - Non-blocking read finished in {end_time - start_time:.4f} seconds.")
+                print(f"[RX RAW] 읽은 바이트: {new_data}, 버퍼 크기: {len(self.read_buffer)}")
+            
+            # 버퍼에서 완전한 라인 찾기 (CR+LF로 끝나는 라인)
+            while self.line_ending in self.read_buffer:
+                # 첫 번째 완전한 라인 추출
+                line_end_pos = self.read_buffer.find(self.line_ending)
+                line_data = self.read_buffer[:line_end_pos]
+                
+                # 버퍼에서 처리된 라인 제거 (CR+LF 포함)
+                self.read_buffer = self.read_buffer[line_end_pos + len(self.line_ending):]
+                
+                print(f"[RX RAW] 완전한 라인 추출: {line_data}")
                 
                 # 디코딩 시도
                 try:
-                    decoded_data = raw_data.decode('ascii').strip()
+                    decoded_data = line_data.decode('ascii').strip()
                     print(f"[RX DECODED] 디코딩된 데이터: '{decoded_data}'")
                     print(f"[RX DECODED] 디코딩 길이: {len(decoded_data)}")
                 except UnicodeDecodeError as decode_error:
                     print(f"[RX ERROR] 디코딩 실패: {decode_error}")
                     # UTF-8로 재시도
                     try:
-                        decoded_data = raw_data.decode('utf-8').strip()
+                        decoded_data = line_data.decode('utf-8').strip()
                         print(f"[RX UTF8] UTF-8 디코딩 성공: '{decoded_data}'")
                     except:
-                        decoded_data = str(raw_data)
+                        decoded_data = str(line_data)
                         print(f"[RX FALLBACK] 바이트 문자열로 처리: {decoded_data}")
                 
                 # 빈 문자열도 로그 출력
                 if not decoded_data:
                     print("[RX] 빈 문자열 수신됨")
+                    continue  # 빈 라인은 건너뛰고 다음 라인 처리
                 
                 # 센서 데이터 체크 및 콜백 호출
                 if self.sensor_data_callback and decoded_data:
@@ -108,11 +135,19 @@ class SerialManager:
                         print(f"[RX CALLBACK] 콜백 조건 미충족 - DSCT: {'[DSCT]' in decoded_data}, AIR: {'[AIR]' in decoded_data or '[AIRCON]' in decoded_data}, AIR콜백존재: {hasattr(self, 'air_sensor_data_callback') and self.air_sensor_data_callback is not None}")
                 
                 return decoded_data
-            else:
-                # 대기 중인 데이터가 없음
-                return None
+            
+            # 버퍼에 불완전한 데이터만 있는 경우
+            # 버퍼가 너무 커지지 않도록 제한 (4KB)
+            if len(self.read_buffer) > 4096:
+                print("[RX WARNING] 버퍼 크기 초과, 오래된 데이터 제거")
+                self.read_buffer = self.read_buffer[-2048:]  # 뒤쪽 절반만 유지
+            
+            return None
+                
         except Exception as e:
             print(f"[RX ERROR] 시리얼 데이터 읽기 오류: {e}")
+            # 오류 발생 시 버퍼 초기화
+            self.read_buffer = b''
             return None 
 
     def disconnect_serial(self) -> None:
@@ -121,6 +156,8 @@ class SerialManager:
             if self.shinho_serial_connection and self.shinho_serial_connection.is_open:
                 self.shinho_serial_connection.close()
                 print("Serial port closed.")
+            # 버퍼 초기화
+            self.read_buffer = b''
         except Exception as e:
             print(f"Disconnect error: {e}")
     
