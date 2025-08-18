@@ -127,17 +127,22 @@ class SerialManager:
                     print("[RX] 빈 문자열 수신됨")
                     continue
                 
-                # 센서 데이터 체크 및 콜백 즉시 호출
-                if self.sensor_data_callback and decoded_data:
+                # 센서 데이터 체크 및 콜백 즉시 호출 - 원본 로직 복원
+                if decoded_data:
                     print(f"[RX CALLBACK] 센서 데이터 콜백 체크 중: '{decoded_data}'")
-                    if '[DSCT]' in decoded_data:
+                    
+                    # DSCT 센서 데이터 처리
+                    if '[DSCT]' in decoded_data and self.sensor_data_callback:
                         print(f"[RX CALLBACK] DSCT 콜백 호출")
                         self.sensor_data_callback(decoded_data)
-                    elif ('[AIR]' in decoded_data or '[AIRCON]' in decoded_data) and hasattr(self, 'air_sensor_data_callback') and self.air_sensor_data_callback:
+                    
+                    # AIR/AIRCON 센서 데이터 처리 - 조건 단순화
+                    elif ('[AIR]' in decoded_data or '[AIRCON]' in decoded_data) and self.air_sensor_data_callback:
                         print(f"[RX CALLBACK] AIR/AIRCON 콜백 호출")
                         self.air_sensor_data_callback(decoded_data)
+                    
                     else:
-                        print(f"[RX CALLBACK] 콜백 조건 미충족 - DSCT: {'[DSCT]' in decoded_data}, AIR: {'[AIR]' in decoded_data or '[AIRCON]' in decoded_data}, AIR콜백존재: {hasattr(self, 'air_sensor_data_callback') and self.air_sensor_data_callback is not None}")
+                        print(f"[RX CALLBACK] 콜백 조건 미충족 - DSCT: {('[DSCT]' in decoded_data, self.sensor_data_callback is not None)}, AIR: {('[AIR]' in decoded_data or '[AIRCON]' in decoded_data, self.air_sensor_data_callback is not None)}")
                 
                 # 처리된 라인 수 증가 및 마지막 데이터 저장
                 processed_lines += 1
