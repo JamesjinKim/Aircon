@@ -36,7 +36,7 @@ class SerialManager:
             self.shinho_serial_connection = serial.Serial(
                 port=port,
                 baudrate=baudrate,
-                timeout=0.5 #읽기 시도 시 대기 시간(초) - UI 멈춤 방지하면서 충분한 대기 시간
+                timeout=0.1 #읽기 시도 시 대기 시간(초) - UI 멈춤 방지를 위해 더 짧게 설정
             )
             print("Serial port connected to", port)
             return True
@@ -64,49 +64,43 @@ class SerialManager:
         """데이터 읽기(수신) 함수 / 시리얼 포트로부터 데이터를 읽어옴"""
         try:
             if not self.shinho_serial_connection or not self.shinho_serial_connection.is_open:
-                raise Exception("Serial port is not connected")
-            
-            if self.shinho_serial_connection.in_waiting:
-                # 원본 방식 복원: 단순한 readline() 호출
-                raw_data = self.shinho_serial_connection.readline()
-                print("[RX RAW] 수신된 원본 바이트: %s" % raw_data)
-                print("[RX RAW] 바이트 길이: %d" % len(raw_data))
-                
-                # 디코딩 시도
-                try:
-                    decoded_data = raw_data.decode('ascii').strip()
-                    print("[RX DECODED] 디코딩된 데이터: '%s'" % decoded_data)
-                    print("[RX DECODED] 디코딩 길이: %d" % len(decoded_data))
-                except UnicodeDecodeError as decode_error:
-                    print("[RX ERROR] 디코딩 실패: %s" % decode_error)
-                    # UTF-8로 재시도
-                    try:
-                        decoded_data = raw_data.decode('utf-8').strip()
-                        print("[RX UTF8] UTF-8 디코딩 성공: '%s'" % decoded_data)
-                    except:
-                        decoded_data = str(raw_data)
-                        print("[RX FALLBACK] 바이트 문자열로 처리: %s" % decoded_data)
-                
-                # 빈 문자열도 로그 출력
-                if not decoded_data:
-                    print("[RX] 빈 문자열 수신됨")
-                
-                # 센서 데이터 체크 및 콜백 호출 - 원본 로직 복원
-                if self.sensor_data_callback and decoded_data:
-                    print("[RX CALLBACK] 센서 데이터 콜백 체크 중: '%s'" % decoded_data)
-                    if '[DSCT]' in decoded_data:
-                        print("[RX CALLBACK] DSCT 콜백 호출")
-                        self.sensor_data_callback(decoded_data)
-                    elif ('[AIR]' in decoded_data or '[AIRCON]' in decoded_data) and hasattr(self, 'air_sensor_data_callback') and self.air_sensor_data_callback:
-                        print("[RX CALLBACK] AIR/AIRCON 콜백 호출")
-                        self.air_sensor_data_callback(decoded_data)
-                    else:
-                        print("[RX CALLBACK] 콜백 조건 미충족 - DSCT: %s, AIR: %s" % (('[DSCT]' in decoded_data, self.sensor_data_callback is not None), ('[AIR]' in decoded_data or '[AIRCON]' in decoded_data, hasattr(self, 'air_sensor_data_callback') and self.air_sensor_data_callback is not None)))
-                
-                return decoded_data
-            else:
-                # 대기 중인 데이터가 없음
                 return None
+            
+            # 대기 중인 데이터가 없으면 즉시 반환
+            if not self.shinho_serial_connection.in_waiting:
+                return None
+                
+            # 대기 중인 데이터가 있을 때만 읽기 시도
+            raw_data = self.shinho_serial_connection.readline()
+            if not raw_data:
+                return None
+                
+            print("[RX RAW] 수신된 원본 바이트: %s" % raw_data)
+            print("[RX RAW] 바이트 길이: %d" % len(raw_data))
+            
+            # 디코딩 시도
+            try:
+                decoded_data = raw_data.decode('ascii').strip()
+                print("[RX DECODED] 디코딩된 데이터: '%s'" % decoded_data)
+                print("[RX DECODED] 디코딩 길이: %d" % len(decoded_data))
+            except UnicodeDecodeError as decode_error:
+                print("[RX ERROR] 디코딩 실패: %s" % decode_error)
+                # UTF-8로 재시도
+                try:
+                    decoded_data = raw_data.decode('utf-8').strip()
+                    print("[RX UTF8] UTF-8 디코딩 성공: '%s'" % decoded_data)
+                except:
+                    decoded_data = str(raw_data)
+                    print("[RX FALLBACK] 바이트 문자열로 처리: %s" % decoded_data)
+            
+            # 빈 문자열도 로그 출력
+            if not decoded_data:
+                print("[RX] 빈 문자열 수신됨")
+            
+            # 센서 데이터 체크 및 콜백 호출 - 센서 기능 비활성화로 콜백 호출 안 함
+            # 이전 콜백 로직은 센서 데이터 처리 비활성화로 제거됨
+            
+            return decoded_data
         except Exception as e:
             print("[RX ERROR] 시리얼 데이터 읽기 오류: %s" % e)
             return None 
