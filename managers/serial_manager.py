@@ -87,7 +87,10 @@ class SerialManager:
                 print(f"[RX LOG] {end_time:.4f} - Non-blocking read finished in {end_time - start_time:.4f} seconds.")
                 print(f"[RX RAW] 읽은 바이트: {new_data}, 버퍼 크기: {len(self.read_buffer)}")
             
-            # 버퍼에서 완전한 라인 찾기 (CR+LF로 끝나는 라인)
+            # 버퍼에서 완전한 라인 찾기 (CR+LF로 끝나는 라인) - 모든 라인 즉시 처리
+            processed_lines = 0
+            last_processed_data = None
+            
             while self.line_ending in self.read_buffer:
                 # 첫 번째 완전한 라인 추출
                 line_end_pos = self.read_buffer.find(self.line_ending)
@@ -113,12 +116,12 @@ class SerialManager:
                         decoded_data = str(line_data)
                         print(f"[RX FALLBACK] 바이트 문자열로 처리: {decoded_data}")
                 
-                # 빈 문자열도 로그 출력
+                # 빈 문자열은 건너뛰기
                 if not decoded_data:
                     print("[RX] 빈 문자열 수신됨")
-                    continue  # 빈 라인은 건너뛰고 다음 라인 처리
+                    continue
                 
-                # 센서 데이터 체크 및 콜백 호출
+                # 센서 데이터 체크 및 콜백 즉시 호출
                 if self.sensor_data_callback and decoded_data:
                     print(f"[RX CALLBACK] 센서 데이터 콜백 체크 중: '{decoded_data}'")
                     if '[DSCT]' in decoded_data:
@@ -130,15 +133,23 @@ class SerialManager:
                     else:
                         print(f"[RX CALLBACK] 콜백 조건 미충족 - DSCT: {'[DSCT]' in decoded_data}, AIR: {'[AIR]' in decoded_data or '[AIRCON]' in decoded_data}, AIR콜백존재: {hasattr(self, 'air_sensor_data_callback') and self.air_sensor_data_callback is not None}")
                 
-                return decoded_data
+                # 처리된 라인 수 증가 및 마지막 데이터 저장
+                processed_lines += 1
+                last_processed_data = decoded_data
+                
+                # 버퍼의 다음 라인 계속 처리 (return 하지 않음)
             
-            # 버퍼에 불완전한 데이터만 있는 경우
-            # 버퍼가 너무 커지지 않도록 제한 (4KB)
+            # 처리 결과 로그
+            if processed_lines > 0:
+                print(f"[RX SUMMARY] 총 {processed_lines}개 라인 즉시 처리 완료")
+            
+            # 버퍼에 불완전한 데이터만 있는 경우 - 버퍼 크기 관리
             if len(self.read_buffer) > 4096:
                 print("[RX WARNING] 버퍼 크기 초과, 오래된 데이터 제거")
                 self.read_buffer = self.read_buffer[-2048:]  # 뒤쪽 절반만 유지
             
-            return None
+            # 마지막 처리된 데이터 반환 (호환성 유지, None 가능)
+            return last_processed_data
                 
         except Exception as e:
             print(f"[RX ERROR] 시리얼 데이터 읽기 오류: {e}")
