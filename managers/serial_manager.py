@@ -70,11 +70,17 @@ class SerialManager:
     def read_data(self) -> Optional[str]:
         """Non-blocking 데이터 읽기 함수 (UI 멈춤 방지)"""
         try:
-            if not self.shinho_serial_connection or not self.shinho_serial_connection.is_open:
+            if not self.shinho_serial_connection:
+                print("[RX DEBUG] 시리얼 연결 객체가 None입니다")
+                return None
+            if not self.shinho_serial_connection.is_open:
+                print("[RX DEBUG] 시리얼 포트가 닫혀있습니다")
                 return None
             
             # Non-blocking으로 사용 가능한 모든 바이트 읽기
             in_waiting_size = self.shinho_serial_connection.in_waiting
+            print(f"[RX DEBUG] in_waiting 체크: {in_waiting_size} bytes")
+            
             if in_waiting_size > 0:
                 print(f"[RX LOG] {time.time():.4f} - in_waiting: {in_waiting_size} bytes. Non-blocking read.")
                 start_time = time.time()
