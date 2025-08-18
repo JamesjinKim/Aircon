@@ -27,18 +27,18 @@ class ButtonManager:
                 except TypeError:
                     pass
                 
-                print(f"연결 중: 버튼={button.objectName()}, 명령어={commands}")
+                print("연결 중: 버튼=%s, 명령어=%s" % (button.objectName(), commands))
                 
                 # 슬롯 연결
                 button.clicked.connect(
                     lambda checked, b=button, cmds=commands, n=name: self._toggle_button(n, b, cmds)
                 )
         except Exception as e:
-            print(f"버튼 그룹 추가 중 오류 발생: {e}")
+            print("버튼 그룹 추가 중 오류 발생: %s" % e)
 
     def _toggle_button(self, group_name, button, commands):
         """버튼 토글 처리"""
-        print(f"_toggle_button 호출됨: 그룹={group_name}, 버튼={button.objectName()}")
+        print("_toggle_button 호출됨: 그룹=%s, 버튼=%s" % (group_name, button.objectName()))
         
         # 시리얼 포트 연결 확인
         if not self.serial_manager.is_connected():
@@ -121,24 +121,24 @@ class ButtonManager:
             button.setFixedSize(original_size)
             
         except Exception as e:
-            print(f"버튼 토글 처리 중 오류 발생: {e}")
+            print("버튼 토글 처리 중 오류 발생: %s" % e)
             if self.SendData_textEdit:
-                self.SendData_textEdit.append(f"버튼 토글 오류: {e}")
+                self.SendData_textEdit.append("버튼 토글 오류: %s" % e)
 
     def send_command_or_call_function(self, command_or_function):
         """명령어 전송 또는 함수 호출"""
         try:
             if callable(command_or_function):
                 # 함수인 경우 호출
-                print(f"함수 호출: {command_or_function.__name__}")
+                print("함수 호출: %s" % command_or_function.__name__)
                 command_or_function()
             else:
                 # 문자열 명령어인 경우 기존 로직 사용
                 self.send_command(command_or_function)
         except Exception as e:
-            print(f"명령어 처리 실패: {e}")
+            print("명령어 처리 실패: %s" % e)
             if hasattr(self, 'SendData_textEdit') and self.SendData_textEdit:
-                self.SendData_textEdit.append(f"명령어 처리 실패: {e}")
+                self.SendData_textEdit.append("명령어 처리 실패: %s" % e)
                 self.SendData_textEdit.verticalScrollBar().setValue(
                     self.SendData_textEdit.verticalScrollBar().maximum()
                 )
@@ -147,15 +147,25 @@ class ButtonManager:
         """명령어 전송"""
         try:
             if self.serial_manager.is_connected():
-                self.serial_manager.shinho_serial_connection.write(f"{command}{TERMINATOR}".encode())
-                print(f"명령 전송: {command}")
+                # serial_manager의 API 사용하여 안전하게 전송
+                result = self.serial_manager.send_serial_command(command.rstrip())
                 
-                if hasattr(self, 'SendData_textEdit') and self.SendData_textEdit:
-                    self.SendData_textEdit.append(f"{command.rstrip()}")
-                    # 스크롤을 맨 아래로 이동
-                    self.SendData_textEdit.verticalScrollBar().setValue(
-                        self.SendData_textEdit.verticalScrollBar().maximum()
-                    )
+                if result:
+                    print("명령 전송: %s" % command)
+                    
+                    if hasattr(self, 'SendData_textEdit') and self.SendData_textEdit:
+                        self.SendData_textEdit.append("%s" % command.rstrip())
+                        # 스크롤을 맨 아래로 이동
+                        self.SendData_textEdit.verticalScrollBar().setValue(
+                            self.SendData_textEdit.verticalScrollBar().maximum()
+                        )
+                else:
+                    print("명령 전송 실패: %s" % command)
+                    if hasattr(self, 'SendData_textEdit') and self.SendData_textEdit:
+                        self.SendData_textEdit.append("명령 전송 실패: %s" % command.rstrip())
+                        self.SendData_textEdit.verticalScrollBar().setValue(
+                            self.SendData_textEdit.verticalScrollBar().maximum()
+                        )
             else:
                 print("시리얼 포트 연결되지 않음.")
                 if hasattr(self, 'SendData_textEdit') and self.SendData_textEdit:
@@ -165,9 +175,9 @@ class ButtonManager:
                         self.SendData_textEdit.verticalScrollBar().maximum()
                     )
         except Exception as e:
-            print(f"명령 전송 실패 - 장치 연결 상태 확인 필요: {e}")
+            print("명령 전송 실패 - 장치 연결 상태 확인 필요: %s" % e)
             if hasattr(self, 'SendData_textEdit') and self.SendData_textEdit:
-                self.SendData_textEdit.append(f"명령 전송 실패 - 장치 연결 상태 확인 필요: {e}")
+                self.SendData_textEdit.append("명령 전송 실패 - 장치 연결 상태 확인 필요: %s" % e)
                 # 스크롤을 맨 아래로 이동
                 self.SendData_textEdit.verticalScrollBar().setValue(
                     self.SendData_textEdit.verticalScrollBar().maximum()
