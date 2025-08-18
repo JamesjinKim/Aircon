@@ -414,6 +414,34 @@ class ControlWindow(QtWidgets.QMainWindow):
         self.aircon_compresure_button = compresure_button  # 새로운 네이밍
         self.pushButton_13 = compresure_button  # 기존 호환성 유지
         
+        # PUMP 순차 전송 함수 정의
+        def pump_on_off_sequence():
+            """PUMP ON → OFF 순차 전송"""
+            try:
+                from ui.constants import CMD_PREFIX, AIR_SYSTEM, PUMP_CMD, ON_STATE, OFF_STATE, TERMINATOR
+                
+                # PUMP ON 전송
+                on_command = f'{CMD_PREFIX},{AIR_SYSTEM},{PUMP_CMD},{ON_STATE}{TERMINATOR}'
+                if self.serial_manager.is_connected():
+                    self.serial_manager.send_serial_command(on_command.rstrip(TERMINATOR))
+                    print(f"[PUMP] ON 명령 전송: {on_command}")
+                
+                # 100ms 지연 후 PUMP OFF 전송
+                from PyQt5.QtCore import QTimer
+                def send_off():
+                    off_command = f'{CMD_PREFIX},{AIR_SYSTEM},{PUMP_CMD},{OFF_STATE}{TERMINATOR}'
+                    if self.serial_manager.is_connected():
+                        self.serial_manager.send_serial_command(off_command.rstrip(TERMINATOR))
+                        print(f"[PUMP] OFF 명령 전송: {off_command}")
+                
+                QTimer.singleShot(100, send_off)  # 100ms 후 실행
+                
+            except Exception as e:
+                print(f"[PUMP] 순차 전송 오류: {e}")
+        
+        # 함수를 객체 속성으로 저장
+        self.pump_on_off_sequence = pump_on_off_sequence
+        
         # COMP CLUCH - 토글 버튼
         comp_cluch_button = create_button_row("COMP CLUCH", QPushButton("OFF"), left_layout, button_width=140)
         self.aircon_comp_cluch_button = comp_cluch_button  # 새로운 네이밍
