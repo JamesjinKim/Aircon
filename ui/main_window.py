@@ -121,10 +121,6 @@ class ControlWindow(QtWidgets.QMainWindow):
         self.status_timer.timeout.connect(self.update_status_time)
         self.status_timer.start(1000)
         
-        # 하트비트 체크 타이머 (비활성화 - 정상 연결을 끊는 문제 해결)
-        # self.heartbeat_timer = QTimer(self)
-        # self.heartbeat_timer.timeout.connect(self.check_connection_health)
-        # self.heartbeat_timer.start(5000)
 
         self.statusBar().showMessage(QDateTime.currentDateTime().toString(Qt.DefaultLocaleLongDate))
 
@@ -1070,7 +1066,6 @@ class ControlWindow(QtWidgets.QMainWindow):
             try:
                 if self.serial_manager.connect_serial(selected_port, selected_baudrate):
                     # 연결 성공 시 상태 초기화
-                    # self.serial_manager.update_heartbeat()  # 하트비트 비활성화
                     self.was_connected = True
                     self.connection_error_count = 0  # 에러 카운터 리셋
                     
@@ -1324,8 +1319,6 @@ class ControlWindow(QtWidgets.QMainWindow):
             print("연결 상태 변수 초기화 완료")
             
             # Serial Manager 상태 초기화
-            if hasattr(self.serial_manager, 'last_heartbeat_time'):
-                self.serial_manager.last_heartbeat_time = 0
             if hasattr(self.serial_manager, 'connection_healthy'):
                 self.serial_manager.connection_healthy = True
             print("Serial Manager 상태 초기화 완료")
@@ -1366,9 +1359,9 @@ class ControlWindow(QtWidgets.QMainWindow):
             print(f"강제 연결 해제 오류: {e}")
     
     def force_disconnect_and_reset(self):
-        """하트비트 타임아웃 시 즉시 연결 해제 및 완전 초기화"""
+        """연결 문제 시 즉시 연결 해제 및 완전 초기화"""
         try:
-            print("하트비트 타임아웃 - Serial 강제 닫기 시작")
+            print("연결 문제 감지 - Serial 강제 닫기 시작")
             
             # Serial 포트 즉시 강제 닫기
             if self.serial_manager.shinho_serial_connection:
@@ -1376,8 +1369,7 @@ class ControlWindow(QtWidgets.QMainWindow):
                 self.serial_manager.shinho_serial_connection = None
                 print("Serial port 즉시 닫기 완료")
             
-            # 하트비트 관련 상태 완전 초기화
-            self.serial_manager.last_heartbeat_time = 0
+            # 연결 상태 완전 초기화
             self.serial_manager.connection_healthy = True
             
             # 연결 상태 완전 초기화
@@ -1394,15 +1386,7 @@ class ControlWindow(QtWidgets.QMainWindow):
             print("연결 상태 완전 초기화 완료")
             
         except Exception as e:
-            print(f"하트비트 타임아웃 처리 오류: {e}")
-    
-    def check_connection_health(self):
-        """하트비트 기반 연결 상태 체크 (5초마다 실행)"""
-        if self.serial_manager.is_connected():
-            # 포트는 열려있지만 하트비트 타임아웃인 경우
-            if not self.serial_manager.check_heartbeat_timeout():
-                print("하트비트 타임아웃 감지 - 즉시 연결 해제 및 초기화")
-                self.force_disconnect_and_reset()
+            print(f"연결 문제 처리 오류: {e}")
 
     def center(self):
         """창을 화면 중앙에 위치"""

@@ -57,8 +57,9 @@ class SensorScheduler(QObject):
         self.current_request_start_time = None
         self.last_cycle_time = None
         
-        # 연결 상태 체크 최적화 (0.1초마다 → 5초마다)
-        self.connection_check_counter = 0
+        # 연결 상태 체크 최적화 (시간 기반 - 5초마다)
+        self.last_connection_check_time = 0
+        self.connection_check_interval = 5.0
         
         print("[SCHEDULER] 센서 스케줄러 초기화 완료")
         
@@ -164,9 +165,8 @@ class SensorScheduler(QObject):
         current_time = time.time()
         
         # 연결 상태 체크 (5초마다만 실행)
-        self.connection_check_counter += 1
-        if self.connection_check_counter >= 50:  # 50 × 0.1초 = 5초
-            self.connection_check_counter = 0
+        if current_time - self.last_connection_check_time >= self.connection_check_interval:
+            self.last_connection_check_time = current_time
             if not self.serial_manager or not self.serial_manager.is_connection_healthy():
                 print("[SCHEDULER] 연결 상태 불량, 스케줄링 일시정지")
                 self.pause_scheduling()
