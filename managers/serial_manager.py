@@ -76,42 +76,92 @@ class SerialManager:
                 raw_data = self.shinho_serial_connection.readline()
                 print(f"[RX RAW] 수신된 원본 바이트: {raw_data}")
                 print(f"[RX RAW] 바이트 길이: {len(raw_data)}")
+                print(f"[RX HEX] 16진수 표현: {raw_data.hex()}")
+                print(f"[RX CHARS] 각 바이트 문자: {[chr(b) if 32 <= b <= 126 else f'\\x{b:02x}' for b in raw_data]}")
                 
-                # 디코딩 시도
+                # 디코딩 시도 - 다양한 인코딩 방식 시도
+                decoded_data = None
+                encoding_tried = []
+                
+                # 1. ASCII 시도
                 try:
                     decoded_data = raw_data.decode('ascii').strip()
-                    print(f"[RX DECODED] 디코딩된 데이터: '{decoded_data}'")
-                    print(f"[RX DECODED] 디코딩 길이: {len(decoded_data)}")
+                    print(f"[RX DECODED] ASCII 디코딩 성공: '{decoded_data}' (길이: {len(decoded_data)})")
+                    encoding_tried.append('ascii')
                 except UnicodeDecodeError as decode_error:
-                    print(f"[RX ERROR] 디코딩 실패: {decode_error}")
-                    # UTF-8로 재시도
+                    print(f"[RX ERROR] ASCII 디코딩 실패: {decode_error}")
+                    encoding_tried.append('ascii-failed')
+                    
+                    # 2. UTF-8 시도
                     try:
                         decoded_data = raw_data.decode('utf-8').strip()
-                        print(f"[RX UTF8] UTF-8 디코딩 성공: '{decoded_data}'")
-                    except:
-                        decoded_data = str(raw_data)
-                        print(f"[RX FALLBACK] 바이트 문자열로 처리: {decoded_data}")
+                        print(f"[RX DECODED] UTF-8 디코딩 성공: '{decoded_data}' (길이: {len(decoded_data)})")
+                        encoding_tried.append('utf-8')
+                    except UnicodeDecodeError:
+                        print(f"[RX ERROR] UTF-8 디코딩도 실패")
+                        encoding_tried.append('utf-8-failed')
+                        
+                        # 3. latin-1 시도 (모든 바이트를 받아들임)
+                        try:
+                            decoded_data = raw_data.decode('latin-1').strip()
+                            print(f"[RX DECODED] Latin-1 디코딩 성공: '{decoded_data}' (길이: {len(decoded_data)})")
+                            encoding_tried.append('latin-1')
+                        except:
+                            # 4. 최후 수단: 바이트를 문자열로 직접 변환
+                            decoded_data = str(raw_data)
+                            print(f"[RX FALLBACK] 바이트 문자열로 처리: {decoded_data}")
+                            encoding_tried.append('fallback')
                 
-                # 빈 문자열도 로그 출력
+                print(f"[RX ENCODING] 시도된 인코딩: {encoding_tried}")
+                
+                # 빈 문자열이어도 일단 계속 진행 (콜백에서 처리)
                 if not decoded_data:
-                    print("[RX] 빈 문자열 수신됨")
-                    return None
+                    print("[RX] 빈 문자열 수신됨 - 그래도 콜백 체크 계속 진행")
                 
                 # 센서 데이터 체크 및 콜백 호출 - 원본 로직 복원
-                print(f"[RX CALLBACK] 센서 데이터 콜백 체크 중: '{decoded_data}'")
+                print(f"[RX CALLBACK] 센서 데이터 콜백 체크 시작")
+                print(f"[RX CALLBACK] 디코딩된 데이터: '{decoded_data}' (타입: {type(decoded_data)})")
+                print(f"[RX CALLBACK] 데이터 길이: {len(decoded_data) if decoded_data else 'None'}")
                 
-                # DSCT 센서 데이터 처리
-                if '[DSCT]' in decoded_data and self.sensor_data_callback:
-                    print(f"[RX CALLBACK] DSCT 콜백 호출")
-                    self.sensor_data_callback(decoded_data)
+                # 콜백 존재 여부 확인
+                print(f"[RX CALLBACK] DSCT 콜백 존재: {self.sensor_data_callback is not None}")
+                print(f"[RX CALLBACK] AIR 콜백 존재: {self.air_sensor_data_callback is not None}")
                 
-                # AIR/AIRCON 센서 데이터 처리
-                elif ('[AIR]' in decoded_data or '[AIRCON]' in decoded_data) and self.air_sensor_data_callback:
-                    print(f"[RX CALLBACK] AIR/AIRCON 콜백 호출")
-                    self.air_sensor_data_callback(decoded_data)
+                if decoded_data:
+                    # 패턴 매칭 상세 확인
+                    dsct_match = '[DSCT]' in decoded_data
+                    air_match = '[AIR]' in decoded_data
+                    aircon_match = '[AIRCON]' in decoded_data
+                    
+                    print(f"[RX CALLBACK] 패턴 매칭 결과:")
+                    print(f"  - DSCT 패턴 ('[DSCT]'): {dsct_match}")
+                    print(f"  - AIR 패턴 ('[AIR]'): {air_match}") 
+                    print(f"  - AIRCON 패턴 ('[AIRCON]'): {aircon_match}")
                 
+                    # DSCT 센서 데이터 처리
+                    if dsct_match and self.sensor_data_callback:
+                        print(f"[RX CALLBACK] ✅ DSCT 콜백 호출 중...")
+                        try:
+                            self.sensor_data_callback(decoded_data)
+                            print(f"[RX CALLBACK] ✅ DSCT 콜백 호출 완료")
+                        except Exception as e:
+                            print(f"[RX CALLBACK] ❌ DSCT 콜백 호출 오류: {e}")
+                    
+                    # AIR/AIRCON 센서 데이터 처리
+                    elif (air_match or aircon_match) and self.air_sensor_data_callback:
+                        print(f"[RX CALLBACK] ✅ AIR/AIRCON 콜백 호출 중...")
+                        try:
+                            self.air_sensor_data_callback(decoded_data)
+                            print(f"[RX CALLBACK] ✅ AIR/AIRCON 콜백 호출 완료")
+                        except Exception as e:
+                            print(f"[RX CALLBACK] ❌ AIR/AIRCON 콜백 호출 오류: {e}")
+                    
+                    else:
+                        print(f"[RX CALLBACK] ❌ 콜백 조건 미충족:")
+                        print(f"  - DSCT: 패턴={dsct_match}, 콜백={self.sensor_data_callback is not None}")
+                        print(f"  - AIR: 패턴={air_match or aircon_match}, 콜백={self.air_sensor_data_callback is not None}")
                 else:
-                    print(f"[RX CALLBACK] 콜백 조건 미충족 - DSCT: {('[DSCT]' in decoded_data, self.sensor_data_callback is not None)}, AIR: {('[AIR]' in decoded_data or '[AIRCON]' in decoded_data, self.air_sensor_data_callback is not None)}")
+                    print(f"[RX CALLBACK] ❌ 디코딩된 데이터가 없음")
                 
                 return decoded_data
             else:
