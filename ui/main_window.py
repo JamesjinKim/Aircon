@@ -16,6 +16,7 @@ from managers.auto_manager import AutoSpeedManager
 from managers.sensor_manager import SensorManager
 from managers.air_sensor_manager import AirSensorManager
 from managers.sensor_scheduler import SensorScheduler
+from managers.command_queue_manager import CommandQueueManager, CommandPriority
 
 from ui.constants import BUTTON_ON_STYLE, BUTTON_OFF_STYLE, BUTTON_DEFAULT_STYLE, BUTTON_SPEED_STYLE, BUTTON_PUMP_STYLE, BUTTON_STANDARD_STYLE
 from ui.helpers import get_file_path, configure_display_settings
@@ -41,6 +42,10 @@ class ControlWindow(QtWidgets.QMainWindow):
             
         # 시리얼 매니저 초기화
         self.serial_manager = SerialManager()
+        
+        # 명령 큐 매니저 생성 및 연결
+        self.command_queue = CommandQueueManager(self.serial_manager)
+        self.serial_manager.set_command_queue(self.command_queue)
         
         # 센서 매니저 초기화
         self.sensor_manager = SensorManager(self.serial_manager, test_mode=self.test_mode)

@@ -144,14 +144,21 @@ class ButtonManager:
                 )
 
     def send_command(self, command):
-        """명령어 전송"""
+        """명령어 전송 (HIGH 우선순위)"""
         try:
             if self.serial_manager.is_connected():
-                # serial_manager의 API 사용하여 안전하게 전송
-                result = self.serial_manager.send_serial_command(command.rstrip())
+                # 우선순위를 가진 명령 전송 시도 (큐 경유)
+                if hasattr(self.serial_manager, 'send_serial_command_with_priority'):
+                    from .command_queue_manager import CommandPriority
+                    result = self.serial_manager.send_serial_command_with_priority(
+                        command.rstrip(), CommandPriority.HIGH
+                    )
+                else:
+                    # 레거시 전송 방식 (fallback)
+                    result = self.serial_manager.send_serial_command(command.rstrip())
                 
                 if result:
-                    print("명령 전송: %s" % command)
+                    print("[BUTTON] HIGH 우선순위 명령 전송: %s" % command)
                     
                     if hasattr(self, 'SendData_textEdit') and self.SendData_textEdit:
                         self.SendData_textEdit.append("%s" % command.rstrip())

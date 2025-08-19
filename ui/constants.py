@@ -81,3 +81,10 @@ BUTTON_STANDARD_STYLE = "font-size: 14px; font-weight: bold;"
 # 기본 설정값
 DEFAULT_BAUDRATE = 115200
 
+# 센서 새로고침 간격 제한 (초)
+SENSOR_REFRESH_LIMITS = {
+    'MIN_INTERVAL': 5,      # 최소 5초 (시스템 안정성 보장)
+    'DEFAULT_INTERVAL': 10, # 기본 10초 (권장)
+    'MAX_INTERVAL': 300     # 최대 5분 (300초)
+}
+

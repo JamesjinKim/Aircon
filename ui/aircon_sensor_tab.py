@@ -438,23 +438,33 @@ class AirconSensorTab(QWidget):
         
     @pyqtSlot()
     def on_decrease_interval(self):
-        """새로고침 간격 감소"""
-        if self.refresh_interval > 1:
+        """새로고침 간격 감소 (최소 5초 제한)"""
+        from ui.constants import SENSOR_REFRESH_LIMITS
+        min_interval = SENSOR_REFRESH_LIMITS['MIN_INTERVAL']
+        
+        if self.refresh_interval > min_interval:
             self.refresh_interval -= 1
             self.update_interval_display()
             self.update_sensor_manager_interval()
             # 설정 저장
             self.config_manager.save_refresh_interval('aircon_sensor', self.refresh_interval)
+        else:
+            print(f"[AIRCON_SENSOR_TAB] 최소 간격 {min_interval}초에 도달함")
             
     @pyqtSlot()
     def on_increase_interval(self):
-        """새로고침 간격 증가"""
-        if self.refresh_interval < 360:
+        """새로고침 간격 증가 (최대 300초 제한)"""
+        from ui.constants import SENSOR_REFRESH_LIMITS
+        max_interval = SENSOR_REFRESH_LIMITS['MAX_INTERVAL']
+        
+        if self.refresh_interval < max_interval:
             self.refresh_interval += 1
             self.update_interval_display()
             self.update_sensor_manager_interval()
             # 설정 저장
             self.config_manager.save_refresh_interval('aircon_sensor', self.refresh_interval)
+        else:
+            print(f"[AIRCON_SENSOR_TAB] 최대 간격 {max_interval}초에 도달함")
             
     def update_interval_display(self):
         """간격 표시 업데이트"""

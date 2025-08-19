@@ -133,18 +133,54 @@ class SensorScheduler(QObject):
             print("[SCHEDULER] 스케줄링 재개")
             
     def manual_request_aircon(self):
-        """수동 AIRCON 데이터 요청 (비활성화됨)"""
-        print("[SCHEDULER] 수동 AIRCON 데이터 요청 비활성화로 건너뜀")
-        return
+        """수동 AIRCON 데이터 요청 (LOW 우선순위)"""
+        if self.serial_manager and hasattr(self.serial_manager, 'send_serial_command_with_priority'):
+            try:
+                from .command_queue_manager import CommandPriority
+                command = "$CMD,AIR,TH,ALL"
+                result = self.serial_manager.send_serial_command_with_priority(
+                    command, CommandPriority.LOW
+                )
+                if result:
+                    print(f"[SCHEDULER] 수동 AIRCON 데이터 요청 전송 (LOW 우선순위): {command}")
+                else:
+                    print("[SCHEDULER] 수동 AIRCON 요청 전송 실패")
+            except Exception as e:
+                print(f"[SCHEDULER] 수동 AIRCON 요청 오류: {e}")
+        else:
+            print("[SCHEDULER] 시리얼 매니저 미설정")
             
     def manual_request_dsct(self):
-        """수동 DSCT 데이터 요청 (비활성화됨)"""
-        print("[SCHEDULER] 수동 DSCT 데이터 요청 비활성화로 건너뜀")
-        return
+        """수동 DSCT 데이터 요청 (LOW 우선순위)"""
+        if self.serial_manager and hasattr(self.serial_manager, 'send_serial_command_with_priority'):
+            try:
+                from .command_queue_manager import CommandPriority
+                command = "$CMD,DSCT,TH,ALL"
+                result = self.serial_manager.send_serial_command_with_priority(
+                    command, CommandPriority.LOW
+                )
+                if result:
+                    print(f"[SCHEDULER] 수동 DSCT 데이터 요청 전송 (LOW 우선순위): {command}")
+                else:
+                    print("[SCHEDULER] 수동 DSCT 요청 전송 실패")
+            except Exception as e:
+                print(f"[SCHEDULER] 수동 DSCT 요청 오류: {e}")
+        else:
+            print("[SCHEDULER] 시리얼 매니저 미설정")
             
     def set_cycle_interval(self, seconds):
-        """주기 간격 설정"""
-        self.cycle_interval = max(1.0, min(360.0, seconds))
+        """주기 간격 설정 (최소 5초, 최대 300초)"""
+        from ui.constants import SENSOR_REFRESH_LIMITS
+        min_interval = SENSOR_REFRESH_LIMITS['MIN_INTERVAL']
+        max_interval = SENSOR_REFRESH_LIMITS['MAX_INTERVAL']
+        
+        self.cycle_interval = max(min_interval, min(max_interval, seconds))
+        
+        if seconds < min_interval:
+            print(f"[SCHEDULER] 경고: 요청된 간격 {seconds}초가 최소값보다 작아 {min_interval}초로 설정됨")
+        elif seconds > max_interval:
+            print(f"[SCHEDULER] 경고: 요청된 간격 {seconds}초가 최대값보다 커서 {max_interval}초로 설정됨")
+        
         print(f"[SCHEDULER] 주기 간격 설정: {self.cycle_interval}초")
         
     def _set_state(self, new_state):
@@ -208,14 +244,52 @@ class SensorScheduler(QObject):
             self._set_state(SchedulerState.IDLE)
             
     def _start_aircon_request(self):
-        """AIRCON 데이터 요청 시작 (비활성화됨)"""
-        print("[SCHEDULER] AIRCON 데이터 요청 비활성화로 건너뜀")
-        self._move_to_dsct()
+        """AIRCON 데이터 요청 시작 (LOW 우선순위)"""
+        if self.serial_manager and hasattr(self.serial_manager, 'send_serial_command_with_priority'):
+            try:
+                from .command_queue_manager import CommandPriority
+                command = "$CMD,AIR,TH,ALL"
+                result = self.serial_manager.send_serial_command_with_priority(
+                    command, CommandPriority.LOW
+                )
+                if result:
+                    self._set_state(SchedulerState.AIRCON_WAITING)
+                    self.current_request_start_time = time.time()
+                    self.timeout_timer.start(int(self.response_timeout * 1000))
+                    print(f"[SCHEDULER] AIRCON 데이터 요청 전송 (LOW 우선순위): {command}")
+                else:
+                    print("[SCHEDULER] AIRCON 요청 전송 실패, DSCT로 이동")
+                    self._move_to_dsct()
+            except Exception as e:
+                print(f"[SCHEDULER] AIRCON 요청 오류: {e}")
+                self._move_to_dsct()
+        else:
+            print("[SCHEDULER] 시리얼 매니저 미설정, DSCT로 이동")
+            self._move_to_dsct()
         
     def _start_dsct_request(self):
-        """DSCT 데이터 요청 시작 (비활성화됨)"""
-        print("[SCHEDULER] DSCT 데이터 요청 비활성화로 건너뜀")
-        self._set_state(SchedulerState.INTERVAL_WAITING)
+        """DSCT 데이터 요청 시작 (LOW 우선순위)"""
+        if self.serial_manager and hasattr(self.serial_manager, 'send_serial_command_with_priority'):
+            try:
+                from .command_queue_manager import CommandPriority
+                command = "$CMD,DSCT,TH,ALL"
+                result = self.serial_manager.send_serial_command_with_priority(
+                    command, CommandPriority.LOW
+                )
+                if result:
+                    self._set_state(SchedulerState.DSCT_WAITING)
+                    self.current_request_start_time = time.time()
+                    self.timeout_timer.start(int(self.response_timeout * 1000))
+                    print(f"[SCHEDULER] DSCT 데이터 요청 전송 (LOW 우선순위): {command}")
+                else:
+                    print("[SCHEDULER] DSCT 요청 전송 실패, 주기 대기로 이동")
+                    self._set_state(SchedulerState.INTERVAL_WAITING)
+            except Exception as e:
+                print(f"[SCHEDULER] DSCT 요청 오류: {e}")
+                self._set_state(SchedulerState.INTERVAL_WAITING)
+        else:
+            print("[SCHEDULER] 시리얼 매니저 미설정, 주기 대기로 이동")
+            self._set_state(SchedulerState.INTERVAL_WAITING)
         
     def _move_to_dsct(self):
         """DSCT로 이동"""

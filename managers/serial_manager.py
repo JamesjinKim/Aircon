@@ -25,6 +25,12 @@ class SerialManager(QObject):
         # 소켓 알림자 (인터럽트 방식)
         self.socket_notifier: Optional[QSocketNotifier] = None
         self.use_interrupt_mode = False  # 인터럽트 방식 비활성화 (문제 해결 시까지)
+        
+        # 명령 큐 매니저 연결용
+        self.command_queue = None
+        
+        # 읽기 스레드 (지연 초기화)
+        self.reader_thread = None
 
     def get_available_ports(self) -> List[Dict[str, str]]:
         """연결 가능한 시리얼 포트 목록을 반환하는 함수"""
@@ -61,6 +67,10 @@ class SerialManager(QObject):
                 print("[SERIAL] 인터럽트 방식 비활성화됨, 폴링 방식 사용")
             
             print("Serial port connected to", port)
+            
+            # 읽기 스레드 시작
+            self._start_reader_thread()
+            
             return True
         except Exception as e:
             print("Connection error:", e)
@@ -83,8 +93,18 @@ class SerialManager(QObject):
             return False 
 
     def read_data(self) -> Optional[str]:
-        """데이터 읽기 함수 (완전 비활성화)"""
-        # 시리얼 데이터 읽기를 완전히 비활성화하여 행 걸림 문제 해결
+        """데이터 읽기 함수 (비블로킹)"""
+        try:
+            if not self.shinho_serial_connection or not self.shinho_serial_connection.is_open:
+                return None
+
+            # 대기 중인 데이터만 읽기 (논블로킹)
+            if self.shinho_serial_connection.in_waiting > 0:
+                data = self.shinho_serial_connection.readline()
+                if data:
+                    return data.decode('ascii', errors='ignore').strip()
+        except Exception as e:
+            print(f"[READ ERROR] {e}")
         return None 
 
     def _on_data_ready(self):
@@ -177,6 +197,9 @@ class SerialManager(QObject):
     def disconnect_serial(self) -> None:
         """시리얼 포트 닫기 함수, 연결 종료"""
         try:
+            # 읽기 스레드 중지
+            self._stop_reader_thread()
+            
             # 소켓 알림자 해제
             if self.socket_notifier:
                 self.socket_notifier.setEnabled(False)
@@ -216,3 +239,66 @@ class SerialManager(QObject):
     def set_air_sensor_data_callback(self, callback):
         """AIR 센서 데이터 수신 콜백 설정"""
         self.air_sensor_data_callback = callback
+    
+    def set_command_queue(self, queue_manager):
+        """큐 매니저 설정"""
+        self.command_queue = queue_manager
+        print("[SERIAL] 명령 큐 매니저 설정 완료")
+
+    def send_serial_command_with_priority(self, command, priority=None):
+        """우선순위를 가진 시리얼 명령 전송 (큐 경유)"""
+        if self.command_queue:
+            # 큐를 통해 전송
+            from .command_queue_manager import CommandPriority
+            if priority is None:
+                priority = CommandPriority.NORMAL
+            return self.command_queue.add_command(command, priority)
+        else:
+            # 기존 방식 (fallback)
+            return self.send_serial_command(command)
+    
+    def _start_reader_thread(self):
+        """읽기 스레드 시작"""
+        try:
+            # 기존 스레드 정리
+            self._stop_reader_thread()
+            
+            # 새 읽기 스레드 생성
+            from .serial_reader_thread import SerialReaderThread
+            self.reader_thread = SerialReaderThread(self)
+            
+            # 스레드의 data_received 시그널을 메인 시그널에 연결
+            self.reader_thread.data_received.connect(self._on_thread_data_received)
+            
+            # 스레드 시작
+            self.reader_thread.start_reading()
+            
+            print("[SERIAL] 읽기 스레드 시작됨")
+            
+        except Exception as e:
+            print(f"[SERIAL] 읽기 스레드 시작 실패: {e}")
+    
+    def _stop_reader_thread(self):
+        """읽기 스레드 중지"""
+        try:
+            if self.reader_thread:
+                self.reader_thread.stop_reading()
+                self.reader_thread = None
+                print("[SERIAL] 읽기 스레드 중지됨")
+        except Exception as e:
+            print(f"[SERIAL] 읽기 스레드 중지 실패: {e}")
+    
+    def _on_thread_data_received(self, data):
+        """읽기 스레드에서 데이터 수신 시 호출"""
+        try:
+            # 메인 data_received 시그널 발생
+            self.data_received.emit(data)
+            
+            # 레거시 콜백 호출 (기존 코드와의 호환성)
+            if self.sensor_data_callback and '[DSCT]' in data:
+                self.sensor_data_callback(data)
+            elif self.air_sensor_data_callback and ('[AIR]' in data or '[AIRCON]' in data):
+                self.air_sensor_data_callback(data)
+                
+        except Exception as e:
+            print(f"[SERIAL] 스레드 데이터 처리 오류: {e}")
