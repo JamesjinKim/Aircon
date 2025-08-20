@@ -16,6 +16,7 @@ class AirSensorManager(QObject):
         super().__init__()
         self.serial_manager = serial_manager
         self.test_mode = test_mode  # 테스트 모드 플래그
+        print(f"[AIRCON] AirSensorManager 초기화 - test_mode: {test_mode}")
         
         # 6개 센서 데이터 저장소 (AIRCON은 6개만 사용)
         self.sensor_data = {}
@@ -59,6 +60,7 @@ class AirSensorManager(QObject):
         
     def request_sensor_data(self):
         """센서 데이터 요청 (테스트 모드 지원)"""
+        print(f"[AIRCON] request_sensor_data() 호출됨 - test_mode: {self.test_mode}")
         if self.test_mode:
             print("[AIRCON] 테스트 모드: 더미 센서 데이터 생성")
             self._generate_test_data()
@@ -74,6 +76,7 @@ class AirSensorManager(QObject):
     def _generate_test_data(self):
         """테스트 모드용 더미 데이터 생성"""
         if not hasattr(self, 'dummy_generator'):
+            print("[AIRCON] ERROR: dummy_generator 없음!")
             return
             
         try:
