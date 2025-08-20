@@ -218,6 +218,14 @@ class ControlWindow(QtWidgets.QMainWindow):
                 self.aircon_oa_damper_right_close_button
             )
 
+        # 테스트 모드에서는 자동으로 스케줄러 시작
+        if self.test_mode:
+            print("[MAIN] 테스트 모드: 자동으로 센서 스케줄러 시작")
+            self.sensor_scheduler.start_scheduling()
+            # 센서 탭들의 상태 표시를 녹색으로 설정
+            self.sensors_tab.update_status_indicator("active")
+            self.aircon_sensors_tab.update_status_indicator("active")
+
         
     def connect_auto_controls(self):
         """AUTO 탭의 컨트롤을 연결하는 메서드"""

@@ -97,9 +97,13 @@ class SensorScheduler(QObject):
             print("[SCHEDULER] 이미 실행 중입니다")
             return
             
-        if not self.serial_manager or not self.serial_manager.is_connection_healthy():
-            print("[SCHEDULER] 시리얼 연결 상태 불량, 스케줄링 시작 실패")
-            return
+        # 테스트 모드에서는 시리얼 연결 확인 건너뜀
+        if not self.test_mode:
+            if not self.serial_manager or not self.serial_manager.is_connection_healthy():
+                print("[SCHEDULER] 시리얼 연결 상태 불량, 스케줄링 시작 실패")
+                return
+        else:
+            print("[SCHEDULER] 테스트 모드: 시리얼 연결 없이 스케줄링 시작")
             
         self.is_running = True
         self._set_state(SchedulerState.IDLE)
