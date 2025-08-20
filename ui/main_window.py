@@ -48,10 +48,12 @@ class ControlWindow(QtWidgets.QMainWindow):
         self.serial_manager.set_command_queue(self.command_queue)
         
         # 센서 매니저 초기화
+        print(f"[MAIN] 센서 매니저 초기화 시작 - test_mode: {self.test_mode}")
         self.sensor_manager = SensorManager(self.serial_manager, test_mode=self.test_mode)
         
         # AIR 센서 매니저 초기화
         self.air_sensor_manager = AirSensorManager(self.serial_manager, test_mode=self.test_mode)
+        print(f"[MAIN] 센서 매니저 초기화 완료")
         
         # 센서 스케줄러 초기화 (중앙 관리)
         self.sensor_scheduler = SensorScheduler(self.serial_manager, test_mode=self.test_mode)

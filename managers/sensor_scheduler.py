@@ -214,13 +214,14 @@ class SensorScheduler(QObject):
             
         current_time = time.time()
         
-        # 연결 상태 체크 (5초마다만 실행)
-        if current_time - self.last_connection_check_time >= self.connection_check_interval:
-            self.last_connection_check_time = current_time
-            if not self.serial_manager or not self.serial_manager.is_connection_healthy():
-                print("[SCHEDULER] 연결 상태 불량, 스케줄링 일시정지")
-                self.pause_scheduling()
-                return
+        # 연결 상태 체크 (5초마다만 실행) - 테스트 모드에서는 건너뜀
+        if not self.test_mode:
+            if current_time - self.last_connection_check_time >= self.connection_check_interval:
+                self.last_connection_check_time = current_time
+                if not self.serial_manager or not self.serial_manager.is_connection_healthy():
+                    print("[SCHEDULER] 연결 상태 불량, 스케줄링 일시정지")
+                    self.pause_scheduling()
+                    return
             
         if self.current_state == SchedulerState.IDLE:
             # 주기 간격 체크
