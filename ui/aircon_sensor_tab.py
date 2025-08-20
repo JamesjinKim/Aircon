@@ -347,7 +347,7 @@ class AirconSensorTab(QWidget):
         if timeout_count > 0:
             self.update_status_indicator("error")
         else:
-            self.update_status_indicator("completed")
+            self.update_status_indicator("active")
         
         # 새로고침 버튼 복원
         #self.refresh_button.setText("명령 전송")
@@ -481,20 +481,9 @@ class AirconSensorTab(QWidget):
             self.air_sensor_manager.set_refresh_interval(self.refresh_interval)
             
     def update_status_indicator(self, status):
-        """상태 신호등 업데이트"""
-        if status == "requesting":
-            # 노랑 - 데이터 수신 중
-            self.status_indicator.setStyleSheet("""
-                QLabel {
-                    font-size: 16px;
-                    color: #FFC107;
-                    background-color: transparent;
-                    border-radius: 10px;
-                }
-            """)
-            self.status_indicator.setToolTip("AIRCON 센서 데이터 요청 중...")
-        elif status == "completed":
-            # 녹색 - 수신 완료
+        """상태 신호등 업데이트 (3색 시스템: 회색/녹색/빨강)"""
+        if status == "active" or status == "requesting" or status == "waiting":
+            # 녹색 - 연결됨 및 정상 작동 (대기 포함)
             self.status_indicator.setStyleSheet("""
                 QLabel {
                     font-size: 16px;
@@ -503,7 +492,7 @@ class AirconSensorTab(QWidget):
                     border-radius: 10px;
                 }
             """)
-            self.status_indicator.setToolTip("AIRCON 센서 데이터 수신 완료")
+            self.status_indicator.setToolTip("AIRCON 센서 정상 작동 중")
         elif status == "error":
             # 빨강 - 에러/타임아웃
             self.status_indicator.setStyleSheet("""
@@ -515,28 +504,17 @@ class AirconSensorTab(QWidget):
                 }
             """)
             self.status_indicator.setToolTip("AIRCON 센서 통신 오류 또는 타임아웃")
-        elif status == "waiting":
-            # 회색 - 대기 상태
-            self.status_indicator.setStyleSheet("""
-                QLabel {
-                    font-size: 16px;
-                    color: #CCCCCC;
-                    background-color: transparent;
-                    border-radius: 10px;
-                }
-            """)
-            self.status_indicator.setToolTip("AIRCON 센서 대기 중")
         else:
-            # 회색 - 기본 대기 상태
+            # 회색 - 시리얼 연결 안됨 또는 기본 상태
             self.status_indicator.setStyleSheet("""
                 QLabel {
                     font-size: 16px;
-                    color: #CCCCCC;
+                    color: #757575;
                     background-color: transparent;
                     border-radius: 10px;
                 }
             """)
-            self.status_indicator.setToolTip("AIRCON 센서 대기 중")
+            self.status_indicator.setToolTip("시리얼 연결 필요")
             
     @pyqtSlot(str)
     def on_scheduler_state_changed(self, state_name):

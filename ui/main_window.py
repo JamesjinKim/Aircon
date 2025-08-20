@@ -139,6 +139,9 @@ class ControlWindow(QtWidgets.QMainWindow):
         # 상태 표시기 초기화
         self.update_status_indicator("disconnected")
         self.update_connect_button("disconnected")
+        # 센서 탭들의 상태 표시 초기화
+        self.sensors_tab.update_status_indicator("disconnected")
+        self.aircon_sensors_tab.update_status_indicator("disconnected")
         
         # 클리어 버튼 연결 제거 (메시지 기능 제거로 인함)
         
@@ -1090,12 +1093,18 @@ class ControlWindow(QtWidgets.QMainWindow):
                     self.update_connect_button("connected")
                     # 시리얼 연결 성공 시 버튼 상태 업데이트
                     self.update_button_states()
+                    # 센서 탭들의 상태 표시 업데이트 (연결되면 바로 녹색)
+                    self.sensors_tab.update_status_indicator("active")
+                    self.aircon_sensors_tab.update_status_indicator("active")
                     QMessageBox.information(self, "연결 성공", f"포트 {selected_port}에 연결되었습니다.")
                 else:
                     self.update_status_indicator("disconnected")
                     self.update_connect_button("disconnected")
                     # 시리얼 연결 실패 시 버튼 상태 업데이트
                     self.update_button_states()
+                    # 센서 탭들의 상태 표시 업데이트
+                    self.sensors_tab.update_status_indicator("disconnected")
+                    self.aircon_sensors_tab.update_status_indicator("disconnected")
                     QMessageBox.warning(self, "연결 실패", f"포트 연결에 실패했습니다.")
             except Exception as e:
                 import traceback
@@ -1131,6 +1140,9 @@ class ControlWindow(QtWidgets.QMainWindow):
                 self.update_connect_button("disconnected")
                 # 시리얼 연결 해제 시 버튼 상태 업데이트
                 self.update_button_states()
+                # 센서 탭들의 상태 표시 업데이트
+                self.sensors_tab.update_status_indicator("disconnected")
+                self.aircon_sensors_tab.update_status_indicator("disconnected")
                 QMessageBox.information(self, "연결 해제", "시리얼 포트 연결이 해제되었습니다.")
         except Exception as e:
             QMessageBox.critical(self, "오류 발생", f"연결 해제 중 예외 발생:\n{e}")

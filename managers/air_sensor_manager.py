@@ -58,10 +58,63 @@ class AirSensorManager(QObject):
         
         
     def request_sensor_data(self):
-        """센서 데이터 요청 (비활성화됨)"""
-        print(f"[AIRCON] request_sensor_data() 호출됨 - 온습도 데이터 처리 비활성화로 건너뜀")
-        return
+        """센서 데이터 요청 (테스트 모드 지원)"""
+        if self.test_mode:
+            print("[AIRCON] 테스트 모드: 더미 센서 데이터 생성")
+            self._generate_test_data()
+            return
             
+        if not self.serial_manager or not self.serial_manager.is_connected():
+            print("[AIRCON] 시리얼 연결되지 않음")
+            return
+            
+        print("[AIRCON] 센서 데이터 요청 전송: $CMD,AIR,TH")
+        self.serial_manager.send_serial_command("$CMD,AIR,TH")
+            
+    def _generate_test_data(self):
+        """테스트 모드용 더미 데이터 생성"""
+        if not hasattr(self, 'dummy_generator'):
+            return
+            
+        try:
+            # 더미 데이터 생성
+            all_data = self.dummy_generator.generate_all_sensors_data()
+            
+            # 센서 데이터 저장 및 시그널 발생
+            for sensor_data in all_data:
+                sensor_id = sensor_data['sensor_id']
+                
+                if sensor_data['status'] == 'active':
+                    self.sensor_data[sensor_id] = {
+                        'temp': sensor_data['temp'],
+                        'humi': sensor_data['humi'],
+                        'status': 'active',
+                        'last_update': sensor_data['timestamp']
+                    }
+                    
+                    # CSV 저장
+                    self._save_to_csv(sensor_id, self.sensor_data[sensor_id])
+                    
+                    print(f"[AIRCON TEST] {sensor_id} 더미 데이터: {sensor_data['temp']}°C, {sensor_data['humi']}%")
+                else:
+                    self.sensor_data[sensor_id] = {
+                        'temp': None,
+                        'humi': None,
+                        'status': 'timeout',
+                        'last_update': sensor_data['timestamp']
+                    }
+                    print(f"[AIRCON TEST] {sensor_id} 타임아웃 시뮬레이션")
+                
+                # 개별 센서 업데이트 시그널
+                self.sensor_data_updated.emit(sensor_id, self.sensor_data[sensor_id])
+            
+            # 전체 센서 업데이트 시그널
+            self.all_sensors_updated.emit(self.sensor_data.copy())
+            print(f"[AIRCON TEST] 전체 센서 데이터 업데이트 완료: {len(self.sensor_data)}개")
+            
+        except Exception as e:
+            print(f"[AIRCON TEST] 더미 데이터 생성 오류: {e}")
+
     def parse_sensor_data(self, data):
         """시리얼 데이터 파싱 (비활성화됨)"""
         print(f"[AIRCON RX] 데이터 파싱 비활성화로 건너뜀: {data}")

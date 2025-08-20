@@ -134,10 +134,16 @@ class SensorScheduler(QObject):
             
     def manual_request_aircon(self):
         """수동 AIRCON 데이터 요청 (LOW 우선순위)"""
+        if self.test_mode and self.aircon_manager:
+            # 테스트 모드: 센서 매니저 직접 호출
+            print("[SCHEDULER] 테스트 모드: 수동 AIRCON 센서 매니저 직접 호출")
+            self.aircon_manager.request_sensor_data()
+            return
+            
         if self.serial_manager and hasattr(self.serial_manager, 'send_serial_command_with_priority'):
             try:
                 from .command_queue_manager import CommandPriority
-                command = "$CMD,AIR,TH,ALL"
+                command = "$CMD,AIR,TH"
                 result = self.serial_manager.send_serial_command_with_priority(
                     command, CommandPriority.LOW
                 )
@@ -152,10 +158,16 @@ class SensorScheduler(QObject):
             
     def manual_request_dsct(self):
         """수동 DSCT 데이터 요청 (LOW 우선순위)"""
+        if self.test_mode and self.dsct_manager:
+            # 테스트 모드: 센서 매니저 직접 호출
+            print("[SCHEDULER] 테스트 모드: 수동 DSCT 센서 매니저 직접 호출")
+            self.dsct_manager.request_sensor_data()
+            return
+            
         if self.serial_manager and hasattr(self.serial_manager, 'send_serial_command_with_priority'):
             try:
                 from .command_queue_manager import CommandPriority
-                command = "$CMD,DSCT,TH,ALL"
+                command = "$CMD,DSCT,TH"
                 result = self.serial_manager.send_serial_command_with_priority(
                     command, CommandPriority.LOW
                 )
@@ -245,10 +257,17 @@ class SensorScheduler(QObject):
             
     def _start_aircon_request(self):
         """AIRCON 데이터 요청 시작 (LOW 우선순위)"""
+        if self.test_mode and self.aircon_manager:
+            # 테스트 모드: 센서 매니저 직접 호출
+            print("[SCHEDULER] 테스트 모드: AIRCON 센서 매니저 직접 호출")
+            self.aircon_manager.request_sensor_data()
+            self._move_to_dsct()
+            return
+            
         if self.serial_manager and hasattr(self.serial_manager, 'send_serial_command_with_priority'):
             try:
                 from .command_queue_manager import CommandPriority
-                command = "$CMD,AIR,TH,ALL"
+                command = "$CMD,AIR,TH"
                 result = self.serial_manager.send_serial_command_with_priority(
                     command, CommandPriority.LOW
                 )
@@ -269,10 +288,17 @@ class SensorScheduler(QObject):
         
     def _start_dsct_request(self):
         """DSCT 데이터 요청 시작 (LOW 우선순위)"""
+        if self.test_mode and self.dsct_manager:
+            # 테스트 모드: 센서 매니저 직접 호출
+            print("[SCHEDULER] 테스트 모드: DSCT 센서 매니저 직접 호출")
+            self.dsct_manager.request_sensor_data()
+            self._set_state(SchedulerState.INTERVAL_WAITING)
+            return
+            
         if self.serial_manager and hasattr(self.serial_manager, 'send_serial_command_with_priority'):
             try:
                 from .command_queue_manager import CommandPriority
-                command = "$CMD,DSCT,TH,ALL"
+                command = "$CMD,DSCT,TH"
                 result = self.serial_manager.send_serial_command_with_priority(
                     command, CommandPriority.LOW
                 )
