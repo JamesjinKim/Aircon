@@ -119,10 +119,7 @@ class SensorManager(QObject):
             print(f"[DSCT TEST] 더미 데이터 생성 오류: {e}")
 
     def parse_sensor_data(self, data):
-        """시리얼 데이터 파싱 (비활성화됨)"""
-        print(f"[DSCT RX] 데이터 파싱 비활성화로 건너뜀: {data}")
-        return
-            
+        """시리얼 데이터 파싱"""
         # 정상 데이터 파싱
         match = self.data_pattern.match(data)
         if match:
