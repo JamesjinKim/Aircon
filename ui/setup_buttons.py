@@ -152,3 +152,28 @@ def setup_button_groups(window):
             'off': f'{CMD_PREFIX},{DSCT_SYSTEM},{SOL4_CMD},{OFF_STATE}{TERMINATOR}'
         }
     })
+
+def setup_reload_buttons(window):
+    """Refresh 버튼 이벤트 핸들러 연결"""
+    dsct_button = None
+    air_button = None
+
+    # AIR RELOAD 버튼 (AIRCON 탭)
+    if hasattr(window, 'aircon_reload_button'):
+        air_button = window.aircon_reload_button
+        air_button.clicked.connect(
+            lambda: window.button_manager.handle_air_reload()
+        )
+        print("[SETUP] AIR Reload 버튼 이벤트 연결 완료")
+
+    # DSCT RELOAD 버튼 (DESICCANT 탭)
+    if hasattr(window, 'desiccant_reload_button'):
+        dsct_button = window.desiccant_reload_button
+        dsct_button.clicked.connect(
+            lambda: window.button_manager.handle_dsct_reload()
+        )
+        print("[SETUP] DSCT Reload 버튼 이벤트 연결 완료")
+
+    # ButtonManager에 버튼 참조 전달
+    window.button_manager.set_reload_buttons(dsct_button, air_button)
+    print("[SETUP] Reload 버튼 참조 전달 완료")

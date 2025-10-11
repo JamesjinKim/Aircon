@@ -26,3 +26,75 @@ $CMD,AIR,TH<CR><LF>
 [AIR] ID07,Sensor Check TIMEOUT!<CR><LF>
 [AIR] ID08,Sensor Check TIMEOUT!<CR><LF>
 [AIR] SEQUENTIAL SCAN COMPLETE: Total: 8, Success: 6, Error: 2, Time: 7470ms<CR><LF>
+
+
+## 추가 메시지 => Refresh Button 2종류
+## 리플래쉬 기능은 라즈베리파이 UI 사용자가 입력한 명령 버튼들의 상태와 장비의 상태가 서로 다를 경우가 발생함. => 이유는 수동 조작으로 변경된 경우 또는 연결 종료 후 새로 UI가 실행된 경우는 기존 명령 상태가 아닌 장비제어의 현재 상황과 다른 상태가 발생함.
+이 때 리프레쉬 버튼 2개로 장비의 상태를 받아와 UI의 버튼 상태를 동일하게 맞추어 주는 기능을 함.
+
+## 에어컨 부분
+
+$CMD,AIR,RELOAD<CR><LF>
+
+EEPROM_ACK,RELOAD,START<CR><LF>
+AIR,FAN,ON<CR><LF>
+AIR,FSPD,1<CR><LF>
+AIR,CLUCH,ON<CR><LF>
+AIR,PUMP,ON<CR><LF>
+AIR,CON_F,ON<CR><LF>
+AIR,CON_SPD,1<CR><LF>
+AIR,ALTDMP,OPEN,1<CR><LF>
+AIR,ALBDMP,OPEN<CR><LF>
+AIR,ARTDMP,OPEN,1<CR><LF>
+AIR,ARBDMP,OPEN<CR><LF>
+EEPROM_ACK,RELOAD,END<CR><LF>
+AIRCON_ACK,RELOAD,COMPLETE<CR><LF>
+
+##### AIR FSPD SPEED 메시지 처리 방법 
+"AIR,FAN,ON",
+"AIR,FSPD,5",         # EVA FAN 속도: 5
+"AIR,CON_F,ON",
+"AIR,CON_SPD,3",      # CONDENSER FAN 속도: 3
+
+## 데시칸트 부분
+$CMD,DSCT,RELOAD<CR><LF> 명령 전송시 아래와 같은 저장된 현재 설정 값들이 표시 됩니다/.
+DSCT,FAN4,ON<CR><LF>
+DSCT,DMP1,OPEN<CR><LF>
+DSCT,DMP2,OPEN<CR><LF>
+DSCT,DMP3,OPEN<CR><LF>
+DSCT,DMP4,OPEN<CR><LF>
+DSCT,PUMP1,ON<CR><LF>
+DSCT,PUMP2,ON<CR><LF>
+DSCT,SOL1,OFF<CR><LF>
+DSCT,SOL2,OFF<CR><LF>
+DSCT,SOL3,OFF<CR><LF>
+DSCT,SOL4,OFF<CR><LF>
+DSCT,SEMIAUTO,STOP<CR><LF>
+DSCT,DMPTEST,STOP<CR><LF>
+EEPROM_ACK,RELOAD,END<CR><LF>
+DSCT_ACK,RELOAD,COMPLETE<CR><LF>
+
+#### DSCT 속도정보 처리 메시지
+$CMD,DSCT,RELOAD
+↓
+EEPROM_ACK,RELOAD,START
+DSCT,FAN1,ON
+DSCT,FSPD1,7      ← 속도 정보
+DSCT,FAN2,OFF
+DSCT,FSPD2,0
+DSCT,PUMP1,ON
+DSCT,PSPD1,6      ← 속도 정보
+...
+EEPROM_ACK,RELOAD,END
+DSCT_ACK,RELOAD,COMPLETE
+
+
+## 데시칸트 SOL1 ON명령시 약 15초 정도 딜레이를 가집니다.
+$CMD,DSCT,SOL1,ON<CR><LF>
+
+DSCT,SOL,All Opening!<CR><LF>
+DSCT,SOL All Open OK!<CR><LF>
+[EEPROM] Saving DSCT command: SOL1,ON,<CR><LF>
+EEPROM save OK<CR><LF>
+DSCT,SOL All Open OK! 또는 DSCT,SOL All Close OK! 메세지가 올때까지
+DSCT,SOL,All Opening! , DSCT,SOL,All Closing! 중에는 버튼의 색상을 녹색으로 0.5초 간격으로 Flicker 후 릴리즈 해 주시길 바랍니다. 그래야 사용자가 현재 진행 중에 있다고 판단 될거 같습니다.

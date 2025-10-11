@@ -1,5 +1,204 @@
 # CHANGELOG
 
+## v3.4 (2025-10-11) 🔄
+
+### ✨ **새로운 기능**
+
+#### **장비 상태 동기화 (RELOAD) 시스템**
+- **2개의 Refresh 버튼 추가**:
+  - **AIRCON 탭**: `AIR Refresh` 버튼 (녹색)
+  - **DESICCANT 탭**: `DSCT Refresh` 버튼 (파란색)
+- **장비 상태 자동 동기화**:
+  - UI 버튼 상태 ↔ 실제 장비 상태 일치화
+  - 수동 조작, 재연결 시 발생하는 불일치 해결
+- **시리얼 명령어**:
+  - DSCT: `$CMD,DSCT,RELOAD`
+  - AIR: `$CMD,AIR,RELOAD`
+
+#### **시각적 피드백 시스템**
+- **4단계 버튼 상태 표시**:
+  1. **정상 (Normal)**: 원래 색상 (녹색/파란색)
+  2. **로딩 (Loading)**: 주황색 `⏳ Loading...` + 버튼 비활성화
+  3. **완료 (Complete)**: 밝은 초록색 `✓ Complete!` (1초 지속)
+  4. **에러 (Error)**: 빨간색 `✗ Timeout!` (2초 지속)
+- **자동 상태 복귀**: 완료/에러 후 자동으로 정상 상태로 복원
+
+#### **타임아웃 안전 장치**
+- **5초 타임아웃 타이머**: 응답 없으면 자동 에러 처리
+- **중복 클릭 방지**: 진행 중에는 버튼 비활성화
+- **재시도 가능**: 타임아웃 후 2초 뒤 자동 복귀로 재시도 가능
+
+#### **SPEED 값 동기화**
+- **DSCT 장비**:
+  - FAN1~4 속도: `FSPD1`, `FSPD2`, `FSPD3`, `FSPD4`
+  - PUMP1~2 속도: `PSPD1`, `PSPD2`
+- **AIR 장비**:
+  - EVA FAN 속도: `FSPD`
+  - CONDENSER FAN 속도: `CON_SPD`
+- **UI 자동 업데이트**: SpeedButtonManager 연동으로 속도 버튼 텍스트 자동 변경
+
+### 🔧 **시스템 구조**
+
+#### **RELOAD 프로토콜**
+```
+[버튼 클릭]
+    ↓
+[명령 전송: $CMD,DSCT/AIR,RELOAD]
+    ↓
+[EEPROM_ACK,RELOAD,START]
+    ↓
+[데이터 수집: DSCT,FAN1,ON / DSCT,FSPD1,7 ...]
+    ↓
+[DSCT_ACK,RELOAD,COMPLETE]
+    ↓
+[UI 상태 동기화 완료]
+```
+
+#### **동기화 대상 항목**
+
+**DSCT (데시칸트)**:
+- ✅ FAN1~4 ON/OFF 상태
+- ✅ FAN1~4 속도 (0-10)
+- ⏳ DMP1~4 OPEN/CLOSE 위치 (로그만, UI 업데이트 보류)
+- ✅ PUMP1~2 ON/OFF 상태
+- ✅ PUMP1~2 속도 (0-10)
+- ✅ SOL1~4 ON/OFF 상태
+
+**AIR (에어컨)**:
+- ✅ EVA FAN ON/OFF 상태
+- ✅ EVA FAN 속도 (0-10)
+- ✅ CONDENSER FAN ON/OFF 상태
+- ✅ CONDENSER FAN 속도 (0-10)
+- ⏳ OA DAMPER LEFT/RIGHT 레벨 (로그만, UI 업데이트 보류)
+- ✅ RA DAMPER LEFT/RIGHT OPEN/CLOSE 상태
+- ✅ PUMP ON/OFF 상태
+- ✅ CLUCH ON/OFF 상태
+
+### 🧪 **테스트 모드 지원**
+
+#### **더미 응답 시뮬레이션**
+- **테스트 모드 활성화**: `python main.py --test`
+- **자동 더미 데이터 생성**: 실제 하드웨어 없이 기능 테스트 가능
+- **타이밍 시뮬레이션**:
+  - DSCT: 2초 소요 (20개 항목)
+  - AIR: 1.6초 소요 (10개 항목)
+
+#### **테스트 시나리오**
+1. **정상 완료**: 모든 데이터 수신 → `✓ Complete!`
+2. **타임아웃**: 5초 내 응답 없음 → `✗ Timeout!`
+3. **재시도**: 에러 후 2초 뒤 재시도 가능
+
+### 🛠️ **기술적 세부사항**
+
+#### **새로운 모듈 및 메서드**
+
+**managers/button_manager.py**:
+- `handle_dsct_reload()`: DSCT 리로드 요청
+- `handle_air_reload()`: AIR 리로드 요청
+- `parse_reload_response()`: 응답 데이터 파싱
+- `_apply_dsct_reload_state()`: DSCT UI 적용
+- `_apply_air_reload_state()`: AIR UI 적용
+- `_update_dsct_fan_speed()`: DSCT FAN 속도 업데이트
+- `_update_pump_speed()`: PUMP 속도 업데이트
+- `_set_reload_button_state()`: 버튼 시각적 상태 변경
+- `_start_reload_timeout_timer()`: 타임아웃 타이머 시작
+- `_cancel_reload_timeout_timer()`: 타임아웃 타이머 취소
+- `_handle_reload_timeout()`: 타임아웃 처리
+- `_simulate_dsct_reload_response()`: 테스트 모드 더미 응답
+- `_simulate_air_reload_response()`: 테스트 모드 더미 응답
+
+**ui/setup_buttons.py**:
+- `setup_reload_buttons()`: Refresh 버튼 이벤트 연결
+
+#### **상태 관리 변수**
+```python
+# RELOAD 진행 상태
+self.dsct_reload_in_progress = False
+self.air_reload_in_progress = False
+
+# 수집된 데이터
+self.dsct_reload_data = []
+self.air_reload_data = []
+
+# 타임아웃 타이머
+self.dsct_reload_timer = None
+self.air_reload_timer = None
+self.reload_timeout = 5000  # 5초
+```
+
+### 📁 **수정된 파일**
+
+#### **UI 관련**
+- `ui/main_window.py`: Refresh 버튼 추가 (AIRCON 탭, DESICCANT 탭)
+- `ui/setup_buttons.py`: 이벤트 핸들러 연결 및 버튼 참조 전달
+- `ui/constants.py`: (기존 스타일 활용)
+
+#### **비즈니스 로직**
+- `managers/button_manager.py`: RELOAD 기능 전체 구현 (~380 라인 추가)
+
+#### **시그널/슬롯 연결**
+- `ui/main_window.py`: `serial_manager.data_received` → `button_manager.parse_reload_response` 연결
+
+### 🎯 **사용자 경험 개선**
+
+#### **명확한 상태 피드백**
+- **진행 중**: 주황색 로딩 표시로 동작 중임을 명확히 표시
+- **완료**: 체크 마크로 성공 확인
+- **에러**: X 마크로 실패 알림
+- **타이밍**: 자동 복귀로 사용자 개입 불필요
+
+#### **안전성 강화**
+- **타임아웃 보호**: 무한 대기 방지
+- **중복 방지**: 진행 중 재클릭 차단
+- **자동 복구**: 에러 발생 시 자동으로 재시도 가능 상태로 복원
+
+#### **실시간 동기화**
+- **버튼 상태**: ON/OFF 즉시 반영
+- **속도 값**: 1-10 범위 숫자 즉시 업데이트
+- **시각적 확인**: 로그와 UI 양쪽에서 확인 가능
+
+### 📊 **응답 데이터 예시**
+
+#### **DSCT RELOAD 응답**
+```
+EEPROM_ACK,RELOAD,START
+DSCT,FAN1,ON
+DSCT,FSPD1,7
+DSCT,FAN2,OFF
+DSCT,FSPD2,0
+DSCT,PUMP1,ON
+DSCT,PSPD1,6
+...
+EEPROM_ACK,RELOAD,END
+DSCT_ACK,RELOAD,COMPLETE
+```
+
+#### **AIR RELOAD 응답**
+```
+EEPROM_ACK,RELOAD,START
+AIR,FAN,ON
+AIR,FSPD,5
+AIR,CON_F,ON
+AIR,CON_SPD,3
+AIR,PUMP,ON
+AIR,CLUCH,ON
+...
+EEPROM_ACK,RELOAD,END
+AIRCON_ACK,RELOAD,COMPLETE
+```
+
+### 🔍 **버그 수정**
+
+#### **테스트 모드 동작 문제**
+- **문제**: 테스트 모드에서 RELOAD 시 응답 없어 무한 로딩
+- **해결**: `test_mode` 파라미터 추가 및 더미 응답 시뮬레이션 구현
+
+#### **무한 로딩 문제**
+- **문제**: 하드웨어 응답 없을 시 버튼이 로딩 상태로 고정
+- **해결**: 5초 타임아웃 타이머 및 자동 에러 처리 구현
+
+---
+
 ## v3.3 (2025-01-31) 📊
 
 ### ✨ **새로운 기능**
@@ -213,3 +412,5 @@ sensor_data = {
 - **IMPROVED**: 버튼 스타일 통일
 - **ENHANCED**: 터치 친화적 UI 디자인
 - **FIXED**: 시리얼 통신 안정성 개선
+
+

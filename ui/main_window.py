@@ -23,7 +23,7 @@ from ui.helpers import get_file_path, configure_display_settings
 from ui.ui_components import (create_group_box, create_button_row, create_port_selection_section,
                             create_speed_buttons, create_fan_speed_control,
                             create_auto_control_tab, create_speed_buttons_with_text, create_button_row_with_number, create_oa_damper_three_button_row)
-from ui.setup_buttons import setup_button_groups
+from ui.setup_buttons import setup_button_groups, setup_reload_buttons
 from ui.sensor_tab import SensorTab
 from ui.aircon_sensor_tab import AirconSensorTab
 
@@ -79,11 +79,15 @@ class ControlWindow(QtWidgets.QMainWindow):
         
         # 버튼 매니저 초기화 (UI 요소 생성 후에 초기화 해야 함)
         self.button_manager = ButtonManager(
-            serial_manager=self.serial_manager, 
-            SendData_textEdit=self.SendData_textEdit, 
-            ReceiveData_textEdit=self.ReceiveData_textEdit
+            serial_manager=self.serial_manager,
+            SendData_textEdit=self.SendData_textEdit,
+            ReceiveData_textEdit=self.ReceiveData_textEdit,
+            test_mode=self.test_mode
         )
-        
+
+        # RELOAD 기능을 위한 시그널 연결
+        self.serial_manager.data_received.connect(self.button_manager.parse_reload_response)
+
         # 스피드 버튼 매니저 초기화
         self.speed_button_manager = SpeedButtonManager(
             serial_manager=self.serial_manager,
@@ -149,7 +153,10 @@ class ControlWindow(QtWidgets.QMainWindow):
         
         # 버튼 그룹 설정 - 마지막에 실행 (SPD 버튼 제외)
         setup_button_groups(self)
-        
+
+        # RELOAD 버튼 이벤트 연결
+        setup_reload_buttons(self)
+
         # 새로운 DESICCANT FAN 순환 스피드 버튼 연결
         if hasattr(self, 'speedButton_dsct_fan1'):
             self.speed_button_manager.create_cyclic_dsct_fan_button(1, self.speedButton_dsct_fan1)
@@ -476,9 +483,30 @@ class ControlWindow(QtWidgets.QMainWindow):
         ra_damper_right_button = create_button_row("RA.DAMP(R)", QPushButton("CLOSE"), right_layout)
         self.aircon_ra_damper_right_button = ra_damper_right_button  # 새로운 네이밍
         self.pushButton_12 = ra_damper_right_button  # 기존 호환성 유지
-        
+
         # 오른쪽 그룹 여백
         right_layout.addStretch(1)
+
+        # AIR RELOAD 버튼 추가 (장비 상태 동기화)
+        air_reload_button = create_button_row("🔄 RELOAD", QPushButton("AIR Refresh"), right_layout, button_width=140)
+        air_reload_button.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: 2px solid #45a049;
+                border-radius: 5px;
+                font-size: 14px;
+                font-weight: bold;
+                padding: 5px;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+            QPushButton:pressed {
+                background-color: #3d8b40;
+            }
+        """)
+        self.aircon_reload_button = air_reload_button
         
         # 2컬럼 그리드에 위젯 배치 (왼쪽:오른쪽 = 1:1)
         main_grid.addWidget(left_group, 0, 0)
@@ -557,9 +585,30 @@ class ControlWindow(QtWidgets.QMainWindow):
         self.create_new_damper_row(right_layout, 1)  # L DMP L (DMP1 CMD)
         self.create_new_damper_row(right_layout, 4)  # R DMP H (DMP4 CMD)
         self.create_new_damper_row(right_layout, 3)  # R DMP L (DMP3 CMD)
-        
+
         # 오른쪽 그룹 여백
         right_layout.addStretch(1)
+
+        # DSCT RELOAD 버튼 추가 (장비 상태 동기화)
+        dsct_reload_button = create_button_row("🔄 RELOAD", QPushButton("DSCT Refresh"), right_layout, button_width=140)
+        dsct_reload_button.setStyleSheet("""
+            QPushButton {
+                background-color: #2196F3;
+                color: white;
+                border: 2px solid #1976D2;
+                border-radius: 5px;
+                font-size: 14px;
+                font-weight: bold;
+                padding: 5px;
+            }
+            QPushButton:hover {
+                background-color: #1976D2;
+            }
+            QPushButton:pressed {
+                background-color: #1565C0;
+            }
+        """)
+        self.desiccant_reload_button = dsct_reload_button
         
         # 2컬럼 그리드에 위젯 배치 (왼쪽:오른쪽 = 1:1)
         main_grid.addWidget(left_group, 0, 0)
