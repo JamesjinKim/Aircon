@@ -772,3 +772,342 @@ v3.6은 시스템의 근본적인 성능 및 안정성 문제를 해결한 핵�
 - **완전 호환성**: 기존 UI/기능 100% 유지하면서 성능 향상
 
 이제 버튼 제어와 센서 모니터링이 동시에 안정적으로 동작하며, 시스템 hang 현상 없이 모든 기능을 사용할 수 있습니다.
+
+---
+
+## v3.7 업데이트 - SOL 밸브 통합 제어 시스템 (2025년 10월 12일)
+
+### 📋 문제 상황
+- MESSAGE.md 명세에 따르면 `$CMD,DSCT,SOL1,ON` 명령 하나로 모든 SOL 밸브(1~4)를 동시 제어해야 함
+- 하지만 UI에는 SOL1, SOL2, SOL3, SOL4 **4개의 독립적인 버튼**이 구현되어 있어 혼란 발생
+- SOL 밸브 개폐 시 **15초 딜레이**가 발생하지만 사용자에게 시각적 피드백 없음
+- 진행 중 중복 클릭 방지 메커니즘 부재
+
+### 🎯 해결 목표
+- SOL1 버튼 하나로 모든 SOL 밸브(1~4) 통합 제어
+- 15초 딜레이 동안 사용자에게 시각적 피드백 제공
+- 진행 중 중복 클릭 방지
+- 20초 타임아웃 안전 장치 구현
+- 테스트 모드 지원 (더미 응답 시뮬레이션)
+
+## 🔧 구현된 해결책
+
+### Phase 1: UI 간소화 및 통합
+
+#### 1.1 SOL 버튼 통합
+**수정 파일**: `ui/main_window.py`
+
+**변경사항:**
+- ❌ SOL2, SOL3, SOL4 버튼 완전 제거
+- ✅ SOL1 버튼 레이블 변경: `SOL1` → `SOL 1~4`
+- 하나의 버튼으로 모든 SOL 밸브 통합 제어
+- 레이블 너비 조정: 50px → 70px
+
+**수정 파일**: `ui/setup_buttons.py`
+
+**변경사항:**
+- SOL2, SOL3, SOL4 그룹 제거
+- SOL1 그룹만 유지하며 명령어는 동일 유지
+- 주석 추가: "15초 딜레이와 Flicker 애니메이션은 button_manager에서 처리"
+
+### Phase 2: Flicker 애니메이션 시스템
+
+#### 2.1 상태 관리 변수 추가
+**수정 파일**: `managers/button_manager.py`
+
+**새로운 인스턴스 변수:**
+```python
+self.sol_in_progress = False      # SOL 동작 진행 중 플래그
+self.sol_flicker_state = False    # Flicker 상태 토글
+self.sol_flicker_timer = None     # Flicker 타이머
+self.sol_timeout_timer = None     # SOL 타임아웃 타이머
+self.sol_timeout = 20000          # 타임아웃 시간 (ms) - 20초
+```
+
+#### 2.2 Flicker 애니메이션 구현
+**핵심 메서드:**
+
+1. **`_start_sol_flicker()`**: Flicker 시작
+   - 진행 중 플래그 설정
+   - SOL1 버튼 참조 가져오기
+   - Flicker 틱 시작
+
+2. **`_sol_flicker_tick()`**: 0.5초 간격 색상 토글
+   - **골드색(#FFD700)**: 진행 중 표시
+   - **초록색(BUTTON_ON_STYLE)**: 성공 상태
+   - QTimer.singleShot(500ms)로 재귀 호출
+
+3. **`_stop_sol_flicker(final_state)`**: Flicker 중지 + 최종 상태 설정
+   - 'ON' 또는 'OFF' 최종 상태로 버튼 변경
+   - 타이머 정리 및 플래그 해제
+   - button_groups 상태 동기화
+
+#### 2.3 시각적 상태 전환
+```
+[OFF 상태] → [클릭]
+    ↓
+[골드 ↔ 초록 깜빡임] (진행 중, 0.5초 간격)
+    ↓
+[장비 응답 수신]
+    ↓
+[ON/OFF 상태] (완료)
+```
+
+### Phase 3: 시리얼 응답 처리
+
+#### 3.1 응답 메시지 파싱
+**새 메서드**: `parse_sol_response(data)`
+
+**처리 메시지:**
+| 수신 메시지 | 동작 |
+|-----------|------|
+| `DSCT,SOL,All Opening!` | 열림 시작 (Flicker 계속) |
+| `DSCT,SOL All Open OK!` | 열림 완료 (Flicker 중지 → ON) |
+| `DSCT,SOL,All Closing!` | 닫힘 시작 (Flicker 계속) |
+| `DSCT,SOL All Close OK!` | 닫힘 완료 (Flicker 중지 → OFF) |
+
+#### 3.2 메인 파싱 루프 통합
+**수정 메서드**: `parse_reload_response(data)`
+
+```python
+def parse_reload_response(self, data: str):
+    """RELOAD 및 SOL 응답 파싱 및 처리"""
+    # SOL 응답 파싱 (최우선)
+    self.parse_sol_response(data)
+
+    # DSCT 리로드 응답 처리
+    if self.dsct_reload_in_progress:
+        # ...
+```
+
+### Phase 4: 안전 장치 구현
+
+#### 4.1 중복 클릭 방지
+**수정 위치**: `_toggle_button()` 메서드 시작 부분
+
+```python
+# SOL1 진행 중이면 중복 클릭 방지
+if group_name == 'sol1' and self.sol_in_progress:
+    print("[SOL] 이미 진행 중 - 클릭 무시")
+    return
+```
+
+#### 4.2 타임아웃 처리 (20초)
+**새 메서드:**
+- `_start_sol_timeout_timer()`: 20초 타이머 시작
+- `_cancel_sol_timeout_timer()`: 타이머 취소
+- `_handle_sol_timeout()`: 타임아웃 시 처리
+  - 빨간색 `TIMEOUT!` 표시
+  - 2초 후 자동 OFF 복귀
+
+**타임아웃 시각 효과:**
+```python
+button.setStyleSheet("""
+    QPushButton {
+        background-color: #F44336;  /* 빨간색 */
+        color: white;
+        border: 2px solid #D32F2F;
+    }
+""")
+button.setText("TIMEOUT!")
+```
+
+### Phase 5: 테스트 모드 지원
+
+#### 5.1 명령 감지 및 더미 응답 트리거
+**수정 위치**: `send_command_or_call_function()` 메서드
+
+```python
+# SOL1 명령인 경우 Flicker 시작
+if group_name == 'sol1' and 'SOL1' in command_or_function:
+    print("[SOL] SOL1 명령 감지 - Flicker 시작")
+    self._start_sol_flicker()
+    self._start_sol_timeout_timer()
+
+    # 테스트 모드: 더미 응답 시뮬레이션
+    if self.test_mode:
+        if 'ON' in command_or_function:
+            self._simulate_sol_open_response()
+        else:
+            self._simulate_sol_close_response()
+```
+
+#### 5.2 더미 응답 시뮬레이션
+**새 메서드:**
+
+1. **`_simulate_sol_open_response()`**: OPEN 시뮬레이션
+   - 즉시: `DSCT,SOL,All Opening!`
+   - 15초 후: `DSCT,SOL All Open OK!`
+
+2. **`_simulate_sol_close_response()`**: CLOSE 시뮬레이션
+   - 즉시: `DSCT,SOL,All Closing!`
+   - 15초 후: `DSCT,SOL All Close OK!`
+
+## 📊 시스템 플로우
+
+```
+[사용자] → [SOL 1~4 버튼 클릭]
+    ↓
+[ButtonManager] → 중복 클릭 체크
+    ↓
+[시리얼 명령 전송] $CMD,DSCT,SOL1,ON/OFF
+    ↓
+[Flicker 시작] 골드 ↔ 초록 (0.5초 간격)
+    ↓
+[타임아웃 타이머 시작] 20초
+    ↓
+[장비 응답 대기]
+    ├─ [DSCT,SOL,All Opening/Closing!] → Flicker 계속
+    ├─ [DSCT,SOL All Open/Close OK!] → Flicker 중지, 최종 상태 설정
+    └─ [20초 경과] → TIMEOUT 표시 → 2초 후 OFF 복귀
+```
+
+## ✅ 핵심 개선 사항
+
+### UI 간소화
+- **버튼 개수**: 4개 → 1개
+- **명확한 의미**: `SOL 1~4` 레이블로 통합 제어 명시
+- **공간 효율**: 불필요한 버튼 제거로 UI 깔끔화
+
+### 사용자 경험 개선
+- **시각적 피드백**: 0.5초 간격 Flicker로 진행 상태 명확히 전달
+- **중복 클릭 방지**: 진행 중 클릭 무시로 혼란 방지
+- **자동 복구**: 타임아웃 후 2초 뒤 자동 정상 상태 복귀
+
+### 안전성 강화
+- **타임아웃 처리**: 20초 내 응답 없으면 에러 표시
+- **상태 동기화**: button_groups 상태와 UI 완전 일치
+- **테스트 지원**: 하드웨어 없이도 기능 검증 가능
+
+## 🧪 테스트 방법
+
+### 옵션 1: 테스트 모드 (추천)
+```bash
+python main.py --test
+```
+
+**동작 시나리오:**
+1. DESICCANT 탭 이동
+2. `SOL 1~4` 버튼 클릭
+3. 즉시 골드 ↔ 초록 Flicker 시작 확인
+4. **15초 후** 자동으로 ON/OFF 상태 변경 확인
+5. 진행 중 버튼 클릭 시 무반응 확인
+
+**콘솔 로그 확인:**
+```
+[SOL] SOL1 명령 감지 - Flicker 시작
+[SOL] 타임아웃 타이머 시작: 20000ms
+[TEST] SOL OPEN 더미 응답 시뮬레이션 시작
+[SOL] 밸브 열림 시작
+[SOL] ✅ 밸브 열림 완료
+[SOL] Flicker 중지 - 최종 상태: ON
+[SOL] 타임아웃 타이머 취소
+```
+
+### 옵션 2: 실제 하드웨어 연결
+```bash
+python main.py
+```
+
+**확인 포인트:**
+- [ ] 시리얼 연결 후 DESICCANT 탭 이동
+- [ ] `SOL 1~4` 버튼 클릭 → Flicker 시작
+- [ ] 장비 응답 수신 → Flicker 중지
+- [ ] 타임아웃 테스트 (장비 연결 해제 후 버튼 클릭)
+- [ ] 20초 후 빨간색 `TIMEOUT!` 표시
+- [ ] 2초 후 자동 OFF 복귀
+
+## 📁 변경된 파일 목록
+
+### 수정된 파일
+1. **`ui/main_window.py`** (916-931 라인)
+   - SOL2~4 버튼 UI 제거
+   - SOL1 레이블 `SOL 1~4`로 변경
+   - 레이블 너비 조정
+   - SOL2~4 버튼 참조 제거
+
+2. **`ui/setup_buttons.py`** (124-131 라인)
+   - SOL2~4 그룹 제거
+   - SOL1 그룹 유지 및 주석 추가
+
+3. **`managers/button_manager.py`** (920-1140 라인, 약 220라인 추가)
+   - SOL 상태 관리 변수 추가
+   - Flicker 애니메이션 시스템 구현
+   - 시리얼 응답 파싱 로직 추가
+   - 타임아웃 처리 메커니즘
+   - 테스트 모드 더미 응답 구현
+
+4. **`CHANGELOG.md`**
+   - v3.7 릴리스 노트 추가
+
+## 🔗 MESSAGE.md 명세 충족
+
+### 요구사항 검증
+- ✅ `$CMD,DSCT,SOL1,ON` 하나로 모든 SOL 밸브 제어
+- ✅ 15초 딜레이 동안 Flicker 애니메이션 (0.5초 간격)
+- ✅ `DSCT,SOL,All Opening!` 응답 처리
+- ✅ `DSCT,SOL All Open OK!` 완료 메시지 처리
+- ✅ 진행 중 사용자 피드백 제공
+- ✅ 타임아웃 처리 및 자동 복구
+
+### 프로토콜 준수
+```
+# 전송
+$CMD,DSCT,SOL1,ON<CR><LF>
+
+# 수신
+DSCT,SOL,All Opening!<CR><LF>
+DSCT,SOL All Open OK!<CR><LF>
+[EEPROM] Saving DSCT command: SOL1,ON,<CR><LF>
+EEPROM save OK<CR><LF>
+```
+
+## 🎉 예상 결과
+
+### 사용자 관점
+- **직관적 제어**: 하나의 버튼으로 모든 SOL 밸브 제어
+- **명확한 피드백**: 골드 ↔ 초록 깜빡임으로 진행 상태 인지
+- **안전한 조작**: 진행 중 중복 클릭 자동 차단
+- **자동 복구**: 타임아웃 발생 시 2초 후 자동 정상화
+
+### 개발자 관점
+- **명확한 책임 분리**: UI는 표시만, 로직은 manager가 담당
+- **재사용 가능한 패턴**: Flicker 시스템은 다른 장치에도 적용 가능
+- **테스트 용이성**: 테스트 모드로 하드웨어 없이 검증
+- **로그 추적**: 상세한 콘솔 로그로 디버깅 간편
+
+## 📈 기술적 성과
+
+### 아키텍처 개선
+- **상태 머신 패턴**: OFF → FLICKERING → ON/OFF 명확한 상태 전이
+- **타이머 기반 애니메이션**: QTimer.singleShot으로 안전한 재귀 호출
+- **시그널/슬롯 활용**: 시리얼 응답을 파싱 메서드에 자동 전달
+
+### 코드 품질
+- **가독성**: 메서드 이름과 주석으로 의도 명확화
+- **모듈성**: Flicker 로직이 독립적으로 분리
+- **확장성**: 다른 장치도 동일한 패턴 적용 가능
+
+### 신뢰성
+- **타임아웃 처리**: 무응답 상황에서도 시스템 정상 작동
+- **상태 복구**: 에러 후 자동 정상 상태 복귀
+- **중복 방지**: 플래그 기반 중복 클릭 차단
+
+## 🔮 향후 확장 가능성
+
+1. **다른 장치 적용**: PUMP, FAN 등에도 Flicker 패턴 재사용
+2. **진행률 표시**: Flicker 대신 프로그레스 바 추가 가능
+3. **사운드 피드백**: Flicker와 함께 비프음 추가
+4. **로그 파일 저장**: SOL 동작 이력을 파일로 기록
+
+### 결론
+
+v3.7은 사용자 경험과 시스템 안정성을 크게 향상시킨 업데이트입니다:
+
+- **UI 간소화**: 4개 버튼 → 1개 버튼으로 혼란 제거
+- **시각적 피드백**: 0.5초 간격 Flicker로 진행 상태 명확화
+- **안전 장치**: 중복 클릭 방지 + 20초 타임아웃 처리
+- **테스트 지원**: 하드웨어 없이도 기능 검증 가능
+- **명세 준수**: MESSAGE.md 요구사항 100% 충족
+
+이제 SOL 밸브 제어가 직관적이고 안전하며, 사용자에게 명확한 피드백을 제공합니다. 15초 딜레이 동안 진행 상태를 시각적으로 확인할 수 있어 사용자 만족도가 크게 향상될 것으로 기대됩니다.

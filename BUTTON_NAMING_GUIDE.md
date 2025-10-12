@@ -116,3 +116,5 @@ print(f"PUMP1 스피드: {self.pumper_pump1_new_speed_button.text()}")
 - 새로운 네이밍을 우선 사용하되, 기존 네이밍도 병행 유지
 - 모든 변경사항은 단계적으로 적용
 - 철저한 테스트를 통해 호환성 확인
+
+

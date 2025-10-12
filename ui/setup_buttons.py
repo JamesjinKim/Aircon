@@ -121,35 +121,12 @@ def setup_button_groups(window):
         }
     })
 
-    # SOL1 토글 버튼
+    # SOL ALL 토글 버튼 (SOL1 명령으로 1~4 전체 제어)
+    # 15초 딜레이와 Flicker 애니메이션은 button_manager에서 처리
     window.button_manager.add_group('sol1', {
         window.pushButton_sol1: {
             'on': f'{CMD_PREFIX},{DSCT_SYSTEM},{SOL1_CMD},{ON_STATE}{TERMINATOR}',
             'off': f'{CMD_PREFIX},{DSCT_SYSTEM},{SOL1_CMD},{OFF_STATE}{TERMINATOR}'
-        }
-    })
-
-    # SOL2 토글 버튼
-    window.button_manager.add_group('sol2', {
-        window.pushButton_sol2: {
-            'on': f'{CMD_PREFIX},{DSCT_SYSTEM},{SOL2_CMD},{ON_STATE}{TERMINATOR}',
-            'off': f'{CMD_PREFIX},{DSCT_SYSTEM},{SOL2_CMD},{OFF_STATE}{TERMINATOR}'
-        }
-    })
-
-    # SOL3 토글 버튼
-    window.button_manager.add_group('sol3', {
-        window.pushButton_sol3: {
-            'on': f'{CMD_PREFIX},{DSCT_SYSTEM},{SOL3_CMD},{ON_STATE}{TERMINATOR}',
-            'off': f'{CMD_PREFIX},{DSCT_SYSTEM},{SOL3_CMD},{OFF_STATE}{TERMINATOR}'
-        }
-    })
-
-    # SOL4 토글 버튼
-    window.button_manager.add_group('sol4', {
-        window.pushButton_sol4: {
-            'on': f'{CMD_PREFIX},{DSCT_SYSTEM},{SOL4_CMD},{ON_STATE}{TERMINATOR}',
-            'off': f'{CMD_PREFIX},{DSCT_SYSTEM},{SOL4_CMD},{OFF_STATE}{TERMINATOR}'
         }
     })
 

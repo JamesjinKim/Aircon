@@ -18,7 +18,14 @@ class ButtonManager:
         self.air_reload_button = None   # AIR Reload 버튼 참조
         self.dsct_reload_timer = None   # DSCT Reload 타임아웃 타이머
         self.air_reload_timer = None    # AIR Reload 타임아웃 타이머
-        self.reload_timeout = 5000      # 타임아웃 시간 (ms) - 5초 
+        self.reload_timeout = 5000      # 타임아웃 시간 (ms) - 5초
+
+        # SOL 제어 관련 변수 (15초 딜레이 + Flicker)
+        self.sol_in_progress = False    # SOL 동작 진행 중 플래그
+        self.sol_flicker_state = False  # Flicker 상태 토글
+        self.sol_flicker_timer = None   # Flicker 타이머
+        self.sol_timeout_timer = None   # SOL 타임아웃 타이머
+        self.sol_timeout = 20000         # 타임아웃 시간 (ms) - 20초 
     
     def set_speed_button_manager(self, speed_button_manager):
         """SpeedButtonManager 참조 설정"""
@@ -56,7 +63,12 @@ class ButtonManager:
     def _toggle_button(self, group_name, button, commands):
         """버튼 토글 처리"""
         print("_toggle_button 호출됨: 그룹=%s, 버튼=%s" % (group_name, button.objectName()))
-        
+
+        # SOL1 진행 중이면 중복 클릭 방지
+        if group_name == 'sol1' and self.sol_in_progress:
+            print("[SOL] 이미 진행 중 - 클릭 무시")
+            return
+
         # 시리얼 포트 연결 확인
         if not self.serial_manager.is_connected():
             print("시리얼 포트가 연결되지 않음 - 버튼 동작 차단")
@@ -97,20 +109,20 @@ class ButtonManager:
                 # group['active']를 Boolean으로 사용 (False: OFF, True: ON)
                 if group.get('active', False) is not True:
                     # OFF 상태 -> ON 상태로 전환
-                    button.setStyleSheet(BUTTON_ON_STYLE)  
+                    button.setStyleSheet(BUTTON_ON_STYLE)
                     button.setText(on_text)
-                    self.send_command_or_call_function(commands.get('on'))
+                    self.send_command_or_call_function(commands.get('on'), group_name)
                     group['active'] = True
-                    
+
                     # FAN이 ON될 때 해당 SPD 버튼을 1로 설정
                     self._handle_fan_on_callback(group_name)
                 else:
                     # ON 상태 -> OFF 상태로 전환
                     button.setStyleSheet(BUTTON_OFF_STYLE)
                     button.setText(off_text)
-                    self.send_command_or_call_function(commands.get('off'))
+                    self.send_command_or_call_function(commands.get('off'), group_name)
                     group['active'] = False
-                    
+
                     # FAN이나 Con Fan이 OFF될 때 해당 SPD 버튼들 초기화
                     self._handle_fan_off_callback(group_name)
             else:
@@ -118,9 +130,9 @@ class ButtonManager:
                 if group['active'] == button:
                     # 같은 버튼을 다시 눌렀을 때 -> OFF 상태로 전환
                     button.setStyleSheet(BUTTON_OFF_STYLE)
-                    self.send_command_or_call_function(commands.get('off'))
+                    self.send_command_or_call_function(commands.get('off'), group_name)
                     group['active'] = None
-                    
+
                     # FAN이나 Con Fan이 OFF될 때 해당 SPD 버튼들 초기화
                     self._handle_fan_off_callback(group_name)
                 else:
@@ -128,9 +140,9 @@ class ButtonManager:
                     for other_btn in group['buttons'].keys():
                         other_btn.setStyleSheet(BUTTON_OFF_STYLE)
                     button.setStyleSheet(BUTTON_ON_STYLE)
-                    self.send_command_or_call_function(commands.get('on'))
+                    self.send_command_or_call_function(commands.get('on'), group_name)
                     group['active'] = button
-                    
+
                     # FAN이 ON될 때 해당 SPD 버튼을 1로 설정
                     self._handle_fan_on_callback(group_name)
                     
@@ -142,7 +154,7 @@ class ButtonManager:
             if self.SendData_textEdit:
                 self.SendData_textEdit.append("버튼 토글 오류: %s" % e)
 
-    def send_command_or_call_function(self, command_or_function):
+    def send_command_or_call_function(self, command_or_function, group_name=None):
         """명령어 전송 또는 함수 호출"""
         try:
             if callable(command_or_function):
@@ -152,6 +164,19 @@ class ButtonManager:
             else:
                 # 문자열 명령어인 경우 기존 로직 사용
                 self.send_command(command_or_function)
+
+                # SOL1 명령인 경우 Flicker 시작
+                if group_name == 'sol1' and 'SOL1' in command_or_function:
+                    print("[SOL] SOL1 명령 감지 - Flicker 시작")
+                    self._start_sol_flicker()
+                    self._start_sol_timeout_timer()
+
+                    # 테스트 모드: 더미 응답 시뮬레이션
+                    if self.test_mode:
+                        if 'ON' in command_or_function:
+                            self._simulate_sol_open_response()
+                        else:
+                            self._simulate_sol_close_response()
         except Exception as e:
             print("명령어 처리 실패: %s" % e)
             if hasattr(self, 'SendData_textEdit') and self.SendData_textEdit:
@@ -337,7 +362,10 @@ class ButtonManager:
             self._simulate_air_reload_response()
 
     def parse_reload_response(self, data: str):
-        """RELOAD 응답 파싱 및 처리"""
+        """RELOAD 및 SOL 응답 파싱 및 처리"""
+        # SOL 응답 파싱 (최우선)
+        self.parse_sol_response(data)
+
         # DSCT 리로드 응답 처리
         if self.dsct_reload_in_progress:
             if "EEPROM_ACK,RELOAD,START" in data:
@@ -898,3 +926,215 @@ class ButtonManager:
             self._set_reload_button_state(self.air_reload_button, "error")
             # 2초 후 정상 상태로 복귀 (재시도 가능하도록)
             self._schedule_reload_button_reset(self.air_reload_button, delay=2000)
+
+    # ==================== SOL 제어 (15초 딜레이 + Flicker) ====================
+    def _start_sol_flicker(self):
+        """SOL 버튼 Flicker 시작 (0.5초 간격 초록색 깜빡임)"""
+        from PyQt5.QtCore import QTimer
+
+        # 진행 중 플래그 설정
+        self.sol_in_progress = True
+        self.sol_flicker_state = False
+
+        # SOL1 버튼 가져오기
+        sol1_button = self._get_sol1_button()
+        if not sol1_button:
+            print("[SOL] ⚠️ SOL1 버튼을 찾을 수 없음")
+            return
+
+        print("[SOL] Flicker 애니메이션 시작")
+        self._sol_flicker_tick()
+
+    def _sol_flicker_tick(self):
+        """SOL Flicker 한 틱 실행"""
+        from PyQt5.QtCore import QTimer
+
+        if not self.sol_in_progress:
+            print("[SOL] Flicker 중지 (진행 중 아님)")
+            return
+
+        sol1_button = self._get_sol1_button()
+        if not sol1_button:
+            return
+
+        # 색상 토글
+        if self.sol_flicker_state:
+            # 초록색 (ON 상태)
+            sol1_button.setStyleSheet(BUTTON_ON_STYLE)
+        else:
+            # 골드색 (진행 중)
+            sol1_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #FFD700;
+                    color: black;
+                    border: 2px solid #FFA500;
+                    border-radius: 5px;
+                    font-size: 14px;
+                    font-weight: bold;
+                    padding: 5px;
+                }
+            """)
+
+        self.sol_flicker_state = not self.sol_flicker_state
+
+        # 0.5초 후 재호출
+        self.sol_flicker_timer = QTimer()
+        self.sol_flicker_timer.setSingleShot(True)
+        self.sol_flicker_timer.timeout.connect(self._sol_flicker_tick)
+        self.sol_flicker_timer.start(500)
+
+    def _stop_sol_flicker(self, final_state):
+        """
+        SOL Flicker 중지
+        final_state: 'ON' 또는 'OFF' (최종 버튼 상태)
+        """
+        from PyQt5.QtCore import QTimer
+
+        print(f"[SOL] Flicker 중지 - 최종 상태: {final_state}")
+
+        # 진행 중 플래그 해제
+        self.sol_in_progress = False
+
+        # 타이머 중지
+        if self.sol_flicker_timer is not None:
+            self.sol_flicker_timer.stop()
+            self.sol_flicker_timer = None
+
+        # 타임아웃 타이머 중지
+        self._cancel_sol_timeout_timer()
+
+        # 최종 버튼 상태 설정
+        sol1_button = self._get_sol1_button()
+        if sol1_button:
+            if final_state == 'ON':
+                sol1_button.setStyleSheet(BUTTON_ON_STYLE)
+                sol1_button.setText("ON")
+                # button_groups 상태도 업데이트
+                if 'sol1' in self.button_groups:
+                    self.button_groups['sol1']['active'] = True
+            else:
+                sol1_button.setStyleSheet(BUTTON_OFF_STYLE)
+                sol1_button.setText("OFF")
+                # button_groups 상태도 업데이트
+                if 'sol1' in self.button_groups:
+                    self.button_groups['sol1']['active'] = False
+
+    def _get_sol1_button(self):
+        """SOL1 버튼 객체 반환"""
+        if 'sol1' in self.button_groups:
+            buttons = list(self.button_groups['sol1']['buttons'].keys())
+            if buttons:
+                return buttons[0]
+        return None
+
+    def _start_sol_timeout_timer(self):
+        """SOL 타임아웃 타이머 시작 (20초)"""
+        from PyQt5.QtCore import QTimer
+
+        # 기존 타이머가 있으면 중지
+        if self.sol_timeout_timer is not None:
+            self.sol_timeout_timer.stop()
+
+        # 새 타이머 생성
+        self.sol_timeout_timer = QTimer()
+        self.sol_timeout_timer.setSingleShot(True)
+        self.sol_timeout_timer.timeout.connect(self._handle_sol_timeout)
+        self.sol_timeout_timer.start(self.sol_timeout)
+        print(f"[SOL] 타임아웃 타이머 시작: {self.sol_timeout}ms")
+
+    def _cancel_sol_timeout_timer(self):
+        """SOL 타임아웃 타이머 취소"""
+        if self.sol_timeout_timer is not None:
+            self.sol_timeout_timer.stop()
+            self.sol_timeout_timer = None
+            print("[SOL] 타임아웃 타이머 취소")
+
+    def _handle_sol_timeout(self):
+        """SOL 타임아웃 처리"""
+        print("[SOL] ⚠️ 타임아웃! (20초 경과, 응답 없음)")
+
+        # Flicker 중지 및 에러 상태 표시
+        self.sol_in_progress = False
+        if self.sol_flicker_timer is not None:
+            self.sol_flicker_timer.stop()
+            self.sol_flicker_timer = None
+
+        # 버튼 에러 상태로 변경
+        sol1_button = self._get_sol1_button()
+        if sol1_button:
+            sol1_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #F44336;
+                    color: white;
+                    border: 2px solid #D32F2F;
+                    border-radius: 5px;
+                    font-size: 14px;
+                    font-weight: bold;
+                    padding: 5px;
+                }
+            """)
+            sol1_button.setText("TIMEOUT!")
+
+            # 2초 후 원래 상태로 복귀
+            from PyQt5.QtCore import QTimer
+            QTimer.singleShot(2000, lambda: self._reset_sol_button_to_off())
+
+    def _reset_sol_button_to_off(self):
+        """SOL 버튼을 OFF 상태로 리셋"""
+        sol1_button = self._get_sol1_button()
+        if sol1_button:
+            sol1_button.setStyleSheet(BUTTON_OFF_STYLE)
+            sol1_button.setText("OFF")
+            if 'sol1' in self.button_groups:
+                self.button_groups['sol1']['active'] = False
+            print("[SOL] 버튼 OFF 상태로 리셋 완료")
+
+    def parse_sol_response(self, data: str):
+        """
+        SOL 응답 메시지 파싱
+        - DSCT,SOL,All Opening! → Flicker 계속
+        - DSCT,SOL All Open OK! → Flicker 중지, ON 상태
+        - DSCT,SOL,All Closing! → Flicker 계속
+        - DSCT,SOL All Close OK! → Flicker 중지, OFF 상태
+        """
+        if not self.sol_in_progress:
+            return  # SOL 동작 중이 아니면 무시
+
+        if "DSCT,SOL,All Opening!" in data:
+            print("[SOL] 밸브 열림 시작")
+            # 이미 Flicker 중이므로 추가 동작 없음
+
+        elif "DSCT,SOL All Open OK!" in data:
+            print("[SOL] ✅ 밸브 열림 완료")
+            self._stop_sol_flicker(final_state='ON')
+
+        elif "DSCT,SOL,All Closing!" in data:
+            print("[SOL] 밸브 닫힘 시작")
+            # 이미 Flicker 중이므로 추가 동작 없음
+
+        elif "DSCT,SOL All Close OK!" in data:
+            print("[SOL] ✅ 밸브 닫힘 완료")
+            self._stop_sol_flicker(final_state='OFF')
+
+    # ==================== 테스트 모드: SOL 더미 응답 ====================
+    def _simulate_sol_open_response(self):
+        """테스트 모드: SOL OPEN 더미 응답 시뮬레이션 (15초)"""
+        from PyQt5.QtCore import QTimer
+        print("[TEST] SOL OPEN 더미 응답 시뮬레이션 시작")
+
+        # Opening 메시지 (즉시)
+        QTimer.singleShot(100, lambda: self.parse_sol_response("DSCT,SOL,All Opening!"))
+
+        # 15초 후 Open OK 메시지
+        QTimer.singleShot(15000, lambda: self.parse_sol_response("DSCT,SOL All Open OK!"))
+
+    def _simulate_sol_close_response(self):
+        """테스트 모드: SOL CLOSE 더미 응답 시뮬레이션 (15초)"""
+        from PyQt5.QtCore import QTimer
+        print("[TEST] SOL CLOSE 더미 응답 시뮬레이션 시작")
+
+        # Closing 메시지 (즉시)
+        QTimer.singleShot(100, lambda: self.parse_sol_response("DSCT,SOL,All Closing!"))
+
+        # 15초 후 Close OK 메시지
+        QTimer.singleShot(15000, lambda: self.parse_sol_response("DSCT,SOL All Close OK!"))

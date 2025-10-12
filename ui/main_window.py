@@ -323,10 +323,7 @@ class ControlWindow(QtWidgets.QMainWindow):
                 self.pushButton_pump1, self.pushButton_pump2
             ])
         if hasattr(self, 'pushButton_sol1'):
-            other_buttons.extend([
-                self.pushButton_sol1, self.pushButton_sol2, 
-                self.pushButton_sol3, self.pushButton_sol4
-            ])
+            other_buttons.append(self.pushButton_sol1)
         
         # 나머지 버튼들에 기본 크기 설정
         for button in other_buttons:
@@ -913,11 +910,11 @@ class ControlWindow(QtWidgets.QMainWindow):
         right_group, right_layout = create_group_box("SOL CONTROLS", margins=(15, 30, 15, 15))
         right_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
-        # SOL1 제어 - 레이블 너비를 줄여서 간격 최소화
+        # SOL ALL 제어 (SOL1 명령으로 1~4 전체 제어)
         sol1_row_layout = QHBoxLayout()
         sol1_row_layout.setContentsMargins(5, 8, 5, 8)
-        sol1_label = QLabel("SOL1")
-        sol1_label.setFixedWidth(50)  # 레이블 너비를 140에서 50으로 줄임
+        sol1_label = QLabel("SOL 1~4")
+        sol1_label.setFixedWidth(70)  # 레이블 너비 조정
         sol1_label.setStyleSheet("font-size: 15px; font-weight: bold;")
         sol1_button = QPushButton("OFF")
         sol1_button.setFixedSize(140, 45)
@@ -929,57 +926,6 @@ class ControlWindow(QtWidgets.QMainWindow):
         right_layout.addLayout(sol1_row_layout)
         self.sol_sol1_button = sol1_button  # 새로운 네이밍
         self.pushButton_sol1 = sol1_button  # 기존 호환성 유지
-        
-        # SOL4 제어 - 레이블 너비를 줄여서 간격 최소화
-        sol4_row_layout = QHBoxLayout()
-        sol4_row_layout.setContentsMargins(5, 8, 5, 8)
-        sol4_label = QLabel("SOL4")
-        sol4_label.setFixedWidth(50)  # 레이블 너비를 140에서 50으로 줄임
-        sol4_label.setStyleSheet("font-size: 15px; font-weight: bold;")
-        sol4_button = QPushButton("OFF")
-        sol4_button.setFixedSize(140, 45)
-        sol4_button.setStyleSheet(BUTTON_STANDARD_STYLE)
-        sol4_row_layout.addWidget(sol4_label)
-        sol4_row_layout.addSpacing(5)  # 작은 간격
-        sol4_row_layout.addWidget(sol4_button)
-        sol4_row_layout.addStretch()
-        right_layout.addLayout(sol4_row_layout)
-        self.sol_sol4_button = sol4_button  # 새로운 네이밍
-        self.pushButton_sol4 = sol4_button  # 기존 호환성 유지
-        
-        # SOL2 제어 - 레이블 너비를 줄여서 간격 최소화
-        sol2_row_layout = QHBoxLayout()
-        sol2_row_layout.setContentsMargins(5, 8, 5, 8)
-        sol2_label = QLabel("SOL2")
-        sol2_label.setFixedWidth(50)  # 레이블 너비를 140에서 50으로 줄임
-        sol2_label.setStyleSheet("font-size: 15px; font-weight: bold;")
-        sol2_button = QPushButton("OFF")
-        sol2_button.setFixedSize(140, 45)
-        sol2_button.setStyleSheet(BUTTON_STANDARD_STYLE)
-        sol2_row_layout.addWidget(sol2_label)
-        sol2_row_layout.addSpacing(5)  # 작은 간격
-        sol2_row_layout.addWidget(sol2_button)
-        sol2_row_layout.addStretch()
-        right_layout.addLayout(sol2_row_layout)
-        self.sol_sol2_button = sol2_button  # 새로운 네이밍
-        self.pushButton_sol2 = sol2_button  # 기존 호환성 유지
-        
-        # SOL3 제어 - 레이블 너비를 줄여서 간격 최소화
-        sol3_row_layout = QHBoxLayout()
-        sol3_row_layout.setContentsMargins(5, 8, 5, 8)
-        sol3_label = QLabel("SOL3")
-        sol3_label.setFixedWidth(50)  # 레이블 너비를 140에서 50으로 줄임
-        sol3_label.setStyleSheet("font-size: 15px; font-weight: bold;")
-        sol3_button = QPushButton("OFF")
-        sol3_button.setFixedSize(140, 45)
-        sol3_button.setStyleSheet(BUTTON_STANDARD_STYLE)
-        sol3_row_layout.addWidget(sol3_label)
-        sol3_row_layout.addSpacing(5)  # 작은 간격
-        sol3_row_layout.addWidget(sol3_button)
-        sol3_row_layout.addStretch()
-        right_layout.addLayout(sol3_row_layout)
-        self.sol_sol3_button = sol3_button  # 새로운 네이밍
-        self.pushButton_sol3 = sol3_button  # 기존 호환성 유지
         
         # 오른쪽 그룹 여백
         right_layout.addStretch(1)

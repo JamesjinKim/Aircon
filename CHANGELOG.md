@@ -1,5 +1,77 @@
 # CHANGELOG
 
+## v3.5 (2025-10-12) 🎯
+
+### ✨ **새로운 기능**
+
+#### **SOL 밸브 통합 제어 시스템 (15초 딜레이 + Flicker)**
+- **UI 간소화**: SOL2, SOL3, SOL4 버튼 제거
+- **SOL1 버튼으로 1~4 전체 제어**:
+  - 레이블: `SOL 1~4`
+  - 명령어: `$CMD,DSCT,SOL1,ON/OFF`
+  - 하나의 명령으로 모든 SOL 밸브 동시 개폐
+
+#### **Flicker 애니메이션 (0.5초 간격)**
+- **골드색 ↔ 초록색 반복**: 사용자에게 진행 상태 시각적 피드백
+- **진행 중 클릭 방지**: `sol_in_progress` 플래그로 중복 클릭 차단
+- **자동 종료**: 장비 응답 수신 시 Flicker 중지
+
+#### **시리얼 응답 메시지 처리**
+- `DSCT,SOL,All Opening!` → Flicker 계속
+- `DSCT,SOL All Open OK!` → Flicker 중지, ON 상태
+- `DSCT,SOL,All Closing!` → Flicker 계속
+- `DSCT,SOL All Close OK!` → Flicker 중지, OFF 상태
+
+#### **타임아웃 안전 장치 (20초)**
+- **20초 내 응답 없으면**: 빨간색 `TIMEOUT!` 표시
+- **2초 후 자동 복구**: OFF 상태로 리셋, 재시도 가능
+
+### 🧪 **테스트 모드 지원**
+
+#### **더미 응답 시뮬레이션**
+- **OPEN 시뮬레이션**:
+  - 즉시 `DSCT,SOL,All Opening!`
+  - 15초 후 `DSCT,SOL All Open OK!`
+- **CLOSE 시뮬레이션**:
+  - 즉시 `DSCT,SOL,All Closing!`
+  - 15초 후 `DSCT,SOL All Close OK!`
+
+### 🛠️ **기술적 세부사항**
+
+#### **새로운 메서드 (button_manager.py)**
+- `_start_sol_flicker()`: Flicker 시작
+- `_sol_flicker_tick()`: 0.5초 간격 색상 토글
+- `_stop_sol_flicker(final_state)`: Flicker 중지 + 최종 상태 설정
+- `_get_sol1_button()`: SOL1 버튼 객체 반환
+- `_start_sol_timeout_timer()`: 20초 타임아웃 타이머
+- `_handle_sol_timeout()`: 타임아웃 처리
+- `parse_sol_response(data)`: SOL 응답 메시지 파싱
+- `_simulate_sol_open_response()`: 테스트 모드 OPEN 시뮬레이션
+- `_simulate_sol_close_response()`: 테스트 모드 CLOSE 시뮬레이션
+
+#### **수정된 파일**
+- `ui/main_window.py`: SOL2~4 버튼 UI 제거, SOL1 레이블 변경
+- `ui/setup_buttons.py`: SOL2~4 그룹 제거
+- `managers/button_manager.py`: SOL 제어 로직 추가 (~220 라인)
+
+#### **버튼 상태 변화**
+```
+[OFF 상태] → [클릭]
+    ↓
+[골드 ↔ 초록 Flicker] (진행 중, 0.5초 간격)
+    ↓
+[DSCT,SOL All Open/Close OK!]
+    ↓
+[ON/OFF 상태] (완료)
+```
+
+#### **에러 처리**
+- **타임아웃**: 20초 내 응답 없음 → 빨간색 `TIMEOUT!` → 2초 후 OFF
+- **중복 클릭**: 진행 중 클릭 무시
+- **시리얼 연결 끊김**: 버튼 동작 차단
+
+---
+
 ## v3.4 (2025-10-11) 🔄
 
 ### ✨ **새로운 기능**
