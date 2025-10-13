@@ -214,3 +214,5 @@ See [CHANGELOG.md](CHANGELOG.md) for full version history. Most recent version i
 
 
 # 중요: 응답은 반드시 한글로 할것!
+1.수정 요청 사항을 받으면 기존 코드를 참고하여 알고리즘의 일관성을 유지 할것.
+2.이미 작성된 UI를 수정할 때는 반드시 승인을 받고 수정 할것.

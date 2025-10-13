@@ -1111,3 +1111,570 @@ v3.7은 사용자 경험과 시스템 안정성을 크게 향상시킨 업데이
 - **명세 준수**: MESSAGE.md 요구사항 100% 충족
 
 이제 SOL 밸브 제어가 직관적이고 안전하며, 사용자에게 명확한 피드백을 제공합니다. 15초 딜레이 동안 진행 상태를 시각적으로 확인할 수 있어 사용자 만족도가 크게 향상될 것으로 기대됩니다.
+
+---
+
+## v3.8 업데이트 - 장비 상태 동기화 RELOAD 시스템 (2025년 10월 13일)
+
+### 📋 문제 상황
+- 프로그램 재시작 또는 연결 재개 시 **UI 버튼 상태와 실제 장비 상태가 불일치**
+- 사용자가 하드웨어 상태를 확인하기 위해 매번 수동으로 모든 버튼 확인 필요
+- MESSAGE.md 명세에 `$CMD,DSCT,RELOAD` 프로토콜 정의되어 있지만 미구현
+- 장비가 EEPROM에 저장한 마지막 상태를 UI에 반영할 방법 없음
+
+### 🎯 해결 목표
+- AIRCON/DESICCANT 탭에 **Refresh 버튼** 추가
+- `$CMD,DSCT,RELOAD` / `$CMD,AIR,RELOAD` 명령으로 장비 상태 동기화
+- 4단계 시각적 피드백 (정상 → 로딩 → 완료 → 에러)
+- 15초 타임아웃 안전 장치
+- 모든 버튼 상태 자동 복원 (FAN, PUMP, SOL, SEMIAUTO, DMPTEST 등)
+
+## 🔧 구현된 해결책
+
+### Phase 1: RELOAD 버튼 UI 추가
+
+#### 1.1 AIRCON 탭 Refresh 버튼
+**수정 파일**: `ui/main_window.py` (487-506 라인)
+
+**새로운 UI 요소:**
+- **위치**: OA.DAMPER 숫자 버튼 하단
+- **버튼 텍스트**: `AIR Refresh` (🔄 이모지 포함)
+- **버튼 크기**: 140px 너비
+- **스타일**: 4가지 상태별 색상 구분
+
+```python
+air_reload_button = create_button_row("🔄 RELOAD", QPushButton("AIR Refresh"), right_layout, button_width=140)
+air_reload_button.setStyleSheet("""
+    QPushButton {
+        background-color: #E3F2FD;  /* 연한 파란색 */
+        color: #1976D2;
+        border: 2px solid #1976D2;
+    }
+    QPushButton:hover {
+        background-color: #BBDEFB;
+    }
+""")
+```
+
+#### 1.2 DESICCANT 탭 Refresh 버튼
+**수정 파일**: `ui/main_window.py` (589-608 라인)
+
+**동일한 UI 패턴:**
+- **버튼 텍스트**: `DSCT Refresh`
+- **배치 위치**: PUMP 버튼 하단
+- **동일한 4가지 상태 스타일 지원
+
+#### 1.3 버튼 상태별 시각적 피드백
+| 상태 | 배경색 | 텍스트색 | 텍스트 | 아이콘 |
+|------|--------|---------|--------|--------|
+| **정상** | 연한 파란색 (#E3F2FD) | 파란색 (#1976D2) | `AIR/DSCT Refresh` | 🔄 |
+| **로딩** | 주황색 (#FF9800) | 흰색 | `Loading...` | ⏳ |
+| **완료** | 초록색 (#4CAF50) | 흰색 | `Complete!` | ✅ |
+| **에러** | 빨강색 (#F44336) | 흰색 | `Timeout!` | ⚠️ |
+
+### Phase 2: RELOAD 명령 처리 시스템
+
+#### 2.1 ButtonManager RELOAD 기능 추가
+**수정 파일**: `managers/button_manager.py` (13-24, 306-430 라인)
+
+**새로운 상태 관리 변수:**
+```python
+# RELOAD 기능 관련 변수
+self.dsct_reload_in_progress = False   # DSCT 리로드 진행 중
+self.dsct_reload_data = []             # DSCT 응답 데이터 저장
+self.dsct_reload_start_time = None     # 시작 시간 측정
+self.air_reload_in_progress = False    # AIR 리로드 진행 중
+self.air_reload_data = []              # AIR 응답 데이터 저장
+self.air_reload_start_time = None      # 시작 시간 측정
+self.dsct_reload_button = None         # DSCT 버튼 참조
+self.air_reload_button = None          # AIR 버튼 참조
+self.dsct_reload_timer = None          # 타임아웃 타이머
+self.air_reload_timer = None           # 타임아웃 타이머
+self.reload_timeout = 15000            # 타임아웃 15초
+```
+
+#### 2.2 RELOAD 요청 핸들러
+**핵심 메서드:**
+
+1. **`handle_dsct_reload()`**: DSCT 리로드 요청
+   - 시리얼 연결 체크
+   - 중복 요청 방지
+   - 버튼 상태 → 로딩
+   - 명령 전송: `$CMD,DSCT,RELOAD`
+   - 큐 일시 중지 (다른 명령 차단)
+   - 타임아웃 타이머 시작
+
+2. **`handle_air_reload()`**: AIR 리로드 요청
+   - 동일한 패턴으로 `$CMD,AIR,RELOAD` 전송
+
+**중요 설계 결정:**
+```python
+# 명령 전송 (Queue를 거치지 않고 직접 전송)
+command = f"{CMD_PREFIX},DSCT,RELOAD"
+self.serial_manager.send_serial_command(command)
+
+# 명령 전송 후 큐 일시 중지 (다른 명령 차단)
+if hasattr(self.serial_manager, 'command_queue') and self.serial_manager.command_queue:
+    self.serial_manager.command_queue.pause_queue()
+```
+
+**이유:**
+- 센서 스케줄러의 LOW 우선순위 `$CMD,DSCT,TH` 명령이 RELOAD 응답을 방해
+- 큐를 일시 중지하여 RELOAD 응답 수신 완료까지 다른 명령 차단
+
+### Phase 3: 시리얼 응답 파싱 및 상태 복원
+
+#### 3.1 응답 메시지 파싱
+**핵심 메서드**: `parse_reload_response(data)`
+
+**DSCT 응답 프로토콜:**
+```
+EEPROM_ACK,RELOAD,START           # 시작 신호
+DSCT,FAN_ALL_ON                   # 전체 FAN 상태 (무시)
+DSCT,FAN_ALL_SPD,1                # 전체 FAN 속도 (무시)
+DSCT,FAN1,ON                      # 개별 FAN 상태
+DSCT,FAN1,SPD,1                   # 개별 FAN 속도
+DSCT,DMP1,OPEN                    # 댐퍼 상태
+DSCT,PUMP1,ON                     # 펌프 상태
+DSCT,PUMP1,SPD,6                  # 펌프 속도 (무시)
+DSCT,SOL1,ON                      # SOL 밸브 상태 (SOL1만 사용)
+DSCT,SOL2,OFF                     # SOL2~4 무시
+DSCT,SEMIAUTO,STOP                # SEMI AUTO 상태
+DSCT,DMPTEST,STOP                 # DAMP TEST 상태
+EEPROM_ACK,RELOAD,END             # 종료 신호
+DSCT_ACK,RELOAD,COMPLETE          # 완료 신호
+```
+
+**AIR 응답 프로토콜:**
+```
+EEPROM_ACK,RELOAD,START
+AIR,EVA_FAN,ON
+AIR,EVA_FAN,SPD,5
+AIR,CON_FAN,OFF
+AIR,COMPRESSOR,ON
+EEPROM_ACK,RELOAD,END
+AIRCON_ACK,RELOAD,COMPLETE
+```
+
+#### 3.2 상태 적용 로직
+**핵심 메서드**: `_apply_dsct_reload_state()`, `_apply_air_reload_state()`
+
+**DSCT 파싱 규칙:**
+```python
+# FAN_ALL 항목 무시
+if function.startswith("FAN_ALL"):
+    continue
+
+# FAN1~4 처리
+if function in ["FAN1", "FAN2", "FAN3", "FAN4"]:
+    if values[0] == "SPD" and len(values) > 1:
+        # 하드웨어 속도 값 그대로 복원
+        speed = int(values[1])
+        fan_num = function[-1]
+        self._update_dsct_fan_speed(fan_num, speed)
+    else:
+        # ON/OFF 상태 복원
+        state = values[0]
+        fan_num = function[-1]
+        self._update_dsct_fan_button(fan_num, state)
+
+# PUMP 처리 (SPD 무시, ON/OFF만 사용)
+elif function.startswith("PUMP"):
+    if values[0] == "SPD":
+        continue  # 속도 무시
+    else:
+        state = values[0]
+        pump_num = function[-1]
+        self._update_pump_button(pump_num, state)
+
+# SOL 처리 (SOL1만 사용)
+elif function.startswith("SOL"):
+    sol_num = function[-1]
+    if sol_num == "1":
+        state = values[0]
+        self._update_sol_button(sol_num, state)
+    else:
+        print(f"[RELOAD] SOL{sol_num} 항목 무시")
+
+# SEMIAUTO 처리
+elif function == "SEMIAUTO":
+    state = values[0]  # RUN/STOP
+    self._update_semiauto_button(state)
+
+# DMPTEST 처리
+elif function == "DMPTEST":
+    state = values[0]  # RUN/STOP
+    self._update_dmptest_button(state)
+```
+
+#### 3.3 버튼 상태 업데이트 메서드
+
+**FAN 버튼 복원:**
+```python
+def _update_dsct_fan_button(self, fan_num, state):
+    """DSCT FAN 버튼 상태 업데이트"""
+    group_name = f"dsct_fan{fan_num}"
+    if group_name in self.button_groups:
+        group = self.button_groups[group_name]
+        button = list(group['buttons'].keys())[0]
+        is_on = (state == "ON")
+
+        # 이전 상태 저장
+        was_on = group.get('active', False)
+
+        # 버튼 UI 업데이트
+        self._set_button_state(button, is_on)
+        group['active'] = is_on
+
+        # OFF로 변경될 때 속도 버튼 초기화
+        if was_on and not is_on:
+            self._handle_fan_off_callback(group_name)
+```
+
+**SEMI AUTO 버튼 복원:**
+```python
+def _update_semiauto_button(self, state):
+    """DESICCANT SEMI AUTO 버튼 상태 업데이트"""
+    if hasattr(self.main_window, 'semi_auto_run_button'):
+        button = self.main_window.semi_auto_run_button
+        is_running = (state == "RUN")
+
+        if is_running:
+            button.setText("STOP")
+            button.setStyleSheet("background-color: rgb(255, 0, 0); color: white; font-size: 14px; font-weight: bold;")
+        else:
+            button.setText("RUN")
+            button.setStyleSheet("font-size: 14px; font-weight: bold;")
+```
+
+### Phase 4: 큐 일시 중지/재개 시스템
+
+#### 4.1 CommandQueueManager 확장
+**수정 파일**: `managers/command_queue_manager.py` (56, 117, 223-231 라인)
+
+**새로운 기능:**
+```python
+# 큐 일시 중지 플래그
+self.is_paused = False
+
+def _process_queue(self):
+    """큐 처리 (타이머에서 호출)"""
+    if self.is_processing or self.is_paused:
+        return  # 일시 중지 중이면 처리 안 함
+
+def pause_queue(self):
+    """큐 처리 일시 중지 (RELOAD 등 응답 대기 중)"""
+    self.is_paused = True
+    print("[QUEUE] 🛑 큐 처리 일시 중지 (RELOAD 응답 대기)")
+
+def resume_queue(self):
+    """큐 처리 재개"""
+    self.is_paused = False
+    print("[QUEUE] ▶️  큐 처리 재개")
+```
+
+**동작 시나리오:**
+```
+1. RELOAD 명령 전송
+2. 큐 일시 중지 → 센서 TH 명령 차단
+3. RELOAD 응답 수신 및 파싱
+4. 큐 재개 → 센서 TH 명령 정상 처리
+```
+
+### Phase 5: 타임아웃 처리
+
+#### 5.1 타임아웃 타이머 시스템
+**핵심 메서드:**
+
+1. **`_start_reload_timeout_timer(reload_type)`**: 15초 타이머 시작
+2. **`_cancel_reload_timeout_timer(reload_type)`**: 타이머 취소
+3. **`_handle_reload_timeout(reload_type)`**: 타임아웃 처리
+
+**타임아웃 시 동작:**
+```python
+def _handle_reload_timeout(self, reload_type):
+    """RELOAD 타임아웃 처리"""
+    if reload_type == "dsct":
+        print(f"[RELOAD] ⚠️ DSCT 리로드 타임아웃! (응답 없음)")
+        self.dsct_reload_in_progress = False
+        self.dsct_reload_data = []
+
+        # 명령 큐 재개 (타임아웃 발생 시에도 큐 정상화)
+        if hasattr(self.serial_manager, 'command_queue'):
+            self.serial_manager.command_queue.resume_queue()
+
+        # 버튼 상태 → 에러
+        self._set_reload_button_state(self.dsct_reload_button, "error")
+
+        # 2초 후 자동 복귀
+        self._schedule_reload_button_reset(self.dsct_reload_button, delay=2000)
+```
+
+### Phase 6: 테스트 모드 지원
+
+#### 6.1 더미 응답 시뮬레이션
+**핵심 메서드**: `_simulate_dsct_reload_response()`, `_simulate_air_reload_response()`
+
+**DSCT 더미 데이터:**
+```python
+dummy_data = [
+    "DSCT,FAN1,ON",
+    "DSCT,FSPD1,7",      # 구형 프로토콜 (FSPD)
+    "DSCT,FAN2,OFF",
+    "DSCT,FSPD2,0",
+    "DSCT,FAN3,ON",
+    "DSCT,FSPD3,5",
+    "DSCT,FAN4,OFF",
+    "DSCT,FSPD4,0",
+    "DSCT,DMP1,OPEN",
+    "DSCT,DMP2,CLOSE",
+    "DSCT,DMP3,OPEN",
+    "DSCT,DMP4,CLOSE",
+    "DSCT,PUMP1,ON",
+    "DSCT,PSPD1,6",      # PUMP 속도는 무시됨
+    "DSCT,PUMP2,OFF",
+    "DSCT,PSPD2,0",
+    "DSCT,SOL1,OFF",     # SOL1만 사용
+    "DSCT,SEMIAUTO,STOP",
+    "DSCT,DMPTEST,STOP",
+]
+```
+
+**시뮬레이션 시나리오:**
+- 100ms 후 START 신호
+- 200ms 간격으로 데이터 전송
+- 2.57초 후 COMPLETE 신호
+
+## 📊 시스템 플로우
+
+```
+[사용자] → [Refresh 버튼 클릭]
+    ↓
+[ButtonManager] → 중복 요청 체크
+    ↓
+[시리얼 명령 전송] $CMD,DSCT/AIR,RELOAD (직접 전송, 큐 우회)
+    ↓
+[큐 일시 중지] → 센서 TH 명령 차단
+    ↓
+[버튼 상태] → 로딩 (주황색)
+    ↓
+[타임아웃 타이머 시작] 15초
+    ↓
+[장비 응답 수신 및 파싱]
+    ├─ EEPROM_ACK,RELOAD,START → 데이터 수집 시작
+    ├─ DSCT,FAN1,ON → 버튼 상태 업데이트
+    ├─ DSCT,FAN1,SPD,1 → 속도 버튼 업데이트
+    ├─ ... (모든 장비 상태 수신)
+    └─ DSCT_ACK,RELOAD,COMPLETE → 완료
+    ↓
+[타임아웃 타이머 취소]
+    ↓
+[큐 재개] → 센서 TH 명령 정상 처리
+    ↓
+[버튼 상태] → 완료 (초록색) → 1초 후 정상 복귀
+```
+
+## ✅ 핵심 개선 사항
+
+### 사용자 경험 개선
+- **원클릭 동기화**: Refresh 버튼 한 번으로 모든 장비 상태 복원
+- **4단계 피드백**: 정상 → 로딩 → 완료 → 에러 시각적 표시
+- **자동 복귀**: 완료/에러 후 1~2초 뒤 자동 정상 상태 복귀
+- **진행 시간 표시**: 로그에서 응답 시간 측정 (예: 0.33초)
+
+### 프로토콜 지원
+- **신형 프로토콜**: `DSCT,FAN1,SPD,1` (실제 하드웨어)
+- **구형 프로토콜**: `DSCT,FSPD1,7` (테스트 모드)
+- **양방향 호환**: 두 프로토콜 동시 지원
+
+### 안전성 강화
+- **중복 요청 방지**: 진행 중 클릭 무시
+- **큐 충돌 방지**: 큐 일시 중지로 센서 명령 차단
+- **타임아웃 처리**: 15초 내 응답 없으면 에러 표시 및 자동 복구
+- **상태 동기화**: 하드웨어 값 그대로 UI에 반영
+
+### 복원 범위
+- ✅ FAN1~4 버튼 ON/OFF 상태
+- ✅ FAN1~4 속도 버튼 값 (1~10)
+- ✅ FAN OFF 시 속도 버튼 자동 비활성화
+- ✅ PUMP1~2 버튼 ON/OFF 상태 (속도 무시)
+- ✅ SOL1 버튼 상태 (SOL2~4 무시)
+- ✅ SEMIAUTO 버튼 RUN/STOP 상태
+- ✅ DMPTEST 버튼 RUN/STOP 상태
+- ✅ EVA FAN, CON FAN, COMPRESSOR 상태 (AIR)
+
+## 🧪 테스트 방법
+
+### 옵션 1: 테스트 모드 (추천)
+```bash
+python main.py --test
+```
+
+**동작 시나리오:**
+1. DESICCANT 탭 이동
+2. FAN1, FAN4 버튼 켜기 (속도 조절)
+3. `DSCT Refresh` 버튼 클릭
+4. **로딩 애니메이션** 확인 (주황색)
+5. **2.57초 후** 완료 표시 (초록색)
+6. **버튼 상태 복원** 확인:
+   - FAN1: ON, 속도 7
+   - FAN2: OFF, 속도 0 (비활성화)
+   - FAN3: ON, 속도 5
+   - FAN4: OFF, 속도 0 (비활성화)
+
+**콘솔 로그 확인:**
+```
+[RELOAD] ⏱️  DSCT 리로드 요청 전송: $CMD,DSCT,RELOAD (타임아웃: 15.0초)
+[QUEUE] 🛑 큐 처리 일시 중지 (RELOAD 응답 대기)
+[RELOAD] ✅ DSCT 데이터 수집 시작 (응답까지: 0.10초)
+[RELOAD] 📥 DSCT 데이터 수집: DSCT,FAN1,ON
+[RELOAD] 📥 DSCT 데이터 수집: DSCT,FSPD1,7
+...
+[RELOAD] ✅ DSCT 데이터 수집 완료: 20개 항목 (총 소요: 2.57초)
+[RELOAD] DSCT FAN1 버튼 상태 업데이트: ON
+[RELOAD] DSCT FAN1 속도 복원: 7
+[RELOAD] DSCT FAN2 버튼 상태 업데이트: OFF
+[RELOAD] DSCT FAN2 OFF → 속도 버튼 초기화
+[QUEUE] ▶️  큐 처리 재개
+```
+
+### 옵션 2: 실제 하드웨어 연결
+```bash
+python main.py
+```
+
+**확인 포인트:**
+- [ ] 시리얼 연결 후 DESICCANT/AIRCON 탭 이동
+- [ ] 일부 버튼 상태 변경 (FAN, PUMP 등)
+- [ ] `Refresh` 버튼 클릭 → 로딩 표시
+- [ ] 하드웨어 응답 수신 → 완료 표시
+- [ ] 모든 버튼 상태가 하드웨어와 동일하게 복원
+- [ ] 타임아웃 테스트 (장비 연결 해제 후 버튼 클릭)
+- [ ] 15초 후 빨간색 `Timeout!` 표시
+- [ ] 2초 후 자동 정상 복귀
+
+### 옵션 3: 하드웨어 이슈 검증
+**발견된 하드웨어 문제:**
+- FAN2, FAN3가 실제로는 OFF인데 하드웨어가 ON으로 보고
+- EEPROM 상태와 실제 출력 상태 불일치
+
+**소프트웨어는 정상 동작:**
+- 하드웨어가 보낸 데이터를 정확하게 파싱
+- UI에 하드웨어 값 그대로 반영
+- 펌웨어 수정 필요
+
+## 📁 변경된 파일 목록
+
+### 수정된 파일
+1. **`ui/main_window.py`** (487-506, 589-608 라인)
+   - AIRCON 탭 AIR Refresh 버튼 추가
+   - DESICCANT 탭 DSCT Refresh 버튼 추가
+   - 4가지 버튼 상태 스타일 정의
+
+2. **`ui/setup_buttons.py`** (133-156 라인)
+   - RELOAD 버튼 이벤트 연결 함수 추가
+   - ButtonManager에 버튼 참조 전달
+
+3. **`managers/button_manager.py`** (13-24, 37-40, 306-927 라인, 약 600라인 추가)
+   - RELOAD 상태 관리 변수 추가
+   - 핸들러 메서드 구현 (handle_dsct_reload, handle_air_reload)
+   - 응답 파싱 로직 (parse_reload_response)
+   - 상태 적용 메서드 (_apply_dsct_reload_state, _apply_air_reload_state)
+   - 버튼 업데이트 메서드 (FAN, PUMP, SOL, SEMIAUTO, DMPTEST)
+   - 타임아웃 처리 시스템
+   - 테스트 모드 더미 응답 구현
+   - 4단계 버튼 시각적 피드백
+
+4. **`managers/command_queue_manager.py`** (56, 117, 223-231 라인)
+   - is_paused 플래그 추가
+   - pause_queue() 메서드 구현
+   - resume_queue() 메서드 구현
+   - 큐 처리 로직에 일시 중지 조건 추가
+
+5. **`CHANGELOG.md`**
+   - v3.8 릴리스 노트 추가
+
+## 🔗 MESSAGE.md 명세 충족
+
+### 요구사항 검증
+- ✅ `$CMD,DSCT,RELOAD` 프로토콜 완전 구현
+- ✅ `$CMD,AIR,RELOAD` 프로토콜 완전 구현
+- ✅ EEPROM 저장 상태 복원
+- ✅ 15초 타임아웃 처리
+- ✅ 시각적 피드백 제공
+- ✅ 큐 충돌 방지
+
+### 프로토콜 준수
+```
+# DSCT RELOAD 요청
+$CMD,DSCT,RELOAD<CR><LF>
+
+# DSCT RELOAD 응답
+EEPROM_ACK,RELOAD,START<CR><LF>
+DSCT,FAN1,ON<CR><LF>
+DSCT,FAN1,SPD,1<CR><LF>
+...
+EEPROM_ACK,RELOAD,END<CR><LF>
+DSCT_ACK,RELOAD,COMPLETE<CR><LF>
+
+# AIR RELOAD 요청
+$CMD,AIR,RELOAD<CR><LF>
+
+# AIR RELOAD 응답
+EEPROM_ACK,RELOAD,START<CR><LF>
+AIR,EVA_FAN,ON<CR><LF>
+AIR,EVA_FAN,SPD,5<CR><LF>
+...
+EEPROM_ACK,RELOAD,END<CR><LF>
+AIRCON_ACK,RELOAD,COMPLETE<CR><LF>
+```
+
+## 🎉 예상 결과
+
+### 사용자 관점
+- **빠른 동기화**: 0.3~2초 내 모든 상태 복원
+- **명확한 피드백**: 로딩 → 완료 시각적 표시
+- **자동 복구**: 에러 발생 시 자동 정상화
+- **신뢰성**: 하드웨어 상태 100% 정확 반영
+
+### 개발자 관점
+- **모듈화**: RELOAD 로직이 독립적으로 분리
+- **확장성**: 새로운 장비 추가 시 파싱 규칙만 추가
+- **테스트 용이성**: 테스트 모드로 하드웨어 없이 검증
+- **디버깅**: 상세한 로그로 문제 추적 간편
+
+## 📈 기술적 성과
+
+### 아키텍처 개선
+- **상태 머신 패턴**: 정상 → 로딩 → 완료/에러 명확한 전이
+- **타이머 기반 타임아웃**: QTimer.singleShot으로 안전한 처리
+- **큐 일시 중지**: RELOAD 응답 충돌 완전 방지
+
+### 코드 품질
+- **가독성**: 메서드 이름과 주석으로 의도 명확화
+- **재사용성**: _update_* 메서드 패턴 일관성
+- **유지보수성**: 파싱 규칙이 명확하게 분리
+
+### 신뢰성
+- **타임아웃 처리**: 무응답 상황에서도 시스템 정상 작동
+- **큐 복구**: 에러 후에도 큐 자동 재개
+- **상태 복구**: 하드웨어 값 그대로 UI 반영
+
+## 🔮 향후 확장 가능성
+
+1. **진행률 표시**: 프로그레스 바로 데이터 수신 진행도 표시
+2. **자동 RELOAD**: 시리얼 연결 시 자동으로 상태 동기화
+3. **차이 감지**: UI와 하드웨어 상태 차이를 하이라이트
+4. **로그 파일**: RELOAD 이력을 CSV로 저장
+
+### 결론
+
+v3.8은 장비 상태 동기화를 통해 사용자 편의성을 크게 향상시킨 업데이트입니다:
+
+- **원클릭 동기화**: Refresh 버튼으로 모든 상태 즉시 복원
+- **4단계 피드백**: 정상 → 로딩 → 완료 → 에러 시각적 표시
+- **안전한 처리**: 큐 일시 중지로 충돌 방지, 타임아웃 자동 복구
+- **완전한 복원**: FAN, PUMP, SOL, SEMIAUTO, DMPTEST 모든 버튼 상태 동기화
+- **양방향 호환**: 신형/구형 프로토콜 동시 지원
+
+이제 프로그램 재시작이나 연결 재개 시 사용자가 수동으로 상태를 확인할 필요 없이, Refresh 버튼 한 번으로 모든 장비 상태를 UI에 정확하게 반영할 수 있습니다. 하드웨어 EEPROM에 저장된 마지막 상태가 즉시 복원되어 안전하고 편리한 장비 제어가 가능합니다.

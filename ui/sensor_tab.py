@@ -85,38 +85,12 @@ class SensorTab(QWidget):
         """)
         self.csv_save_button.clicked.connect(self.on_csv_save_clicked)
         control_layout.addWidget(self.csv_save_button)
-        
-        # 새로고침 버튼
-        #self.refresh_button = QPushButton("명령 전송")
-        #self.refresh_button.setFixedSize(100, 35)
-        #self.refresh_button.setStyleSheet("""
-        #    QPushButton {
-        #        font-size: 12px;
-        #        font-weight: bold;
-        #        background-color: #4CAF50;
-        #        color: white;
-        #        border: none;
-        #        border-radius: 4px;
-        #    }
-        #    QPushButton:hover {
-        #        background-color: #45a049;
-        #    }
-        #    QPushButton:pressed {
-        #        background-color: #3d8b40;
-        #    }
-        #""")
-        #self.refresh_button.clicked.connect(self.on_refresh_clicked)
-        #control_layout.addWidget(self.refresh_button)
+    
         
         # USB 상태 레이블
         self.usb_status_label = QLabel("USB: 연결 안됨")
         self.usb_status_label.setStyleSheet("QLabel { font-size: 12px; color: #666; }")
         control_layout.addWidget(self.usb_status_label)
-        
-        # 자동 새로고침 상태 레이블
-        #self.auto_refresh_label = QLabel("자동 새로고침: OFF")
-        #self.auto_refresh_label.setStyleSheet("QLabel { font-size: 12px; color: #666; }")
-        #control_layout.addWidget(self.auto_refresh_label)
         
         main_layout.addLayout(control_layout)
         
@@ -357,10 +331,6 @@ class SensorTab(QWidget):
             self.update_status_indicator("error")
         else:
             self.update_status_indicator("active")
-        
-        # 새로고침 버튼 복원
-        #self.refresh_button.setText("명령 전송")
-        #self.refresh_button.setEnabled(True)
         
     def set_auto_refresh_status(self, is_active):
         """자동 새로고침 상태 표시 (UI에 표시하지 않음)"""

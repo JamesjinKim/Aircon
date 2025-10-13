@@ -34,7 +34,7 @@ $CMD,AIR,TH<CR><LF>
 
 ## 에어컨 부분
 
-$CMD,AIR,RELOAD<CR><LF>
+$CMD,AIR,RELOAD<CR><LF>  => 명령 전송
 
 EEPROM_ACK,RELOAD,START<CR><LF>
 AIR,FAN,ON<CR><LF>
@@ -57,7 +57,7 @@ AIRCON_ACK,RELOAD,COMPLETE<CR><LF>
 "AIR,CON_SPD,3",      # CONDENSER FAN 속도: 3
 
 ## 데시칸트 부분
-$CMD,DSCT,RELOAD<CR><LF> 명령 전송시 아래와 같은 저장된 현재 설정 값들이 표시 됩니다/.
+$CMD,DSCT,RELOAD<CR><LF> => 명령 전송시 아래와 같은 저장된 현재 설정 값들이 표시 됩니다/.
 DSCT,FAN4,ON<CR><LF>
 DSCT,DMP1,OPEN<CR><LF>
 DSCT,DMP2,OPEN<CR><LF>

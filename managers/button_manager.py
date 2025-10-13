@@ -1,4 +1,5 @@
 from ui.constants import CMD_PREFIX, TERMINATOR, BUTTON_ON_STYLE, BUTTON_OFF_STYLE
+import time
 
 class ButtonManager:
     def __init__(self, serial_manager, SendData_textEdit, ReceiveData_textEdit, test_mode=False):
@@ -12,13 +13,15 @@ class ButtonManager:
         # RELOAD 기능 관련 변수
         self.dsct_reload_in_progress = False
         self.dsct_reload_data = []
+        self.dsct_reload_start_time = None  # DSCT Reload 시작 시간
         self.air_reload_in_progress = False
         self.air_reload_data = []
+        self.air_reload_start_time = None   # AIR Reload 시작 시간
         self.dsct_reload_button = None  # DSCT Reload 버튼 참조
         self.air_reload_button = None   # AIR Reload 버튼 참조
         self.dsct_reload_timer = None   # DSCT Reload 타임아웃 타이머
         self.air_reload_timer = None    # AIR Reload 타임아웃 타이머
-        self.reload_timeout = 5000      # 타임아웃 시간 (ms) - 5초
+        self.reload_timeout = 15000     # 타임아웃 시간 (ms) - 15초
 
         # SOL 제어 관련 변수 (15초 딜레이 + Flicker)
         self.sol_in_progress = False    # SOL 동작 진행 중 플래그
@@ -318,11 +321,16 @@ class ButtonManager:
         # 리로드 진행 중 플래그 설정
         self.dsct_reload_in_progress = True
         self.dsct_reload_data = []  # 응답 데이터 저장용
+        self.dsct_reload_start_time = time.time()  # 시작 시간 기록
 
-        # 명령 전송
-        command = f"{CMD_PREFIX},DSCT,RELOAD{TERMINATOR}"
-        self.serial_manager.send_data(command)
-        print(f"[RELOAD] DSCT 리로드 요청 전송: {command.strip()}")
+        # 명령 전송 (Queue를 거치지 않고 직접 전송)
+        command = f"{CMD_PREFIX},DSCT,RELOAD"
+        self.serial_manager.send_serial_command(command)
+        print(f"[RELOAD] ⏱️  DSCT 리로드 요청 전송 (직접 전송): {command} (타임아웃: {self.reload_timeout/1000}초)")
+
+        # 명령 전송 후 큐 일시 중지 (다른 명령 차단)
+        if hasattr(self.serial_manager, 'command_queue') and self.serial_manager.command_queue:
+            self.serial_manager.command_queue.pause_queue()
 
         # 타임아웃 타이머 시작 (5초)
         self._start_reload_timeout_timer("dsct")
@@ -348,11 +356,16 @@ class ButtonManager:
         # 리로드 진행 중 플래그 설정
         self.air_reload_in_progress = True
         self.air_reload_data = []  # 응답 데이터 저장용
+        self.air_reload_start_time = time.time()  # 시작 시간 기록
 
-        # 명령 전송
-        command = f"{CMD_PREFIX},AIR,RELOAD{TERMINATOR}"
-        self.serial_manager.send_data(command)
-        print(f"[RELOAD] AIR 리로드 요청 전송: {command.strip()}")
+        # 명령 전송 (Queue를 거치지 않고 직접 전송)
+        command = f"{CMD_PREFIX},AIR,RELOAD"
+        self.serial_manager.send_serial_command(command)
+        print(f"[RELOAD] ⏱️  AIR 리로드 요청 전송 (직접 전송): {command} (타임아웃: {self.reload_timeout/1000}초)")
+
+        # 명령 전송 후 큐 일시 중지 (다른 명령 차단)
+        if hasattr(self.serial_manager, 'command_queue') and self.serial_manager.command_queue:
+            self.serial_manager.command_queue.pause_queue()
 
         # 타임아웃 타이머 시작 (5초)
         self._start_reload_timeout_timer("air")
@@ -370,39 +383,49 @@ class ButtonManager:
         if self.dsct_reload_in_progress:
             if "EEPROM_ACK,RELOAD,START" in data:
                 self.dsct_reload_data = []
-                print("[RELOAD] DSCT 데이터 수집 시작")
+                elapsed = time.time() - self.dsct_reload_start_time if self.dsct_reload_start_time else 0
+                print(f"[RELOAD] ✅ DSCT 데이터 수집 시작 (응답까지: {elapsed:.2f}초)")
             elif "DSCT_ACK,RELOAD,COMPLETE" in data:
-                print(f"[RELOAD] DSCT 데이터 수집 완료: {len(self.dsct_reload_data)}개 항목")
+                elapsed = time.time() - self.dsct_reload_start_time if self.dsct_reload_start_time else 0
+                print(f"[RELOAD] ✅ DSCT 데이터 수집 완료: {len(self.dsct_reload_data)}개 항목 (총 소요: {elapsed:.2f}초)")
                 # 타임아웃 타이머 취소
                 self._cancel_reload_timeout_timer("dsct")
                 self._apply_dsct_reload_state()
                 self.dsct_reload_in_progress = False
+                # 명령 큐 재개
+                if hasattr(self.serial_manager, 'command_queue') and self.serial_manager.command_queue:
+                    self.serial_manager.command_queue.resume_queue()
                 # 버튼 UI 상태 변경: 완료 → 정상
                 self._set_reload_button_state(self.dsct_reload_button, "complete")
                 self._schedule_reload_button_reset(self.dsct_reload_button)
             elif data.startswith("DSCT,"):
                 # 예: DSCT,FAN4,ON
                 self.dsct_reload_data.append(data.strip())
-                print(f"[RELOAD] DSCT 데이터 수집: {data.strip()}")
+                print(f"[RELOAD] 📥 DSCT 데이터 수집: {data.strip()}")
 
         # AIR 리로드 응답 처리
         if self.air_reload_in_progress:
             if "EEPROM_ACK,RELOAD,START" in data:
                 self.air_reload_data = []
-                print("[RELOAD] AIR 데이터 수집 시작")
+                elapsed = time.time() - self.air_reload_start_time if self.air_reload_start_time else 0
+                print(f"[RELOAD] ✅ AIR 데이터 수집 시작 (응답까지: {elapsed:.2f}초)")
             elif "AIRCON_ACK,RELOAD,COMPLETE" in data:
-                print(f"[RELOAD] AIR 데이터 수집 완료: {len(self.air_reload_data)}개 항목")
+                elapsed = time.time() - self.air_reload_start_time if self.air_reload_start_time else 0
+                print(f"[RELOAD] ✅ AIR 데이터 수집 완료: {len(self.air_reload_data)}개 항목 (총 소요: {elapsed:.2f}초)")
                 # 타임아웃 타이머 취소
                 self._cancel_reload_timeout_timer("air")
                 self._apply_air_reload_state()
                 self.air_reload_in_progress = False
+                # 명령 큐 재개
+                if hasattr(self.serial_manager, 'command_queue') and self.serial_manager.command_queue:
+                    self.serial_manager.command_queue.resume_queue()
                 # 버튼 UI 상태 변경: 완료 → 정상
                 self._set_reload_button_state(self.air_reload_button, "complete")
                 self._schedule_reload_button_reset(self.air_reload_button)
             elif data.startswith("AIR,"):
                 # 예: AIR,FAN,ON
                 self.air_reload_data.append(data.strip())
-                print(f"[RELOAD] AIR 데이터 수집: {data.strip()}")
+                print(f"[RELOAD] 📥 AIR 데이터 수집: {data.strip()}")
 
     def _apply_dsct_reload_state(self):
         """DSCT 리로드 데이터를 UI에 적용"""
@@ -415,41 +438,79 @@ class ButtonManager:
 
                 device, function, *values = parts
 
+                # FAN_ALL 항목 무시 (전체 설정 정보)
+                if function.startswith("FAN_ALL"):
+                    print(f"[RELOAD] FAN_ALL 항목 무시: {line}")
+                    continue
+
                 # FAN1~4 처리
                 if function in ["FAN1", "FAN2", "FAN3", "FAN4"]:
-                    state = values[0]  # ON/OFF
-                    fan_num = function[-1]  # 1, 2, 3, 4
-                    self._update_dsct_fan_button(fan_num, state)
+                    # FAN1,ON 또는 FAN1,SPD,값 형식
+                    if values[0] == "SPD" and len(values) > 1:
+                        # DSCT,FAN1,SPD,1 형식 → 하드웨어 속도 값 그대로 복원
+                        speed = int(values[1])
+                        fan_num = function[-1]
+                        self._update_dsct_fan_speed(fan_num, speed)
+                        print(f"[RELOAD] DSCT FAN{fan_num} 속도 복원: {speed}")
+                    else:
+                        # DSCT,FAN1,ON 형식
+                        state = values[0]  # ON/OFF
+                        fan_num = function[-1]
+                        self._update_dsct_fan_button(fan_num, state)
 
-                # FAN1~4 SPEED 처리
+                # FAN1~4 SPEED 처리 (FSPD1 형식 - 구형 프로토콜)
                 elif function in ["FSPD1", "FSPD2", "FSPD3", "FSPD4"]:
-                    speed = int(values[0])  # 속도 값
-                    fan_num = function[-1]  # 1, 2, 3, 4
+                    speed = int(values[0])
+                    fan_num = function[-1]
                     self._update_dsct_fan_speed(fan_num, speed)
 
                 # DMP1~4 처리
                 elif function.startswith("DMP"):
                     position = values[0]  # OPEN/CLOSE
-                    dmp_num = function[-1]  # 1, 2, 3, 4
+                    dmp_num = function[-1]
                     self._update_dsct_damper_button(dmp_num, position)
 
                 # PUMP1~2 처리
-                elif function.startswith("PUMP") and not function.startswith("PSPD"):
-                    state = values[0]  # ON/OFF
-                    pump_num = function[-1]  # 1, 2
-                    self._update_pump_button(pump_num, state)
+                elif function.startswith("PUMP"):
+                    # PUMP1,ON 또는 PUMP1,SPD,값 형식
+                    if values[0] == "SPD" and len(values) > 1:
+                        # DSCT,PUMP1,SPD,6 형식 → 무시 (PUMP는 ON/OFF만 존재)
+                        pump_num = function[-1]
+                        print(f"[RELOAD] PUMP{pump_num},SPD 항목 무시 (ON/OFF만 사용)")
+                        continue
+                    else:
+                        # DSCT,PUMP1,ON 형식
+                        state = values[0]  # ON/OFF
+                        pump_num = function[-1]
+                        self._update_pump_button(pump_num, state)
 
-                # PUMP1~2 SPEED 처리
+                # PUMP SPEED 처리 (PSPD1 형식 - 구형 프로토콜)
+                # 주의: PUMP는 ON/OFF만 존재하므로 속도 값은 무시함
                 elif function in ["PSPD1", "PSPD2"]:
-                    speed = int(values[0])  # 속도 값
-                    pump_num = function[-1]  # 1, 2
-                    self._update_pump_speed(pump_num, speed)
+                    pump_num = function[-1]
+                    print(f"[RELOAD] PUMP{pump_num},PSPD 항목 무시 (ON/OFF만 사용, 구형 프로토콜)")
+                    # speed = int(values[0])
+                    # self._update_pump_speed(pump_num, speed)
+                    continue
 
-                # SOL1~4 처리
+                # SOL 처리 (SOL1만 사용, SOL2~4는 무시)
                 elif function.startswith("SOL"):
-                    state = values[0]  # ON/OFF
-                    sol_num = function[-1]  # 1, 2, 3, 4
-                    self._update_sol_button(sol_num, state)
+                    sol_num = function[-1]
+                    if sol_num == "1":
+                        state = values[0]  # ON/OFF
+                        self._update_sol_button(sol_num, state)
+                    else:
+                        print(f"[RELOAD] SOL{sol_num} 항목 무시 (SOL1만 사용)")
+
+                # SEMIAUTO 처리 (DESICCANT SEMI AUTO 버튼)
+                elif function == "SEMIAUTO":
+                    state = values[0]  # RUN/STOP
+                    self._update_semiauto_button(state)
+
+                # DMPTEST 처리 (DAMP TEST 버튼)
+                elif function == "DMPTEST":
+                    state = values[0]  # RUN/STOP
+                    self._update_dmptest_button(state)
 
             except Exception as e:
                 print(f"[RELOAD] DSCT 데이터 파싱 오류: {line} - {e}")
@@ -543,9 +604,19 @@ class ButtonManager:
             group = self.button_groups[group_name]
             button = list(group['buttons'].keys())[0]
             is_on = (state == "ON")
+
+            # 이전 상태 저장
+            was_on = group.get('active', False)
+
+            # 버튼 UI 업데이트
             self._set_button_state(button, is_on)
             group['active'] = is_on
             print(f"[RELOAD] DSCT FAN{fan_num} 버튼 상태 업데이트: {state}")
+
+            # OFF로 변경될 때 속도 버튼 초기화
+            if was_on and not is_on:
+                self._handle_fan_off_callback(group_name)
+                print(f"[RELOAD] DSCT FAN{fan_num} OFF → 속도 버튼 초기화")
 
     def _update_dsct_damper_button(self, dmp_num, position):
         """DSCT DAMPER 버튼 상태 업데이트 (TODO: 구현 필요)"""
@@ -559,9 +630,19 @@ class ButtonManager:
             group = self.button_groups[group_name]
             button = list(group['buttons'].keys())[0]
             is_on = (state == "ON")
+
+            # 이전 상태 저장
+            was_on = group.get('active', False)
+
+            # 버튼 UI 업데이트
             self._set_button_state(button, is_on)
             group['active'] = is_on
             print(f"[RELOAD] PUMP{pump_num} 버튼 상태 업데이트: {state}")
+
+            # OFF로 변경될 때 속도 버튼 초기화 (PUMP는 속도 없지만 콜백 일관성 유지)
+            if was_on and not is_on:
+                self._handle_fan_off_callback(group_name)
+                print(f"[RELOAD] PUMP{pump_num} OFF → 상태 초기화")
 
     def _update_sol_button(self, sol_num, state):
         """SOL 버튼 상태 업데이트"""
@@ -573,6 +654,40 @@ class ButtonManager:
             self._set_button_state(button, is_on)
             group['active'] = is_on
             print(f"[RELOAD] SOL{sol_num} 버튼 상태 업데이트: {state}")
+
+    def _update_semiauto_button(self, state):
+        """DESICCANT SEMI AUTO 버튼 상태 업데이트"""
+        if hasattr(self.main_window, 'semi_auto_run_button'):
+            button = self.main_window.semi_auto_run_button
+            is_running = (state == "RUN")
+
+            if is_running:
+                button.setText("STOP")
+                button.setStyleSheet("background-color: rgb(255, 0, 0); color: white; font-size: 14px; font-weight: bold;")
+            else:
+                button.setText("RUN")
+                button.setStyleSheet("font-size: 14px; font-weight: bold;")
+
+            print(f"[RELOAD] DSCT SEMIAUTO 버튼 상태 업데이트: {state}")
+        else:
+            print(f"[RELOAD] DSCT SEMIAUTO 상태: {state} (버튼 없음)")
+
+    def _update_dmptest_button(self, state):
+        """DAMP TEST 버튼 상태 업데이트"""
+        if hasattr(self.main_window, 'damp_test_button'):
+            button = self.main_window.damp_test_button
+            is_running = (state == "RUN")
+
+            if is_running:
+                button.setText("STOP")
+                button.setStyleSheet("background-color: rgb(255, 0, 0); color: white; font-size: 14px; font-weight: bold;")
+            else:
+                button.setText("RUN")
+                button.setStyleSheet("font-size: 14px; font-weight: bold;")
+
+            print(f"[RELOAD] DSCT DMPTEST 버튼 상태 업데이트: {state}")
+        else:
+            print(f"[RELOAD] DSCT DMPTEST 상태: {state} (버튼 없음)")
 
     def _update_air_fan_button(self, group_name, state):
         """AIR FAN 버튼 상태 업데이트 (EVA FAN, CONDENSER FAN)"""
@@ -807,10 +922,9 @@ class ButtonManager:
             "DSCT,PSPD1,6",      # PUMP1 속도: 6
             "DSCT,PUMP2,OFF",
             "DSCT,PSPD2,0",      # PUMP2 속도: 0 (OFF 상태)
-            "DSCT,SOL1,OFF",
-            "DSCT,SOL2,OFF",
-            "DSCT,SOL3,OFF",
-            "DSCT,SOL4,OFF",
+            "DSCT,SOL1,OFF",     # SOL1만 사용 (SOL2~4는 무시됨)
+            "DSCT,SEMIAUTO,STOP",  # DESICCANT SEMI AUTO: STOP
+            "DSCT,DMPTEST,STOP",   # DAMP TEST: STOP
         ]
 
         delay = 200
@@ -912,6 +1026,9 @@ class ButtonManager:
             # 진행 중 플래그 해제
             self.dsct_reload_in_progress = False
             self.dsct_reload_data = []
+            # 명령 큐 재개 (타임아웃 발생 시에도 큐 정상화)
+            if hasattr(self.serial_manager, 'command_queue') and self.serial_manager.command_queue:
+                self.serial_manager.command_queue.resume_queue()
             # 버튼 상태: 에러 표시
             self._set_reload_button_state(self.dsct_reload_button, "error")
             # 2초 후 정상 상태로 복귀 (재시도 가능하도록)
@@ -922,6 +1039,9 @@ class ButtonManager:
             # 진행 중 플래그 해제
             self.air_reload_in_progress = False
             self.air_reload_data = []
+            # 명령 큐 재개 (타임아웃 발생 시에도 큐 정상화)
+            if hasattr(self.serial_manager, 'command_queue') and self.serial_manager.command_queue:
+                self.serial_manager.command_queue.resume_queue()
             # 버튼 상태: 에러 표시
             self._set_reload_button_state(self.air_reload_button, "error")
             # 2초 후 정상 상태로 복귀 (재시도 가능하도록)

@@ -53,6 +53,7 @@ class CommandQueueManager(QObject):
         
         # 상태 관리
         self.is_processing = False
+        self.is_paused = False  # Queue 일시 중지 플래그
         self.last_command_time = 0
         self.min_command_interval = 0.05  # 최소 명령 간격 (50ms)
         
@@ -113,9 +114,9 @@ class CommandQueueManager(QObject):
             
     def _process_queue(self):
         """큐 처리 (타이머에서 호출)"""
-        if self.is_processing:
+        if self.is_processing or self.is_paused:
             return
-            
+
         # 시리얼 연결 확인
         if not self.serial_manager or not self.serial_manager.is_connected():
             return
@@ -218,3 +219,13 @@ class CommandQueueManager(QObject):
         """명령 간격 설정 (초)"""
         self.min_command_interval = max(0.01, min(1.0, interval))
         print(f"[QUEUE] 명령 간격 설정: {self.min_command_interval}초")
+
+    def pause_queue(self):
+        """큐 처리 일시 중지 (RELOAD 등 응답 대기 중)"""
+        self.is_paused = True
+        print("[QUEUE] 🛑 큐 처리 일시 중지 (RELOAD 응답 대기)")
+
+    def resume_queue(self):
+        """큐 처리 재개"""
+        self.is_paused = False
+        print("[QUEUE] ▶️  큐 처리 재개")
