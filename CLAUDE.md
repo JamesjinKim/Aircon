@@ -115,6 +115,14 @@ Commands follow format: `$CMD,<DEVICE>,<FUNCTION>,<VALUE>\r`
 - Damper: `$CMD,AIR,ALTDMP,OPEN,1`, `$CMD,AIR,ALTDMP,CLOSE,1`
 - Sensor request: `$CMD,DSCT,TH`, `$CMD,AIR,TH`
 
+**AUTOMODE Commands (v3.9+):**
+- Auto mode: `$CMD,AIR,AUTOMODE,ON`, `$CMD,AIR,AUTOMODE,OFF`
+- Temperature: `$CMD,AIR,TEMPSET,XXXX,nnnn` (value×10, hysteresis×10)
+- CO2: `$CMD,AIR,CO2SET,XXXX,nnnn` (ppm)
+- PM2.5: `$CMD,AIR,PM25SET,XX,nn` (µg/m³)
+- SEMI time: `$CMD,AIR,SEMITIME,XXXX` (seconds)
+- Get settings: `$CMD,AIR,GETSET`
+
 **Sensor Response Format:**
 - Success: `[DSCT] ID01,TEMP: 28.3, HUMI: 67.7`
 - Timeout: `[DSCT] ID07,Sensor Check TIMEOUT!`
@@ -133,13 +141,13 @@ Sensor data automatically saved to `data/` directory:
 
 Application uses tabbed interface optimized for 800x480 touchscreen:
 
-1. **AIRCON** - Manual air conditioner control (EVA FAN, COMPRESSOR, dampers)
-2. **PUMP & SOL** - Pump and solenoid valve control
-3. **DESICCANT** - Dehumidifier fans and damper positions
-4. **DSCT T/H** - 12-sensor temperature/humidity monitoring with CSV export
-5. **AIRCON T/H** - 6-sensor temperature/humidity monitoring with CSV export
-6. **SEMI AUTO** - Semi-automatic modes (DESICCANT cycle, DAMP test)
-7. **AUTO** - Automatic temperature and airflow control
+1. **AUTO** - Automatic temperature/CO2/PM2.5 control with AUTOMODE system
+2. **SEMI AUTO** - Semi-automatic modes (DESICCANT cycle, DAMP test)
+3. **AIRCON** - Manual air conditioner control (EVA FAN, COMPRESSOR, dampers)
+4. **PUMP & SOL** - Pump and solenoid valve control
+5. **DESICCANT** - Dehumidifier fans and damper positions
+6. **DSCT T/H** - 12-sensor temperature/humidity monitoring with CSV export
+7. **AIRCON T/H** - 6-sensor temperature/humidity monitoring with CSV export
 
 ## Button Naming Convention
 
@@ -206,11 +214,12 @@ The codebase uses a structured naming convention documented in [BUTTON_NAMING_GU
 
 ## Recent Changes
 
-See [CHANGELOG.md](CHANGELOG.md) for full version history. Most recent version is v3.3 (2025-01-31) with:
-- CSV auto-split at 10MB per file
-- Daily file rotation
-- Sensor widget font size increases
-- Removed redundant status labels for cleaner UI
+See [CHANGELOG.md](CHANGELOG.md) for full version history. Most recent version is v3.9 (2025-11-26) with:
+- AUTO 탭 전면 개편 (AUTOMODE 시스템)
+- 2컬럼 컴팩트 레이아웃 (800×480 최적화)
+- 히스테리시스 제어 (온도/CO2/PM2.5)
+- 탭 순서 재배치 (AUTO 맨 앞)
+- 새로운 시리얼 명령어 (AUTOMODE, TEMPSET, CO2SET, PM25SET, SEMITIME, GETSET)
 
 
 # 중요: 응답은 반드시 한글로 할것!

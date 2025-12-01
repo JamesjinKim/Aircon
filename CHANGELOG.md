@@ -1,5 +1,86 @@
 # CHANGELOG
 
+## v3.9 (2025-11-26) 🎛️
+
+### ✨ **새로운 기능**
+
+#### **AUTO 탭 전면 개편 - AUTOMODE 시스템**
+- **2컬럼 컴팩트 레이아웃**: 800×480 터치스크린에 최적화
+- **왼쪽 컬럼 (AUTO MODE CONTROL)**:
+  - AUTO START/STOP 토글 버튼 (180×60)
+  - 모드 상태 인디케이터 (자동/환기/순환)
+  - PT02 센서 실시간 표시 (온도, CO2, PM2.5)
+- **오른쪽 컬럼 (설정값 입력)**:
+  - 온도 설정: 목표값 ± 히스테리시스 (°C)
+  - CO2 설정: 목표값 ± 히스테리시스 (ppm)
+  - PM2.5 설정: 목표값 ± 히스테리시스 (µg/m³)
+  - SEMI 동작시간 설정 (초)
+  - Refresh / SAVE 버튼
+
+#### **새로운 시리얼 명령어 (AUTOMODE)**
+- `$CMD,AIR,AUTOMODE,ON` / `OFF`: 자동 모드 시작/중지
+- `$CMD,AIR,TEMPSET,XXXX,nnnn`: 온도 설정 (값×10, 히스테리시스×10)
+- `$CMD,AIR,CO2SET,XXXX,nnnn`: CO2 설정 (ppm)
+- `$CMD,AIR,PM25SET,XX,nn`: PM2.5 설정 (µg/m³)
+- `$CMD,AIR,SEMITIME,XXXX`: SEMI 동작시간 (초)
+- `$CMD,AIR,GETSET`: 현재 설정값 조회
+
+#### **히스테리시스 제어 시스템**
+- **온도 제어**: 목표 온도 ± 허용 범위로 냉방 ON/OFF 결정
+- **CO2 제어**: 기준 농도 ± 허용 범위로 환기 ON/OFF 결정
+- **PM2.5 제어**: 기준 농도 ± 허용 범위로 순환 ON/OFF 결정
+- **잦은 ON/OFF 방지**: 히스테리시스 값으로 안정적 제어
+
+### 🔧 **UI 개선**
+
+#### **탭 순서 재배치**
+- **새로운 순서**: AUTO → SEMI AUTO → AIRCON → PUMP & SOL → DESICCANT → DSCT T/H → AIRCON T/H
+- AUTO 탭을 맨 앞으로 이동하여 접근성 향상
+
+#### **설정값 입력 버튼 최적화**
+- **버튼 크기 조정**: 겹침 방지를 위해 컴팩트하게 재설계
+  - -/+ 버튼: 36×36
+  - 값 표시: 60×36
+  - 히스테리시스 -/+: 32×36
+  - 히스테리시스 값: 48×36
+- **간격 최적화**: spacing 2px로 조밀하게 배치
+
+### 🛠️ **기술적 세부사항**
+
+#### **새로운 클래스: AutoModeManager**
+**파일**: `managers/auto_manager.py`
+
+**주요 메서드**:
+- `connect_auto_controls()`: UI 위젯 연결
+- `handle_auto_mode_toggle()`: AUTO START/STOP 토글
+- `handle_save()`: 모든 설정값 전송
+- `handle_refresh()`: 현재 설정값 조회
+- `parse_pt02_response()`: PT02 센서 응답 파싱
+- `parse_getset_response()`: GETSET 응답 파싱
+- `log_message()`: 전송 메시지 로깅
+
+#### **설정값 범위**
+| 항목 | 최소 | 최대 | 단계 | 기본값 |
+|------|------|------|------|--------|
+| 온도 | 15.0 | 35.0 | 0.5 | 25.0°C |
+| 온도 히스테리시스 | 0.5 | 5.0 | 0.5 | 2.0°C |
+| CO2 | 400 | 2000 | 50 | 1000ppm |
+| CO2 히스테리시스 | 50 | 500 | 50 | 100ppm |
+| PM2.5 | 10 | 100 | 5 | 35µg/m³ |
+| PM2.5 히스테리시스 | 5 | 50 | 5 | 5µg/m³ |
+| SEMI 시간 | 60 | 3600 | 30 | 300초 |
+
+### 📁 **수정된 파일**
+
+#### **UI 관련**
+- `ui/ui_components.py`: `create_auto_control_tab()` 함수 전면 재작성
+- `ui/main_window.py`: 탭 순서 변경, `connect_auto_controls()` 업데이트
+
+#### **비즈니스 로직**
+- `managers/auto_manager.py`: `AutoModeManager` 클래스 전면 재작성
+
+---
+
 ## v3.5 (2025-10-12) 🎯
 
 ### ✨ **새로운 기능**

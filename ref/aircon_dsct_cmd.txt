@@ -957,3 +957,155 @@ https://github.com/JamesjinKim/NewAircon.git 이 코드에서 serial data 처리
   - 센서 데이터: 안정적 수집 (LOW 우선순위, 5초 이상 간격)
   - 시스템 안정성: hang 현상 해결
   - 데이터 처리: DSCT 12개 + AIRCON 6개 센서 모두 안정적 처리
+
+
+
+
+1. 나의 CMD
+[BUTTON] HIGH 우선순위 명령 전송: $CMD,DSCT,FAN1,ON
+
+스피드 명령 전송: $CMD,DSCT,FAN1,SPD,1
+
+DSCT FAN1 새로운 스피드 버튼을 1로 설정됨
+[TX] 시리얼 명령 전송: $CMD,DSCT,FAN1,ON (with <CR><LF>)
+[READER_THREAD] 수신된 데이터: 'DSCT_ACK,FAN1,SPD,1500 mV'
+[READER_THREAD] 수신된 데이터: '[EEPROM] Saving DSCT command: FAN1,SPD,1'
+[READER_THREAD] 수신된 데이터: 'EEPROM save OK'
+[READER_THREAD] 수신된 데이터: 'DSCT_ACK,FAN1,ON,OK'
+[READER_THREAD] 수신된 데이터: '[EEPROM] Saving DSCT command: FAN1,ON,'
+[READER_THREAD] 수신된 데이터: 'EEPROM save OK'
+_toggle_button 호출됨: 그룹=dsct_fan4, 버튼=
+[BUTTON] HIGH 우선순위 명령 전송: $CMD,DSCT,FAN4,ON
+
+스피드 명령 전송: $CMD,DSCT,FAN4,SPD,1
+
+DSCT FAN4 새로운 스피드 버튼을 1로 설정됨
+[TX] 시리얼 명령 전송: $CMD,DSCT,FAN4,ON (with <CR><LF>)
+
+2.장비의 결과값
+[TX] 시리얼 명령 전송: $CMD,DSCT,RELOAD (with <CR><LF>)
+[RELOAD] ⏱️  DSCT 리로드 요청 전송 (직접 전송): $CMD,DSCT,RELOAD (타임아웃: 15.0초)
+[QUEUE] 🛑 큐 처리 일시 중지 (RELOAD 응답 대기)
+[RELOAD] DSCT 타임아웃 타이머 시작: 15000ms
+[READER_THREAD] 수신된 데이터: 'EEPROM_ACK,RELOAD,START'
+[RELOAD] ✅ DSCT 데이터 수집 시작 (응답까지: 0.07초)
+[READER_THREAD] 수신된 데이터: 'DSCT,FAN_ALL_ON'
+[RELOAD] 📥 DSCT 데이터 수집: DSCT,FAN_ALL_ON
+[READER_THREAD] 수신된 데이터: 'DSCT,FAN_ALL_SPD,1'
+[RELOAD] 📥 DSCT 데이터 수집: DSCT,FAN_ALL_SPD,1
+[READER_THREAD] 수신된 데이터: 'DSCT,FAN1,ON'
+[RELOAD] 📥 DSCT 데이터 수집: DSCT,FAN1,ON
+[READER_THREAD] 수신된 데이터: 'DSCT,FAN1,SPD,1'
+[RELOAD] 📥 DSCT 데이터 수집: DSCT,FAN1,SPD,1
+[READER_THREAD] 수신된 데이터: 'DSCT,FAN2,ON'
+[RELOAD] 📥 DSCT 데이터 수집: DSCT,FAN2,ON
+[READER_THREAD] 수신된 데이터: 'DSCT,FAN2,SPD,3'
+[RELOAD] 📥 DSCT 데이터 수집: DSCT,FAN2,SPD,3
+[READER_THREAD] 수신된 데이터: 'DSCT,FAN3,ON'
+[RELOAD] 📥 DSCT 데이터 수집: DSCT,FAN3,ON
+[READER_THREAD] 수신된 데이터: 'DSCT,FAN3,SPD,1'
+[RELOAD] 📥 DSCT 데이터 수집: DSCT,FAN3,SPD,1
+[READER_THREAD] 수신된 데이터: 'DSCT,FAN4,ON'
+[RELOAD] 📥 DSCT 데이터 수집: DSCT,FAN4,ON
+[READER_THREAD] 수신된 데이터: 'DSCT,FAN4,SPD,1'
+[RELOAD] 📥 DSCT 데이터 수집: DSCT,FAN4,SPD,1
+[READER_THREAD] 수신된 데이터: 'DSCT,DMP1,OPEN'
+[RELOAD] 📥 DSCT 데이터 수집: DSCT,DMP1,OPEN
+[READER_THREAD] 수신된 데이터: 'DSCT,DMP2,OPEN'
+[RELOAD] 📥 DSCT 데이터 수집: DSCT,DMP2,OPEN
+[READER_THREAD] 수신된 데이터: 'DSCT,DMP3,OPEN'
+[RELOAD] 📥 DSCT 데이터 수집: DSCT,DMP3,OPEN
+[READER_THREAD] 수신된 데이터: 'DSCT,DMP4,OPEN'
+[RELOAD] 📥 DSCT 데이터 수집: DSCT,DMP4,OPEN
+[READER_THREAD] 수신된 데이터: 'DSCT,PUMP1,ON'
+[RELOAD] 📥 DSCT 데이터 수집: DSCT,PUMP1,ON
+[READER_THREAD] 수신된 데이터: 'DSCT,PUMP2,ON'
+[RELOAD] 📥 DSCT 데이터 수집: DSCT,PUMP2,ON
+[READER_THREAD] 수신된 데이터: 'DSCT,SOL1,ON'
+[RELOAD] 📥 DSCT 데이터 수집: DSCT,SOL1,ON
+[READER_THREAD] 수신된 데이터: 'DSCT,SOL2,OFF'
+[RELOAD] 📥 DSCT 데이터 수집: DSCT,SOL2,OFF
+[READER_THREAD] 수신된 데이터: 'DSCT,SOL3,OFF'
+[RELOAD] 📥 DSCT 데이터 수집: DSCT,SOL3,OFF
+[READER_THREAD] 수신된 데이터: 'DSCT,SOL4,OFF'
+[RELOAD] 📥 DSCT 데이터 수집: DSCT,SOL4,OFF
+[READER_THREAD] 수신된 데이터: 'DSCT,SEMIAUTO,STOP'
+[RELOAD] 📥 DSCT 데이터 수집: DSCT,SEMIAUTO,STOP
+[READER_THREAD] 수신된 데이터: 'DSCT,DMPTEST,STOP'
+[RELOAD] 📥 DSCT 데이터 수집: DSCT,DMPTEST,STOP
+[READER_THREAD] 수신된 데이터: 'EEPROM_ACK,RELOAD,END'
+[READER_THREAD] 수신된 데이터: 'DSCT_ACK,RELOAD,COMPLETE'
+[RELOAD] ✅ DSCT 데이터 수집 완료: 22개 항목 (총 소요: 0.33초)
+
+[RELOAD] DSCT 타임아웃 타이머 취소
+[RELOAD] DSCT UI 상태 적용 시작
+[RELOAD] FAN_ALL 항목 무시: DSCT,FAN_ALL_SPD,1
+[RELOAD] DSCT FAN1 버튼 상태 업데이트: ON
+[RELOAD] DSCT FAN1 속도 업데이트: 1
+[RELOAD] DSCT FAN1 속도 복원: 1
+[RELOAD] DSCT FAN2 버튼 상태 업데이트: ON
+[RELOAD] DSCT FAN2 속도 업데이트: 3
+[RELOAD] DSCT FAN2 속도 복원: 3
+[RELOAD] DSCT FAN3 버튼 상태 업데이트: ON
+[RELOAD] DSCT FAN3 속도 업데이트: 1
+[RELOAD] DSCT FAN3 속도 복원: 1
+[RELOAD] DSCT FAN4 버튼 상태 업데이트: ON
+[RELOAD] DSCT FAN4 속도 업데이트: 1
+[RELOAD] DSCT FAN4 속도 복원: 1
+[RELOAD] DSCT DMP1 상태: OPEN (UI 업데이트 보류)
+[RELOAD] DSCT DMP2 상태: OPEN (UI 업데이트 보류)
+[RELOAD] DSCT DMP3 상태: OPEN (UI 업데이트 보류)
+[RELOAD] DSCT DMP4 상태: OPEN (UI 업데이트 보류)
+[RELOAD] PUMP1 버튼 상태 업데이트: ON
+[RELOAD] PUMP2 버튼 상태 업데이트: ON
+[RELOAD] SOL1 버튼 상태 업데이트: ON
+[RELOAD] DSCT DMPT 상태: STOP (UI 업데이트 보류)
+[RELOAD] DSCT UI 상태 적용 완료
+[QUEUE] ▶️  큐 처리 재개
+[RELOAD] 버튼 상태: 완료
+분석 결과를 보니 하드웨어 펌웨어에 문제가 있습니다!
+문제 분석:
+사용자의 실제 명령:
+FAN1: ON, SPD=1 ✅
+FAN4: ON, SPD=1 ✅
+하드웨어 RELOAD 응답:
+FAN1: ON, SPD=1 ✅ (정확함)
+FAN2: ON, SPD=3 ❌ (켜지지 않았는데 ON으로 보고)
+FAN3: ON, SPD=1 ❌ (켜지지 않았는데 ON으로 보고)
+FAN4: ON, SPD=1 ✅ (정확함)
+결론:
+소프트웨어는 정상 동작하고 있습니다! 로그를 보면:
+[RELOAD] DSCT FAN1 버튼 상태 업데이트: ON
+[RELOAD] DSCT FAN1 속도 복원: 1  ✅
+
+[RELOAD] DSCT FAN2 버튼 상태 업데이트: ON
+[RELOAD] DSCT FAN2 속도 복원: 3  ❌ (하드웨어가 잘못 보냄)
+
+[RELOAD] DSCT FAN3 버튼 상태 업데이트: ON
+[RELOAD] DSCT FAN3 속도 복원: 1  ❌ (하드웨어가 잘못 보냄)
+
+[RELOAD] DSCT FAN4 버튼 상태 업데이트: ON
+[RELOAD] DSCT FAN4 속도 복원: 1  ✅
+우리 소프트웨어는 하드웨어가 보낸 데이터를 정확하게 파싱하고 UI에 복원하고 있습니다.
+하드웨어 펌웨어 문제점:
+FAN_ALL_ON과 FAN_ALL_SPD,1을 먼저 보냄
+이것은 "모든 FAN이 ON" 상태를 의미하는 것 같습니다
+개별 FAN 상태와 충돌합니다
+FAN2, FAN3가 실제로는 OFF인데 ON으로 보고
+펌웨어가 EEPROM에 이전 상태를 저장하고 있거나
+초기화가 제대로 안 되었을 가능성
+FAN2의 속도가 3으로 보고됨
+사용자가 한 번도 FAN2를 켜지 않았는데 SPD=3
+해결 방안:
+옵션 1: 하드웨어 펌웨어 수정 (권장)
+하드웨어 개발자에게 문의:
+EEPROM 상태가 실제 하드웨어 상태와 동기화되지 않음
+RELOAD 시 실제 출력 상태를 읽어서 보내야 함
+옵션 2: 소프트웨어에서 FAN_ALL 우선 처리
+FAN_ALL_ON을 받으면 모든 FAN을 OFF로 초기화한 후, 개별 FAN 상태를 적용:
+# FAN_ALL 항목을 무시하지 않고 처리
+if function == "FAN_ALL_ON":
+    # 모든 FAN을 일단 OFF로 초기화
+    for i in range(1, 5):
+        self._update_dsct_fan_button(str(i), "OFF")
+    continue

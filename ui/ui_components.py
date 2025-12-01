@@ -309,243 +309,35 @@ def create_group_box(title, background_color="#f0f0f0", margins=(10, 25, 10, 10)
     return group, layout
 
 def create_auto_control_tab(parent):
-    """AUTO 제어 탭 생성 - 3등분 수평 그리드 레이아웃"""
+    """AUTO 제어 탭 생성 - 2컬럼 컴팩트 레이아웃 (AUTOMODE 명령어 지원)"""
     # AUTO 탭 전체 위젯
     auto_widget = QWidget()
-    
-    # 그리드 레이아웃 설정 - 3x1 그리드 (3개의 열, 1개의 행)
-    main_grid = QGridLayout(auto_widget)
-    main_grid.setContentsMargins(5, 5, 5, 5)
-    main_grid.setSpacing(10)  # 그리드 간 간격 증가
-    
-    # 1. 오른쪽(첫 번째) 그리드: 에어컨 풍량과 온도 조절
-    aircon_group, aircon_layout = create_group_box("AIRCON AUTO CONTROL")
-    aircon_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-    
-    # 풍량 제어 영역
-    fan_speed_layout = QVBoxLayout()
-    fan_speed_layout.setContentsMargins(10, 10, 10, 10)  # 패딩 추가
-    
-    # 풍량 제어 헤더
-    fan_speed_header = QHBoxLayout()
-    
-    # 텍스트 레이블 대신 이미지 레이블 생성
-    from ui.helpers import get_file_path
-    from PyQt5.QtGui import QPixmap
-    
-    # 이미지 경로 설정
-    fan_image_path = get_file_path("images/fan.png")
-    
-    # 이미지 레이블 생성
-    fan_image_label = QLabel()
-    fan_image_label.setFixedSize(20, 20)  # 레이블 크기 설정
-    pixmap = QPixmap(fan_image_path)
-    fan_image_label.setPixmap(pixmap.scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation))  # 이미지 크기 자동 조절    
-    
-    # 레이아웃에 이미지 레이블 추가
-    fan_speed_header.addWidget(fan_image_label)
-    
-    fan_speed_header.addStretch()
-    
-    # 풍량 값 표시 레이블
-    fan_speed_value = QLabel("0")
-    fan_speed_value.setObjectName("fan_speed_value")
-    fan_speed_value.setAlignment(Qt.AlignCenter)
-    fan_speed_value.setStyleSheet("""
-        font-size: 15px;
-        font-weight: bold;
-        min-width: 40px;  /* 너비 증가 */
-        padding: 5px;     /* 패딩 증가 */
-        background-color: #f0f0f0;
-        border-radius: 4px;
-        border: 1px solid #ddd;
-    """)
-    fan_speed_value.setFixedHeight(30) # 풍량값 txtbox  높이조절 
-    speed_label = QLabel("속도:")
-    speed_label.setStyleSheet("font-weight: bold;")
-    fan_speed_header.addWidget(speed_label)
-    fan_speed_header.addWidget(fan_speed_value)
-    
-    fan_speed_layout.addLayout(fan_speed_header)
-    fan_speed_layout.addSpacing(10)
-    
-    # 풍량 조절 슬라이더 생성
-    fan_speed_slider = QSlider(Qt.Horizontal)
-    fan_speed_slider.setMinimum(0)  # 0부터 시작 (꺼짐 상태 포함)
-    fan_speed_slider.setMaximum(10)
-    fan_speed_slider.setValue(0)  # 초기값 0으로 설정
-    fan_speed_slider.setTickPosition(QSlider.TicksBelow)
-    fan_speed_slider.setTickInterval(1)
-    fan_speed_slider.setObjectName("auto_fan_speed_slider")
-    fan_speed_slider.setStyleSheet("""
-        QSlider::groove:horizontal {
-            height: 8px;
-            background: #e0e0e0;
-            border-radius: 4px;
-        }
-        
-        QSlider::handle:horizontal {
-            background: #2979ff;
-            width: 16px;
-            margin: -6px 0;
-            border-radius: 8px;
-        }
-        
-        QSlider::add-page:horizontal {
-            background: #e0e0e0;
-            border-radius: 4px;
-        }
-        
-        QSlider::sub-page:horizontal {
-            background: #2979ff;
-            border-radius: 4px;
-        }
-    """)
-    
-    # 슬라이더 추가
-    fan_speed_layout.addWidget(fan_speed_slider)
-    
-    # 속도 표시기 생성 - 간격 조정
-    speed_indicator_layout = QHBoxLayout()
-    speed_indicator_layout.setSpacing(5)  # 인디케이터 간 간격 조정
-    
-    # 0부터 10까지 표시 (0: 꺼짐, 1-10: 속도)
-    for i in range(0, 11):
-        speed_label = QLabel(str(i))
-        speed_label.setAlignment(Qt.AlignCenter)
-        speed_label.setMinimumWidth(15)  # 최소 너비 설정
-        speed_label.setObjectName(f"speed_indicator_{i}")
-        # 0번 인디케이터에 초기 강조 스타일 적용
-        if i == 0:
-            speed_label.setStyleSheet("""
-                font-weight: bold;
-                color: #2979ff;
-                background-color: #e3f2fd;
-                border-radius: 4px;
-                padding: 3px;
-            """)
-        speed_indicator_layout.addWidget(speed_label)
-    
-    fan_speed_layout.addLayout(speed_indicator_layout)
-    fan_speed_layout.addSpacing(20)  # 구분선 추가
-    
-    # 온도 제어 영역도 동일하게 이미지 추가
-    temp_layout = QVBoxLayout()
-    temp_header = QHBoxLayout()
-    
-    # 온도 이미지 추가
-    temp_image_path = get_file_path("images/thormo-48.png")  # 온도 이미지 파일이 있다고 가정
-    temp_image_label = QLabel()
-    pixmap = QPixmap(temp_image_path)
-    temp_image_label.setPixmap(pixmap.scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-    #temp_image_label.setFixedSize(20, 20)  # 레이블 자체 크기도 맞춰주면 좋음
 
-    # 온도 이미지 파일이 없을 경우를 대비한 예외 처리
-    try:
-        temp_image_label.setPixmap(QPixmap(temp_image_path))
-    except:
-        # 이미지 파일이 없으면 텍스트로 대체
-        temp_text_label = QLabel("에어컨 온도 설정")
-        temp_text_label.setStyleSheet("font-size: 14px; font-weight: bold;")
-        temp_header.addWidget(temp_text_label)
-    else:
-        temp_image_label.setToolTip("에어컨 온도 설정")
-        temp_header.addWidget(temp_image_label)
-    
-    temp_header.addStretch()
-    
-    # 온도 값 표시 레이블
-    temp_value = QLabel("22°C")
-    temp_value.setObjectName("temp_value")
-    temp_value.setAlignment(Qt.AlignCenter)
-    temp_value.setStyleSheet("""
-        font-size: 15px;
-        font-weight: bold;
-        min-width: 60px;  /* 너비 증가 */
-        padding: 5px;     /* 패딩 증가 */
-        background-color: #f0f0f0;
-        border-radius: 4px;
-        border: 1px solid #ddd;
-    """)
-    temp_value.setFixedHeight(30) # 높이 조절
-    temp_label = QLabel("온도:")
-    temp_label.setStyleSheet("font-weight: bold;")
-    temp_header.addWidget(temp_label)
-    temp_header.addWidget(temp_value)
-    
-    temp_layout.addLayout(temp_header)
-    temp_layout.addSpacing(10)
-    
-    # 온도 조절 슬라이더
-    temp_slider = QSlider(Qt.Horizontal)
-    temp_slider.setObjectName("temp_slider")
-    temp_slider.setMinimum(16)
-    temp_slider.setMaximum(30)
-    temp_slider.setValue(22)
-    temp_slider.setTickPosition(QSlider.TicksBelow)
-    temp_slider.setTickInterval(1)
-    temp_slider.setStyleSheet("""
-        QSlider::groove:horizontal {
-            height: 8px;
-            background: #e0e0e0;
-            border-radius: 4px;
-        }
-        
-        QSlider::handle:horizontal {
-            background: #ff5722;
-            width: 16px;
-            margin: -6px 0;
-            border-radius: 8px;
-        }
-        
-        QSlider::add-page:horizontal {
-            background: #e0e0e0;
-            border-radius: 4px;
-        }
-        
-        QSlider::sub-page:horizontal {
-            background: #ff5722;
-            border-radius: 4px;
-        }
-    """)
-    
-    temp_layout.addWidget(temp_slider)
-    
-    # 온도 표시기
-    temp_indicator_layout = QHBoxLayout()
-    temp_indicator_layout.setSpacing(10)  # 간격 조정
-    
-    # 온도는 많으므로 몇 개만 표시 (16, 19, 22, 25, 28, 30)
-    temp_values = [16, 19, 22, 25, 27, 30]
-    for temp in temp_values:
-        temp_label = QLabel(str(temp))
-        temp_label.setObjectName(f"temp_indicator_{temp}")
-        temp_label.setAlignment(Qt.AlignCenter)
-        temp_label.setMinimumWidth(20)  # 최소 너비 설정
-        # 22도에 초기 강조 스타일 적용
-        if temp == 22:
-            temp_label.setStyleSheet("""
-                font-weight: bold;
-                color: #f44336;
-                background-color: #ffebee;
-                border-radius: 4px;
-                padding: 3px;
-            """)
-        temp_indicator_layout.addWidget(temp_label)
-    
-    temp_layout.addLayout(temp_indicator_layout)
-    
-    # AUTO 모드 버튼 추가
-    auto_mode_button = QPushButton("AUTO 모드 시작")
+    # 그리드 레이아웃 설정 - 2x1 그리드 (2개의 열)
+    main_grid = QGridLayout(auto_widget)
+    main_grid.setContentsMargins(10, 10, 10, 10)
+    main_grid.setSpacing(15)
+
+    # ============================================
+    # 1. 왼쪽 컬럼: AUTO MODE CONTROL
+    # ============================================
+    left_group, left_layout = create_group_box("AUTO MODE CONTROL", margins=(15, 30, 15, 15))
+    left_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+    # --- AUTO START/STOP 버튼 ---
+    auto_button_layout = QHBoxLayout()
+    auto_button_layout.setContentsMargins(5, 10, 5, 10)
+
+    auto_mode_button = QPushButton("AUTO START")
+    auto_mode_button.setObjectName("auto_mode_button")
+    auto_mode_button.setFixedSize(180, 60)
     auto_mode_button.setStyleSheet("""
         QPushButton {
             background-color: #2979ff;
             color: white;
-            font-size: 16px;
+            font-size: 18px;
             font-weight: bold;
-            padding: 10px;
-            border-radius: 4px;
-            margin-top: 15px;
+            border-radius: 8px;
         }
         QPushButton:hover {
             background-color: #2962ff;
@@ -554,236 +346,356 @@ def create_auto_control_tab(parent):
             background-color: #1565c0;
         }
     """)
-    
-    # 에어컨 제어 레이아웃에 요소 추가
-    aircon_layout.addLayout(fan_speed_layout)
-    aircon_layout.addLayout(temp_layout)
-    aircon_layout.addWidget(auto_mode_button)
-    aircon_layout.addStretch()  # 남은 공간 채우기
-    
-    # 2. 중간 그리드: 환기 제어 (외기유입, 내기순환 버튼 추가)
-    middle_group, middle_layout = create_group_box("환기 제어")
-    middle_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-    
-    # 환기 제어 설명 텍스트
-    ventilation_description = QLabel("환기 모드를 선택하세요")
-    ventilation_description.setAlignment(Qt.AlignCenter)
-    ventilation_description.setStyleSheet("""
-        font-size: 14px;
-        font-weight: bold;
-        margin-bottom: 10px;
-        padding: 5px;
-    """)
-    middle_layout.addWidget(ventilation_description)
-    
-    # 이미지 로딩 경로 설정
-    outdoor_image_path = get_file_path("images/out-30.png")
-    indoor_image_path = get_file_path("images/in-50.png")
-    
-    # 버튼 스타일시트 정의
-    vent_button_style = """
-        QToolButton {
-            background-color: #f0f0f0;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            padding: 15px 10px;
-            text-align: center;
-            min-height: 80px;
-            min-width: 80px;
-            font-size: 14px;
-        }
-        QToolButton:hover {
-            background-color: #e0e0e0;
-        }
-        QToolButton:pressed {
-            background-color: #d0d0d0;
-        }
-        QToolButton:checked {
-            background-color: #bbdefb;
-            border: 2px solid #2979ff;
-        }
-    """
-    
-    # 그리드 레이아웃 설정
-    ventilation_grid = QGridLayout()
-    ventilation_grid.setSpacing(15)  # 그리드 간격
-    
-    # 외기유입 버튼 생성 (QToolButton 사용)
-    outdoor_button = QToolButton()
-    outdoor_button.setText("외기유입")
-    outdoor_button.setIcon(QIcon(outdoor_image_path))
-    outdoor_button.setIconSize(QSize(32, 32))  # 이미지 크기 키움
-    outdoor_button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)  # 아이콘 아래 텍스트 배치
-    outdoor_button.setObjectName("outdoor_button")
-    outdoor_button.setCheckable(True)
-    outdoor_button.setStyleSheet(vent_button_style)
-    
-    # 내기순환 버튼 생성
-    indoor_button = QToolButton()
-    indoor_button.setText("내기순환")
-    indoor_button.setIcon(QIcon(indoor_image_path))
-    indoor_button.setIconSize(QSize(32, 32))  # 이미지 크기 키움
-    indoor_button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)  # 아이콘 아래 텍스트 배치
-    indoor_button.setObjectName("indoor_button")
-    indoor_button.setCheckable(True)
-    indoor_button.setStyleSheet(vent_button_style)
-    
-    # 버튼과 설명을 담을 컨테이너 위젯 생성
-    outdoor_container = QWidget()
-    outdoor_layout = QVBoxLayout(outdoor_container)
-    outdoor_layout.setContentsMargins(5, 5, 5, 5)
-    outdoor_layout.setSpacing(2)
-    outdoor_layout.addWidget(outdoor_button, 1)  # 버튼에 더 많은 공간 할당
-    #outdoor_layout.addWidget(outdoor_desc, 0)   # 설명에 더 적은 공간 할당
-    
-    indoor_container = QWidget()
-    indoor_layout = QVBoxLayout(indoor_container)
-    indoor_layout.setContentsMargins(5, 5, 5, 5)
-    indoor_layout.setSpacing(2)
-    indoor_layout.addWidget(indoor_button, 1)
-    #indoor_layout.addWidget(indoor_desc, 0)
-    
-    # 그리드에 컨테이너 추가
-    ventilation_grid.addWidget(outdoor_container, 0, 0)
-    ventilation_grid.addWidget(indoor_container, 0, 1)
-    
-    # 버튼 그룹으로 묶어 하나만 선택되도록 설정
-    vent_button_group = QButtonGroup(auto_widget)
-    vent_button_group.addButton(outdoor_button)
-    vent_button_group.addButton(indoor_button)
-    vent_button_group.setExclusive(True)  # 한 번에 하나만 선택 가능
-    
-    # 버튼 토글 시 명령어 전송 함수
-    def toggle_outdoor_vent(checked):
-        if checked:
-            print("외기유입 모드 활성화")
+    auto_button_layout.addWidget(auto_mode_button)
+    auto_button_layout.addStretch()
 
-        else:
-            print("외기유입 모드 비활성화")
-    
-    def toggle_indoor_vent(checked):
-        if checked:
-            print("내기순환 모드 활성화")
-        else:
-            print("내기순환 모드 비활성화")
-    
-    # 버튼에 토글 이벤트 연결
-    outdoor_button.toggled.connect(toggle_outdoor_vent)
-    indoor_button.toggled.connect(toggle_indoor_vent)
-    
-    # 환기 모드 설명 텍스트
-    mode_description = QLabel("* 한 가지 모드만 작동시킬 수 있습니다.")
-    mode_description.setAlignment(Qt.AlignCenter)
-    mode_description.setStyleSheet("""
-        font-size: 12px;
-        color: #777;
-        margin-top: 10px;
-        font-style: italic;
+    # 상태 표시 레이블
+    status_label = QLabel("대기중")
+    status_label.setObjectName("auto_status_label")
+    status_label.setStyleSheet("""
+        font-size: 16px;
+        font-weight: bold;
+        color: #666;
+        padding: 8px 15px;
+        background-color: #e0e0e0;
+        border-radius: 5px;
     """)
-    
-    # 환기 제어 레이아웃에 추가
-    middle_layout.addLayout(ventilation_grid)
-    middle_layout.addWidget(mode_description)
-    middle_layout.addStretch()  # 남은 공간 채우기
-    
-    # 3. 맨 우측 그리드: 시스템 상태 정보
-    status_group, status_layout = create_group_box("시스템 상태 정보")
-    status_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-    
-    # 상태 테이블 스타일
-    status_style = """
-        QLabel {
-            padding: 8px;
-            font-size: 14px;
-            min-width: 80px;  /* 최소 너비 설정 */
+    auto_button_layout.addWidget(status_label)
+
+    left_layout.addLayout(auto_button_layout)
+    left_layout.addSpacing(15)
+
+    # --- 모드 동작 상태 표시 ---
+    mode_status_layout = QHBoxLayout()
+    mode_status_layout.setContentsMargins(5, 5, 5, 5)
+    mode_status_layout.setSpacing(15)
+
+    # 자동(온도) 상태
+    auto_temp_indicator = QLabel("자동")
+    auto_temp_indicator.setObjectName("auto_temp_indicator")
+    auto_temp_indicator.setStyleSheet("font-size: 14px; color: #888; padding: 5px 10px; background-color: #f5f5f5; border-radius: 3px;")
+    auto_temp_indicator.setFixedSize(70, 35)
+    auto_temp_indicator.setAlignment(Qt.AlignCenter)
+
+    # 환기(CO2) 상태
+    vent_indicator = QLabel("환기")
+    vent_indicator.setObjectName("vent_indicator")
+    vent_indicator.setStyleSheet("font-size: 14px; color: #888; padding: 5px 10px; background-color: #f5f5f5; border-radius: 3px;")
+    vent_indicator.setFixedSize(70, 35)
+    vent_indicator.setAlignment(Qt.AlignCenter)
+
+    # 순환(PM2.5) 상태
+    circulation_indicator = QLabel("순환")
+    circulation_indicator.setObjectName("circulation_indicator")
+    circulation_indicator.setStyleSheet("font-size: 14px; color: #888; padding: 5px 10px; background-color: #f5f5f5; border-radius: 3px;")
+    circulation_indicator.setFixedSize(70, 35)
+    circulation_indicator.setAlignment(Qt.AlignCenter)
+
+    mode_status_layout.addWidget(auto_temp_indicator)
+    mode_status_layout.addWidget(vent_indicator)
+    mode_status_layout.addWidget(circulation_indicator)
+    mode_status_layout.addStretch()
+
+    left_layout.addLayout(mode_status_layout)
+    left_layout.addSpacing(20)
+
+    # --- 구분선 ---
+    separator1 = QFrame()
+    separator1.setFrameShape(QFrame.HLine)
+    separator1.setStyleSheet("background-color: #bbb;")
+    separator1.setFixedHeight(2)
+    left_layout.addWidget(separator1)
+    left_layout.addSpacing(15)
+
+    # --- PT02 센서 데이터 표시 ---
+    sensor_title = QLabel("PT02 센서 (1분 주기)")
+    sensor_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #444;")
+    left_layout.addWidget(sensor_title)
+    left_layout.addSpacing(10)
+
+    sensor_data_layout = QHBoxLayout()
+    sensor_data_layout.setContentsMargins(5, 5, 5, 5)
+    sensor_data_layout.setSpacing(20)
+
+    # 온도 표시
+    temp_display = QLabel("--.-°C")
+    temp_display.setObjectName("pt02_temp_display")
+    temp_display.setStyleSheet("font-size: 20px; font-weight: bold; color: #ff5722; padding: 5px;")
+
+    # CO2 표시
+    co2_display = QLabel("---- ppm")
+    co2_display.setObjectName("pt02_co2_display")
+    co2_display.setStyleSheet("font-size: 20px; font-weight: bold; color: #2196F3; padding: 5px;")
+
+    # PM2.5 표시
+    pm25_display = QLabel("-- µg/m³")
+    pm25_display.setObjectName("pt02_pm25_display")
+    pm25_display.setStyleSheet("font-size: 20px; font-weight: bold; color: #9C27B0; padding: 5px;")
+
+    sensor_data_layout.addWidget(temp_display)
+    sensor_data_layout.addWidget(co2_display)
+    sensor_data_layout.addWidget(pm25_display)
+    sensor_data_layout.addStretch()
+
+    left_layout.addLayout(sensor_data_layout)
+    left_layout.addStretch()
+
+    # ============================================
+    # 2. 오른쪽 컬럼: 설정 & 버튼
+    # ============================================
+    right_group, right_layout = create_group_box("설정값 입력", margins=(8, 30, 8, 10))
+    right_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+    # 설정 입력 행 생성 헬퍼 함수
+    def create_setting_row(label_text, unit_text, default_val, default_hyst, obj_prefix):
+        """설정 입력 행 생성: 라벨 [-][값][+] ±[-][범위][+] 단위"""
+        row_layout = QHBoxLayout()
+        row_layout.setContentsMargins(0, 6, 0, 6)
+        row_layout.setSpacing(2)
+
+        # 라벨
+        label = QLabel(label_text)
+        label.setFixedWidth(50)
+        label.setStyleSheet("font-size: 13px; font-weight: bold;")
+        row_layout.addWidget(label)
+
+        # 값 감소 버튼
+        minus_btn = QPushButton("-")
+        minus_btn.setObjectName(f"{obj_prefix}_minus")
+        minus_btn.setFixedSize(36, 36)
+        minus_btn.setStyleSheet("font-size: 16px; font-weight: bold;")
+        row_layout.addWidget(minus_btn)
+
+        # 값 표시
+        value_btn = QPushButton(str(default_val))
+        value_btn.setObjectName(f"{obj_prefix}_value")
+        value_btn.setFixedSize(60, 36)
+        value_btn.setStyleSheet("font-size: 13px; font-weight: bold; background-color: #f5f5f5;")
+        row_layout.addWidget(value_btn)
+
+        # 값 증가 버튼
+        plus_btn = QPushButton("+")
+        plus_btn.setObjectName(f"{obj_prefix}_plus")
+        plus_btn.setFixedSize(36, 36)
+        plus_btn.setStyleSheet("font-size: 16px; font-weight: bold;")
+        row_layout.addWidget(plus_btn)
+
+        # ± 라벨
+        pm_label = QLabel("±")
+        pm_label.setFixedWidth(18)
+        pm_label.setAlignment(Qt.AlignCenter)
+        pm_label.setStyleSheet("font-size: 13px; font-weight: bold;")
+        row_layout.addWidget(pm_label)
+
+        # 히스테리시스 감소 버튼
+        hyst_minus_btn = QPushButton("-")
+        hyst_minus_btn.setObjectName(f"{obj_prefix}_hyst_minus")
+        hyst_minus_btn.setFixedSize(32, 36)
+        hyst_minus_btn.setStyleSheet("font-size: 14px; font-weight: bold;")
+        row_layout.addWidget(hyst_minus_btn)
+
+        # 히스테리시스 값 표시
+        hyst_value_btn = QPushButton(str(default_hyst))
+        hyst_value_btn.setObjectName(f"{obj_prefix}_hyst_value")
+        hyst_value_btn.setFixedSize(48, 36)
+        hyst_value_btn.setStyleSheet("font-size: 12px; font-weight: bold; background-color: #fff3e0;")
+        row_layout.addWidget(hyst_value_btn)
+
+        # 히스테리시스 증가 버튼
+        hyst_plus_btn = QPushButton("+")
+        hyst_plus_btn.setObjectName(f"{obj_prefix}_hyst_plus")
+        hyst_plus_btn.setFixedSize(32, 36)
+        hyst_plus_btn.setStyleSheet("font-size: 14px; font-weight: bold;")
+        row_layout.addWidget(hyst_plus_btn)
+
+        # 단위
+        unit_label = QLabel(unit_text)
+        unit_label.setFixedWidth(45)
+        unit_label.setStyleSheet("font-size: 11px; color: #555;")
+        row_layout.addWidget(unit_label)
+
+        return row_layout, {
+            'minus': minus_btn,
+            'value': value_btn,
+            'plus': plus_btn,
+            'hyst_minus': hyst_minus_btn,
+            'hyst_value': hyst_value_btn,
+            'hyst_plus': hyst_plus_btn
         }
-    """
-    
-    # 상태 그리드
-    status_grid = QGridLayout()
-    status_grid.setVerticalSpacing(12)  # 세로 간격 증가
-    status_grid.setHorizontalSpacing(15)
-    status_grid.setContentsMargins(10, 10, 10, 10)  # 여백 추가
-    
-    # 상태 레이블 추가
-    def add_status_row(row, title, value, value_color="#333"):
-        title_label = QLabel(title)
-        title_label.setStyleSheet(status_style)
-        title_label.setMinimumWidth(90)  # 제목 레이블 최소 너비
-        title_label.setFixedHeight(40)  # 높이 조절
-        
-        value_label = QLabel(value)
-        value_label.setObjectName(f"status_{row}")
-        value_label.setStyleSheet(f"{status_style} font-weight: bold; color: {value_color};")
-        value_label.setMinimumWidth(80)  # 값 레이블 최소 너비
-        value_label.setFixedHeight(40)  # 높이 조절
-        
-        status_grid.addWidget(title_label, row, 0)
-        status_grid.addWidget(value_label, row, 1)
-        return value_label
-    
-    # 상태 항목 추가
-    status_value = add_status_row(0, "현재 상태:", "대기 중", "#2962ff")
-    target_temp = add_status_row(1, "목표 온도:", "22°C")
-    current_temp = add_status_row(2, "현재 온도:", "25°C")
-    fan_speed_status = add_status_row(3, "풍량 설정:", "0단계")
-    humidity_status = add_status_row(4, "현재 습도:", "45%")
-    operation_time = add_status_row(5, "작동 시간:", "00:00:00")
-    
-    # 추가 정보 라벨
-    extra_info = QLabel("자동 제어 모드는 설정된 온도와 풍량에 따라 에어컨과 제습기를 자동으로 제어합니다.")
-    extra_info.setWordWrap(True)
-    extra_info.setStyleSheet("""
-        font-size: 13px;
-        color: #555;
-        padding: 7px;
-        margin-top: 10px;
-        background-color: #f0f0f0;
-        border-radius: 4px;
+
+    # 시간 설정 행 생성 헬퍼 함수 (히스테리시스 없음)
+    def create_time_setting_row(label_text, unit_text, default_val, obj_prefix):
+        """시간 설정 입력 행 생성: 라벨 [-][값][+] 단위"""
+        row_layout = QHBoxLayout()
+        row_layout.setContentsMargins(0, 6, 0, 6)
+        row_layout.setSpacing(2)
+
+        # 라벨
+        label = QLabel(label_text)
+        label.setFixedWidth(50)
+        label.setStyleSheet("font-size: 13px; font-weight: bold;")
+        row_layout.addWidget(label)
+
+        # 값 감소 버튼
+        minus_btn = QPushButton("-")
+        minus_btn.setObjectName(f"{obj_prefix}_minus")
+        minus_btn.setFixedSize(36, 36)
+        minus_btn.setStyleSheet("font-size: 16px; font-weight: bold;")
+        row_layout.addWidget(minus_btn)
+
+        # 값 표시
+        value_btn = QPushButton(str(default_val))
+        value_btn.setObjectName(f"{obj_prefix}_value")
+        value_btn.setFixedSize(60, 36)
+        value_btn.setStyleSheet("font-size: 13px; font-weight: bold; background-color: #f5f5f5;")
+        row_layout.addWidget(value_btn)
+
+        # 값 증가 버튼
+        plus_btn = QPushButton("+")
+        plus_btn.setObjectName(f"{obj_prefix}_plus")
+        plus_btn.setFixedSize(36, 36)
+        plus_btn.setStyleSheet("font-size: 16px; font-weight: bold;")
+        row_layout.addWidget(plus_btn)
+
+        # 단위
+        unit_label = QLabel(unit_text)
+        unit_label.setStyleSheet("font-size: 11px; color: #555;")
+        row_layout.addWidget(unit_label)
+
+        row_layout.addStretch()
+
+        return row_layout, {
+            'minus': minus_btn,
+            'value': value_btn,
+            'plus': plus_btn
+        }
+
+    # 온도 설정 (목표온도 * 10, 히스테리시스 * 10)
+    temp_row, temp_buttons = create_setting_row("온도", "°C", "25.0", "2.0", "temp_set")
+    right_layout.addLayout(temp_row)
+
+    # CO2 설정 (ppm)
+    co2_row, co2_buttons = create_setting_row("CO2", "ppm", "1000", "100", "co2_set")
+    right_layout.addLayout(co2_row)
+
+    # PM2.5 설정 (µg/m³)
+    pm25_row, pm25_buttons = create_setting_row("PM2.5", "µg/m³", "35", "5", "pm25_set")
+    right_layout.addLayout(pm25_row)
+
+    # SEMI 동작시간 설정 (초)
+    time_row, time_buttons = create_time_setting_row("시간", "초", "300", "semi_time")
+    right_layout.addLayout(time_row)
+
+    right_layout.addSpacing(10)
+
+    # --- 구분선 ---
+    separator2 = QFrame()
+    separator2.setFrameShape(QFrame.HLine)
+    separator2.setStyleSheet("background-color: #bbb;")
+    separator2.setFixedHeight(2)
+    right_layout.addWidget(separator2)
+    right_layout.addSpacing(10)
+
+    # --- Refresh / SAVE 버튼 ---
+    button_row = QHBoxLayout()
+    button_row.setContentsMargins(0, 5, 0, 5)
+    button_row.setSpacing(10)
+
+    refresh_button = QPushButton("Refresh")
+    refresh_button.setObjectName("auto_refresh_button")
+    refresh_button.setFixedSize(100, 40)
+    refresh_button.setStyleSheet("""
+        QPushButton {
+            background-color: #4CAF50;
+            color: white;
+            font-size: 13px;
+            font-weight: bold;
+            border-radius: 5px;
+        }
+        QPushButton:hover {
+            background-color: #45a049;
+        }
     """)
-    
-    status_layout.addLayout(status_grid)
-    status_layout.addWidget(extra_info)
-    status_layout.addStretch()  # 남은 공간 채우기
-    
-    # 그리드에 위젯 배치 (3x1 그리드)
-    main_grid.addWidget(aircon_group, 0, 0)     # 첫 번째 열
-    main_grid.addWidget(middle_group, 0, 1)     # 두 번째 열
-    main_grid.addWidget(status_group, 0, 2)     # 세 번째 열
-    
-    # 각 컬럼의 너비 비율 설정 (균등하게)
-    main_grid.setColumnStretch(0, 1)  # 첫 번째 열
-    main_grid.setColumnStretch(1, 1)  # 두 번째 열
-    main_grid.setColumnStretch(2, 1)  # 세 번째 열
-    
+
+    save_button = QPushButton("SAVE")
+    save_button.setObjectName("auto_save_button")
+    save_button.setFixedSize(100, 40)
+    save_button.setStyleSheet("""
+        QPushButton {
+            background-color: #ff9800;
+            color: white;
+            font-size: 13px;
+            font-weight: bold;
+            border-radius: 5px;
+        }
+        QPushButton:hover {
+            background-color: #f57c00;
+        }
+    """)
+
+    button_row.addWidget(refresh_button)
+    button_row.addWidget(save_button)
+    button_row.addStretch()
+
+    right_layout.addLayout(button_row)
+    right_layout.addStretch()
+
+    # ============================================
+    # 그리드에 위젯 배치 (2x1 그리드)
+    # ============================================
+    main_grid.addWidget(left_group, 0, 0)
+    main_grid.addWidget(right_group, 0, 1)
+
+    # 컬럼 너비 비율 설정 (1:1)
+    main_grid.setColumnStretch(0, 1)
+    main_grid.setColumnStretch(1, 1)
+
+    # ============================================
     # 필요한 객체 속성으로 저장
+    # ============================================
+    # AUTO 모드 버튼
     auto_widget.auto_mode_button = auto_mode_button
-    auto_widget.fan_speed_slider = fan_speed_slider
-    auto_widget.temp_slider = temp_slider
-    auto_widget.fan_speed_value = fan_speed_value
-    auto_widget.temp_value = temp_value
-    
-    # 환기 버튼 저장
-    auto_widget.outdoor_vent_button = outdoor_button
-    auto_widget.indoor_vent_button = indoor_button
-    
-    # 상태 레이블 저장
-    auto_widget.status_value = status_value
-    auto_widget.target_temp = target_temp
-    auto_widget.current_temp = current_temp
-    auto_widget.fan_speed_status = fan_speed_status
-    auto_widget.humidity_status = humidity_status
-    auto_widget.operation_time = operation_time
-    
-    # 이미지 레이블 저장
-    auto_widget.fan_image_label = fan_image_label
-    
-    # 이전 코드와의 호환성 유지
+    auto_widget.auto_status_label = status_label
+
+    # 모드 상태 인디케이터
+    auto_widget.auto_temp_indicator = auto_temp_indicator
+    auto_widget.vent_indicator = vent_indicator
+    auto_widget.circulation_indicator = circulation_indicator
+
+    # PT02 센서 표시
+    auto_widget.pt02_temp_display = temp_display
+    auto_widget.pt02_co2_display = co2_display
+    auto_widget.pt02_pm25_display = pm25_display
+
+    # 설정 버튼들
+    auto_widget.temp_buttons = temp_buttons
+    auto_widget.co2_buttons = co2_buttons
+    auto_widget.pm25_buttons = pm25_buttons
+    auto_widget.time_buttons = time_buttons
+
+    # Refresh / SAVE 버튼
+    auto_widget.refresh_button = refresh_button
+    auto_widget.save_button = save_button
+
+    # 이전 코드와의 호환성 유지 (기존 속성들)
+    auto_widget.fan_speed_slider = None
+    auto_widget.temp_slider = None
+    auto_widget.fan_speed_value = None
+    auto_widget.temp_value = None
+    auto_widget.outdoor_vent_button = None
+    auto_widget.indoor_vent_button = None
+    auto_widget.status_value = status_label
+    auto_widget.target_temp = None
+    auto_widget.current_temp = temp_display
+    auto_widget.fan_speed_status = None
+    auto_widget.humidity_status = None
+    auto_widget.operation_time = None
+    auto_widget.fan_image_label = None
     auto_widget.minus_button = None
     auto_widget.plus_button = None
     auto_widget.temp_minus_button = None
     auto_widget.temp_plus_button = None
-    
+
     return auto_widget
 
 def create_button_row_with_number(label_text, button, layout, button_width=140, spacing=20):

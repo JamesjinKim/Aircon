@@ -145,9 +145,9 @@ class ControlWindow(QtWidgets.QMainWindow):
         # 상태 표시기 초기화
         self.update_status_indicator("disconnected")
         self.update_connect_button("disconnected")
-        # 센서 탭들의 상태 표시 초기화
-        self.sensors_tab.update_status_indicator("disconnected")
-        self.aircon_sensors_tab.update_status_indicator("disconnected")
+        # [비활성화] 센서 탭들의 상태 표시 초기화 (T/H 탭 비활성화)
+        # self.sensors_tab.update_status_indicator("disconnected")
+        # self.aircon_sensors_tab.update_status_indicator("disconnected")
         
         # 클리어 버튼 연결 제거 (메시지 기능 제거로 인함)
         
@@ -227,22 +227,20 @@ class ControlWindow(QtWidgets.QMainWindow):
                 self.aircon_oa_damper_right_close_button
             )
 
-        # 테스트 모드에서는 자동으로 스케줄러 시작
-        if self.test_mode:
-            print("[MAIN] 테스트 모드: 자동으로 센서 스케줄러 시작")
-            self.sensor_scheduler.start_scheduling()
-            # 센서 탭들의 상태 표시를 녹색으로 설정
-            self.sensors_tab.update_status_indicator("active")
-            self.aircon_sensors_tab.update_status_indicator("active")
+        # [비활성화] 테스트 모드에서는 자동으로 스케줄러 시작 (T/H 탭 비활성화로 중지)
+        # if self.test_mode:
+        #     print("[MAIN] 테스트 모드: 자동으로 센서 스케줄러 시작")
+        #     self.sensor_scheduler.start_scheduling()
+        #     # 센서 탭들의 상태 표시를 녹색으로 설정
+        #     self.sensors_tab.update_status_indicator("active")
+        #     self.aircon_sensors_tab.update_status_indicator("active")
 
         
     def connect_auto_controls(self):
         """AUTO 탭의 컨트롤을 연결하는 메서드"""
-        if hasattr(self, 'auto_tab'):
-            # AUTO 제어 위젯 찾기
-            auto_control_widget = self.auto_tab.findChild(QWidget)
-            if auto_control_widget and self.auto_speed_manager:
-                self.auto_speed_manager.connect_auto_controls(auto_control_widget)
+        if hasattr(self, 'auto_control_widget') and self.auto_speed_manager:
+            # 새로운 AUTO 탭 위젯 연결
+            self.auto_speed_manager.connect_auto_controls(self.auto_control_widget)
     
     def ensure_uniform_button_sizes(self):
         """모든 버튼 크기를 동일하게 설정"""
@@ -374,38 +372,40 @@ class ControlWindow(QtWidgets.QMainWindow):
         font.setBold(True)
         self.tab_widget.setFont(font)
         
-        # 첫 번째 탭 - AIRCON
-        self.aircon_tab = QWidget()
-        self.setup_aircon_tab()
-        self.tab_widget.addTab(self.aircon_tab, "AIRCON")
-        
-        # 두 번째 탭 - PUMP & SOL
-        self.pumper_sol_tab = QWidget()
-        self.setup_pumper_sol_tab()
-        self.tab_widget.addTab(self.pumper_sol_tab, "PUMP && SOL")
-        
-        # 세 번째 탭 - DESICCANT (DAMPER 포함)
-        self.desiccant_tab = QWidget()
-        self.setup_desiccant_tab()
-        self.tab_widget.addTab(self.desiccant_tab, "DESICCANT")
-        
-        # 네 번째 탭 - SEMI AUTO
-        self.semi_auto_tab = QWidget()
-        self.setup_semi_auto_tab()
-        self.tab_widget.addTab(self.semi_auto_tab, "SEMI AUTO")
-
-        # 다섯 번째 탭 - AUTO 모드
+        # 첫 번째 탭 - AUTO 모드
         self.auto_tab = QWidget()
         self.setup_auto_tab()
         self.tab_widget.addTab(self.auto_tab, "AUTO")
 
-        # 여섯 번째 탭 - DSCT T/H
-        self.sensors_tab = SensorTab(self.sensor_manager, self.sensor_scheduler)
-        self.tab_widget.addTab(self.sensors_tab, "DSCT T/H")
-        
-        # 일곱 번째 탭 - AIRCON T/H
-        self.aircon_sensors_tab = AirconSensorTab(self.air_sensor_manager, self.sensor_scheduler)
-        self.tab_widget.addTab(self.aircon_sensors_tab, "AIRCON T/H")
+        # 두 번째 탭 - SEMI AUTO
+        self.semi_auto_tab = QWidget()
+        self.setup_semi_auto_tab()
+        self.tab_widget.addTab(self.semi_auto_tab, "SEMI AUTO")
+
+        # 세 번째 탭 - AIRCON
+        self.aircon_tab = QWidget()
+        self.setup_aircon_tab()
+        self.tab_widget.addTab(self.aircon_tab, "AIRCON")
+
+        # 네 번째 탭 - PUMP & SOL
+        self.pumper_sol_tab = QWidget()
+        self.setup_pumper_sol_tab()
+        self.tab_widget.addTab(self.pumper_sol_tab, "PUMP && SOL")
+
+        # 다섯 번째 탭 - DESICCANT (DAMPER 포함)
+        self.desiccant_tab = QWidget()
+        self.setup_desiccant_tab()
+        self.tab_widget.addTab(self.desiccant_tab, "DESICCANT")
+
+        # [비활성화] 여섯 번째 탭 - DSCT T/H (당분간 사용 안함)
+        # self.sensors_tab = SensorTab(self.sensor_manager, self.sensor_scheduler)
+        # self.tab_widget.addTab(self.sensors_tab, "DSCT T/H")
+        self.sensors_tab = None  # 호환성 유지
+
+        # [비활성화] 일곱 번째 탭 - AIRCON T/H (당분간 사용 안함)
+        # self.aircon_sensors_tab = AirconSensorTab(self.air_sensor_manager, self.sensor_scheduler)
+        # self.tab_widget.addTab(self.aircon_sensors_tab, "AIRCON T/H")
+        self.aircon_sensors_tab = None  # 호환성 유지
         
         
         # 메인 레이아웃에 모든 영역 추가
@@ -1081,35 +1081,36 @@ class ControlWindow(QtWidgets.QMainWindow):
                     self.was_connected = True
                     self.connection_error_count = 0  # 에러 카운터 리셋
                     
-                    # 센서 매니저 콜백 설정 (스케줄러 통합)
-                    self.serial_manager.set_sensor_data_callback(self.sensor_manager.parse_sensor_data)
-                    self.serial_manager.set_air_sensor_data_callback(self.air_sensor_manager.parse_sensor_data)
-                    
-                    # 센서 스케줄러 시작 (순차 실행)
-                    self.sensor_scheduler.set_serial_manager(self.serial_manager)
-                    self.sensor_scheduler.start_scheduling()
-                    
+                    # [비활성화] 센서 매니저 콜백 설정 (T/H 탭 비활성화로 중지)
+                    # self.serial_manager.set_sensor_data_callback(self.sensor_manager.parse_sensor_data)
+                    # self.serial_manager.set_air_sensor_data_callback(self.air_sensor_manager.parse_sensor_data)
+
+                    # [비활성화] 센서 스케줄러 시작 (T/H 탭 비활성화로 중지)
+                    # self.sensor_scheduler.set_serial_manager(self.serial_manager)
+                    # self.sensor_scheduler.start_scheduling()
+
                     # UI 상태 업데이트
-                    self.sensors_tab.set_auto_refresh_status(True)
-                    self.aircon_sensors_tab.set_auto_refresh_status(True)
+                    # [비활성화] T/H 탭 관련 상태 업데이트 중지
+                    # self.sensors_tab.set_auto_refresh_status(True)
+                    # self.aircon_sensors_tab.set_auto_refresh_status(True)
                     self.last_connection_check = time.time()
                     self.last_error_log_time = 0
                     self.update_status_indicator("connected")
                     self.update_connect_button("connected")
                     # 시리얼 연결 성공 시 버튼 상태 업데이트
                     self.update_button_states()
-                    # 센서 탭들의 상태 표시 업데이트 (연결되면 바로 녹색)
-                    self.sensors_tab.update_status_indicator("active")
-                    self.aircon_sensors_tab.update_status_indicator("active")
+                    # [비활성화] 센서 탭들의 상태 표시 업데이트 중지
+                    # self.sensors_tab.update_status_indicator("active")
+                    # self.aircon_sensors_tab.update_status_indicator("active")
                     QMessageBox.information(self, "연결 성공", f"포트 {selected_port}에 연결되었습니다.")
                 else:
                     self.update_status_indicator("disconnected")
                     self.update_connect_button("disconnected")
                     # 시리얼 연결 실패 시 버튼 상태 업데이트
                     self.update_button_states()
-                    # 센서 탭들의 상태 표시 업데이트
-                    self.sensors_tab.update_status_indicator("disconnected")
-                    self.aircon_sensors_tab.update_status_indicator("disconnected")
+                    # [비활성화] 센서 탭들의 상태 표시 업데이트 중지
+                    # self.sensors_tab.update_status_indicator("disconnected")
+                    # self.aircon_sensors_tab.update_status_indicator("disconnected")
                     QMessageBox.warning(self, "연결 실패", f"포트 연결에 실패했습니다.")
             except Exception as e:
                 import traceback
@@ -1126,15 +1127,15 @@ class ControlWindow(QtWidgets.QMainWindow):
         """시리얼 연결 해제"""
         try:
             if self.serial_manager.is_connected():
-                # 센서 스케줄러 중지
-                self.sensor_scheduler.stop_scheduling()
-                
-                # UI 상태 초기화
-                self.sensors_tab.set_auto_refresh_status(False)
-                self.sensors_tab.reset_all_sensors()
-                self.aircon_sensors_tab.set_auto_refresh_status(False)
-                self.aircon_sensors_tab.reset_all_sensors()
-                
+                # [비활성화] 센서 스케줄러 중지 (T/H 탭 비활성화로 이미 중지됨)
+                # self.sensor_scheduler.stop_scheduling()
+
+                # [비활성화] UI 상태 초기화 (T/H 탭 비활성화)
+                # self.sensors_tab.set_auto_refresh_status(False)
+                # self.sensors_tab.reset_all_sensors()
+                # self.aircon_sensors_tab.set_auto_refresh_status(False)
+                # self.aircon_sensors_tab.reset_all_sensors()
+
                 self.serial_manager.disconnect_serial()
                 # 연결 상태 초기화
                 self.was_connected = False
@@ -1283,12 +1284,12 @@ class ControlWindow(QtWidgets.QMainWindow):
         self.was_connected = False
         print("연결 상태 즉시 False 설정")
         
-        # 2. 센서 스케줄러 중지
-        try:
-            self.sensor_scheduler.stop_scheduling()
-            print("센서 스케줄러 중지 완료")
-        except Exception as e:
-            print(f"센서 스케줄러 중지 오류: {e}")
+        # [비활성화] 2. 센서 스케줄러 중지 (T/H 탭 비활성화로 이미 중지됨)
+        # try:
+        #     self.sensor_scheduler.stop_scheduling()
+        #     print("센서 스케줄러 중지 완료")
+        # except Exception as e:
+        #     print(f"센서 스케줄러 중지 오류: {e}")
         
         # 3. Serial 포트 강제 닫기
         try:

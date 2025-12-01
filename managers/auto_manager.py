@@ -1,527 +1,443 @@
-# AUTO 모드의 풍량 및 온도 설정을 처리하는 매니저 클래스 manager/auto_manager.py
-from PyQt5.QtWidgets import QLabel, QSlider, QPushButton, QLayout
+# AUTO 모드의 AUTOMODE 명령어 처리 매니저 클래스 manager/auto_manager.py
+# 새로운 명령어: AUTOMODE ON/OFF, TEMPSET, CO2SET, PM25SET, SEMITIME, GETSET
+from PyQt5.QtWidgets import QLabel, QPushButton
 from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QColor
-import random
-from ui.constants import CMD_PREFIX, TERMINATOR, AIR_SYSTEM, FSPD_CMD, AUTO_CMD, TEMP_CMD, ON_STATE, OFF_STATE
+from ui.constants import CMD_PREFIX, TERMINATOR, AIR_SYSTEM
 
-class AutoSpeedManager:
-    """AUTO 모드의 풍량 및 온도 설정을 처리하는 매니저 클래스"""
-    
+
+class AutoModeManager:
+    """AUTO 모드 제어 매니저 - AUTOMODE 명령어 처리"""
+
     def __init__(self, serial_manager, SendData_textEdit):
         """초기화"""
         self.serial_manager = serial_manager
         self.SendData_textEdit = SendData_textEdit
-        self.current_fan_speed = 0  # 초기값 0으로 설정
-        self.current_temperature = 22
+
+        # AUTO 모드 상태
         self.auto_mode_active = False
-        self.speed_button_manager = None  # MANUAL 매니저 참조 추가
-        self.is_updating = False  # 동기화 중 무한 루프 방지용 플래그
-        self.fan_speed_slider = None  # 슬라이더 객체 참조 저장
-        self.fan_speed_value = None  # 값 레이블 참조 저장
-        
-        # 타이머
-        self.timer = None
-        
-        # 스피드 인디케이터 레이블 리스트
-        self.speed_indicator_labels = []
-        self.temp_indicator_labels = []
-    
-    # MANUAL 탭 매니저 설정 메서드
-    def set_speed_button_manager(self, speed_manager):
-        """MANUAL 탭 속도 버튼 매니저 참조 설정"""
-        self.speed_button_manager = speed_manager
-    
-    def connect_aircon_fan_speed_slider(self, slider, value_label):
-        """에어컨 팬 스피드 슬라이더 연결"""
-        if not slider or not value_label:
-            print("경고: 슬라이더 또는 값 레이블이 None입니다.")
-            return
-        
-        # 슬라이더와 값 레이블 참조 저장
-        self.fan_speed_slider = slider
-        self.fan_speed_value = value_label
-            
-        # 기존 연결 해제
-        try:
-            slider.valueChanged.disconnect()
-        except (TypeError, RuntimeError):
-            pass
-            
-        # 슬라이더 값 변경 시 호출되는 함수
-        def update_fan_speed(value):
-            # 시리얼 포트 연결 확인
-            if not self.serial_manager.is_connected():
-                print("시리얼 포트가 연결되지 않음 - AUTO 슬라이더 동작 차단")
-                if self.SendData_textEdit:
-                    self.SendData_textEdit.append("시리얼 포트가 연결되지 않음 - AUTO 슬라이더 동작 차단")
-                    self.SendData_textEdit.verticalScrollBar().setValue(
-                        self.SendData_textEdit.verticalScrollBar().maximum()
-                    )
-                # 슬라이더를 이전 값으로 되돌리기
-                slider.blockSignals(True)
-                slider.setValue(self.current_fan_speed)
-                value_label.setText(str(self.current_fan_speed))
-                slider.blockSignals(False)
-                return
-                
-            value_label.setText(str(value))
-            self.current_fan_speed = value
-            self.set_fan_speed(value)
-            
-            # 스피드 인디케이터 업데이트
-            self.update_speed_indicators(value)
-            
-            # MANUAL 탭과 동기화 (값 변경 시 호출)
-            self.sync_to_manual_tab(value)
-        
-        # 슬라이더 연결
-        slider.valueChanged.connect(update_fan_speed)
-        
-        # 초기 값 설정
-        current_value = slider.value()
-        value_label.setText(str(current_value))
-        self.current_fan_speed = current_value
-        
-        # 초기 스피드 인디케이터 업데이트
-        self.update_speed_indicators(current_value)
-    
-    def update_speed_indicators(self, active_value):
-        """스피드 인디케이터 레이블 업데이트"""
-        if not self.speed_indicator_labels:
-            return
-            
-        for i, label in enumerate(self.speed_indicator_labels):
-            if i == active_value:
-                label.setStyleSheet("""
-                    font-weight: bold;
-                    color: #2979ff;
-                    background-color: #e3f2fd;
-                    border-radius: 4px;
-                    padding: 2px;
-                """)
-            else:
-                label.setStyleSheet("")
-    
-    def update_temp_indicators(self, temp_value):
-        """온도 인디케이터 레이블 업데이트"""
-        if not self.temp_indicator_labels:
-            return
-            
-        # 가장 가까운 온도 인디케이터 찾기
-        min_diff = float('inf')
-        closest_idx = -1
-        
-        for i, label in enumerate(self.temp_indicator_labels):
-            try:
-                label_temp = int(label.text().replace('°C', ''))
-                diff = abs(label_temp - temp_value)
-                if diff < min_diff:
-                    min_diff = diff
-                    closest_idx = i
-            except (ValueError, AttributeError):
-                continue
-        
-        # 레이블 스타일 업데이트
-        for i, label in enumerate(self.temp_indicator_labels):
-            if i == closest_idx:
-                label.setStyleSheet("""
-                    font-weight: bold;
-                    color: #f44336;
-                    background-color: #ffebee;
-                    border-radius: 4px;
-                    padding: 2px;
-                """)
-            else:
-                label.setStyleSheet("")
-    
-    def connect_temperature_slider(self, slider, value_label):
-        """온도 슬라이더 연결"""
-        if not slider or not value_label:
-            print("경고: 온도 슬라이더 또는 값 레이블이 None입니다.")
-            return
-            
-        # 기존 연결 해제
-        try:
-            slider.valueChanged.disconnect()
-        except (TypeError, RuntimeError):
-            pass
-            
-        # 슬라이더 값 변경 시 호출되는 함수
-        def update_temperature(value):
-            # 시리얼 포트 연결 확인
-            if not self.serial_manager.is_connected():
-                print("시리얼 포트가 연결되지 않음 - AUTO 온도 슬라이더 동작 차단")
-                if self.SendData_textEdit:
-                    self.SendData_textEdit.append("시리얼 포트가 연결되지 않음 - AUTO 온도 슬라이더 동작 차단")
-                    self.SendData_textEdit.verticalScrollBar().setValue(
-                        self.SendData_textEdit.verticalScrollBar().maximum()
-                    )
-                # 슬라이더를 이전 값으로 되돌리기
-                slider.blockSignals(True)
-                slider.setValue(self.current_temperature)
-                value_label.setText(f"{self.current_temperature}°C")
-                slider.blockSignals(False)
-                return
-                
-            value_label.setText(f"{value}°C")
-            self.current_temperature = value
-            self.set_temperature(value)
-            
-            # 온도 인디케이터 업데이트
-            self.update_temp_indicators(value)
-        
-        # 슬라이더 연결
-        slider.valueChanged.connect(update_temperature)
-        
-        # 초기 값 설정
-        current_value = slider.value()
-        value_label.setText(f"{current_value}°C")
-        self.current_temperature = current_value
-        
-        # 초기 온도 인디케이터 업데이트
-        self.update_temp_indicators(current_value)
-    
-    def set_fan_speed(self, speed_value):
-        """팬 스피드 명령어 전송"""
-        if speed_value < 0 or speed_value > 10:  # 0도 유효한 값으로 변경 (꺼짐)
-            print(f"속도 값 범위 오류: {speed_value}")
-            return
-            
-        # 0인 경우 0으로 전송 (꺼짐)
-        command = f"{CMD_PREFIX},{AIR_SYSTEM},{FSPD_CMD},{speed_value}{TERMINATOR}"
-        
-        if self.serial_manager.is_connected():
-            # 시리얼 전송
-            self.serial_manager.shinho_serial_connection.write(command.encode())
-            print(f"AUTO 스피드 명령 전송: {command}")
-            
-            # 로깅
-            if self.SendData_textEdit:
-                self.SendData_textEdit.append(f"{command.rstrip()}")
-                self.SendData_textEdit.verticalScrollBar().setValue(
-                    self.SendData_textEdit.verticalScrollBar().maximum()
-                )
-        else:
-            print("시리얼 포트 연결되지 않음 - AUTO 모드")
-            if self.SendData_textEdit:
-                self.SendData_textEdit.append("시리얼 포트 연결되지 않음 - AUTO 모드")
-                self.SendData_textEdit.verticalScrollBar().setValue(
-                    self.SendData_textEdit.verticalScrollBar().maximum()
-                )
-    
-    # 값 변경 시 MANUAL 탭과 동기화하는 메서드
-    def sync_to_manual_tab(self, fan_speed):
-        """AUTO 탭의 팬 속도를 MANUAL 탭과 동기화"""
-        if self.is_updating:
-            return
-            
-        if self.speed_button_manager and hasattr(self.speed_button_manager, 'update_from_auto'):
-            print(f"Auto -> Manual 동기화: {fan_speed}")
-            self.is_updating = True
-            self.speed_button_manager.update_from_auto(fan_speed)
-            self.is_updating = False
-    
-    # MANUAL 탭에서 호출될 메서드
-    def update_from_manual(self, fan_speed):
-        """MANUAL 탭에서의 변경을 AUTO 탭에 반영"""
-        if self.is_updating:
-            return
-            
-        self.is_updating = True
-        
-        # current_fan_speed 업데이트
-        self.current_fan_speed = fan_speed
-        
-        # 슬라이더 값 업데이트 (시그널 차단)
-        if self.fan_speed_slider:
-            self.fan_speed_slider.blockSignals(True)
-            self.fan_speed_slider.setValue(fan_speed)
-            self.fan_speed_slider.blockSignals(False)
-        
-        # 값 레이블 업데이트
-        if self.fan_speed_value:
-            self.fan_speed_value.setText(str(fan_speed))
-        
-        # 인디케이터 업데이트
-        self.update_speed_indicators(fan_speed)
-        
-        self.is_updating = False
-    
-    def connect_auto_controls(self, auto_widget):
-        """AUTO 탭의 컨트롤을 한 번에 연결"""
-        # 속도 인디케이터 레이블 찾기
-        self._find_speed_indicators(auto_widget)
-        
-        # 온도 인디케이터 레이블 찾기
-        self._find_temp_indicators(auto_widget)
-        
-        # 팬 스피드 슬라이더
-        fan_speed_slider = auto_widget.findChild(QSlider, "auto_fan_speed_slider")
-        fan_speed_value = auto_widget.findChild(QLabel, "fan_speed_value")
-        
-        if fan_speed_slider and fan_speed_value:
-            self.connect_aircon_fan_speed_slider(
-                fan_speed_slider,
-                fan_speed_value
+
+        # 설정값 (기본값)
+        self.temp_value = 25.0       # 목표 온도 (°C)
+        self.temp_hyst = 2.0         # 온도 히스테리시스 (±°C)
+        self.co2_value = 1000        # CO2 기준값 (ppm)
+        self.co2_hyst = 100          # CO2 히스테리시스 (±ppm)
+        self.pm25_value = 35         # PM2.5 기준값 (µg/m³)
+        self.pm25_hyst = 5           # PM2.5 히스테리시스 (±µg/m³)
+        self.semi_time = 300         # SEMI AUTO 동작 시간 (초)
+
+        # PT02 센서 데이터 (수신된 값)
+        self.pt02_temp = None
+        self.pt02_co2 = None
+        self.pt02_pm25 = None
+
+        # UI 위젯 참조
+        self.auto_widget = None
+        self.auto_mode_button = None
+        self.status_label = None
+
+        # 설정 버튼 참조
+        self.temp_buttons = None
+        self.co2_buttons = None
+        self.pm25_buttons = None
+        self.time_buttons = None
+
+        # 연속 클릭 타이머
+        self.repeat_timers = {}
+
+    def log_message(self, message):
+        """Send Data 로그에 메시지 기록"""
+        print(f"[AUTO] {message}")
+        if self.SendData_textEdit:
+            self.SendData_textEdit.append(f"[AUTO] {message}")
+            self.SendData_textEdit.verticalScrollBar().setValue(
+                self.SendData_textEdit.verticalScrollBar().maximum()
             )
-        
-        # 온도 슬라이더
-        temp_slider = auto_widget.findChild(QSlider, "temp_slider")
-        temp_value = auto_widget.findChild(QLabel, "temp_value")
-        
-        if temp_slider and temp_value:
-            self.connect_temperature_slider(
-                temp_slider,
-                temp_value
-            )
-            
-        # AUTO 모드 버튼
-        auto_mode_button = getattr(auto_widget, 'auto_mode_button', None)
-        if auto_mode_button:
-            self.connect_auto_mode_button(auto_mode_button)
-        
-        # 상태 정보 업데이트를 위한 타이머 설정
-        if self.timer:
-            self.timer.stop()
-        
-        self.timer = QTimer()
-        self.timer.timeout.connect(lambda: self.update_status_info(auto_widget))
-        self.timer.start(1000)  # 1초마다 업데이트
-    
-    def update_status_info(self, auto_widget):
-        """상태 정보 업데이트"""
-        if not auto_widget:
-            return
-            
-        # 모의 온도 및 습도 값 생성 (더미 데이터)
-        if hasattr(auto_widget, 'current_temp'):
-            current_temp = random.randint(20, 30)
-            auto_widget.current_temp.setText(f"{current_temp}°C")
-        
-        if hasattr(auto_widget, 'humidity_status'):
-            current_humidity = random.randint(40, 70)
-            auto_widget.humidity_status.setText(f"{current_humidity}%")
-        
-        # 팬 스피드 상태 갱신
-        if hasattr(auto_widget, 'fan_speed_status'):
-            fan_speed = self.current_fan_speed
-            if fan_speed == 0:
-                fan_status = "꺼짐"
-            else:
-                fan_status = f"{fan_speed}단계"
-            auto_widget.fan_speed_status.setText(fan_status)
-    
-    def _find_speed_indicators(self, auto_widget):
-        """스피드 인디케이터 레이블 찾기"""
-        self.speed_indicator_labels = []
-        
-        # 레이아웃 내의 모든 자식 위젯 확인
-        def find_labels_in_layout(layout):
-            for i in range(layout.count()):
-                item = layout.itemAt(i)
-                if item.widget() and isinstance(item.widget(), QLabel):
-                    # 레이블의 텍스트가 숫자인지 확인
-                    try:
-                        int(item.widget().text())
-                        # 0-10 사이의 숫자인 경우 속도 인디케이터로 간주
-                        if 0 <= int(item.widget().text()) <= 10:
-                            self.speed_indicator_labels.append(item.widget())
-                    except ValueError:
-                        pass
-                elif item.layout():
-                    find_labels_in_layout(item.layout())
-        
-        # 위젯의 모든 레이아웃 탐색
-        for child in auto_widget.children():
-            if isinstance(child, QLayout):
-                find_labels_in_layout(child)
-    
-    def _find_temp_indicators(self, auto_widget):
-        """온도 인디케이터 레이블 찾기"""
-        self.temp_indicator_labels = []
-        
-        # 레이아웃 내의 모든 자식 위젯 확인
-        def find_labels_in_layout(layout):
-            for i in range(layout.count()):
-                item = layout.itemAt(i)
-                if item.widget() and isinstance(item.widget(), QLabel):
-                    # 레이블의 텍스트가 온도 형식인지 확인
-                    try:
-                        text = item.widget().text()
-                        # 숫자이고 16-30 사이의 값인지 확인
-                        num_value = int(text)
-                        if 16 <= num_value <= 30:
-                            self.temp_indicator_labels.append(item.widget())
-                    except ValueError:
-                        pass
-                elif item.layout():
-                    find_labels_in_layout(item.layout())
-        
-        # 위젯의 모든 레이아웃 탐색
-        for child in auto_widget.children():
-            if isinstance(child, QLayout):
-                find_labels_in_layout(child)
-    
-    def connect_auto_mode_button(self, button):
-        """AUTO 모드 버튼 연결"""
-        if not button:
-            print("경고: AUTO 모드 버튼이 None입니다.")
-            return
-            
-        # 기존 연결 해제
-        try:
-            button.clicked.disconnect()
-        except (TypeError, RuntimeError):
-            pass
-        
-        # 버튼 클릭 시 AUTO 모드 전환
-        def toggle_auto_mode():
-            self.auto_mode_active = not self.auto_mode_active
-            success = self.set_auto_mode_active(self.auto_mode_active)
-            
-            if success:
-                button.setText("AUTO 모드 종료" if self.auto_mode_active else "AUTO 모드 시작")
-                button.setStyleSheet("""
-                    QPushButton {
-                        background-color: """ + ("#ff5722" if self.auto_mode_active else "#2979ff") + """;
-                        color: white;
-                        font-size: 18px;
-                        font-weight: bold;
-                        padding: 12px;
-                        border-radius: 5px;
-                    }
-                    QPushButton:hover {
-                        background-color: """ + ("#f4511e" if self.auto_mode_active else "#2962ff") + """;
-                    }
-                    QPushButton:pressed {
-                        background-color: """ + ("#e64a19" if self.auto_mode_active else "#1565c0") + """;
-                    }
-                """)
-                
-                # AUTO 모드 시작 시 모든 값 초기화
-                self.reset_all_values()
-        
-        # 버튼 연결
-        button.clicked.connect(toggle_auto_mode)
-    
-    def reset_all_values(self):
-        """AUTO 모드 시작 시 모든 값 초기화"""
-        # 타이머가 있으면 초기화
-        if hasattr(self, 'timer') and self.timer:
-            self.timer.stop()
-            self.timer.start(1000)  # 타이머 재시작
-        
-        # 현재 위젯의 상태 확인
-        auto_widget = self._find_parent_auto_widget()
-        if not auto_widget:
-            print("경고: AUTO 위젯을 찾을 수 없습니다.")
-            return
-        
-        # 팬 스피드 슬라이더 리셋
-        fan_speed_slider = auto_widget.findChild(QSlider, "auto_fan_speed_slider")
-        fan_speed_value = auto_widget.findChild(QLabel, "fan_speed_value")
-        
-        if fan_speed_slider and fan_speed_value:
-            # 값 변경 전 동기화 중 플래그 설정
-            self.is_updating = True
-            
-            fan_speed_slider.setValue(0)  # 0으로 리셋
-            fan_speed_value.setText("0")
-            self.current_fan_speed = 0
-            self.set_fan_speed(0)
-            self.update_speed_indicators(0)
-            
-            # 수동 탭과도 동기화
-            self.sync_to_manual_tab(0)
-            self.is_updating = False
-        
-        # 온도 슬라이더 리셋
-        temp_slider = auto_widget.findChild(QSlider, "temp_slider")
-        temp_value = auto_widget.findChild(QLabel, "temp_value")
-        
-        if temp_slider and temp_value:
-            reset_temp = 22  # 기본 온도 22도로 리셋
-            temp_slider.setValue(reset_temp)
-            temp_value.setText(f"{reset_temp}°C")
-            self.current_temperature = reset_temp
-            self.set_temperature(reset_temp)
-            self.update_temp_indicators(reset_temp)
-        
-        # 상태 정보 업데이트
-        if hasattr(auto_widget, 'status_value'):
-            if self.auto_mode_active:
-                auto_widget.status_value.setText("자동 제어 중")
-                auto_widget.status_value.setStyleSheet("font-weight: bold; color: #4CAF50; padding: 6px; font-size: 14px;")
-            else:
-                auto_widget.status_value.setText("대기 중")
-                auto_widget.status_value.setStyleSheet("font-weight: bold; color: #2962ff; padding: 6px; font-size: 14px;")
-    
-    def _find_parent_auto_widget(self):
-        """현재 AUTO 위젯 찾기 - 부모 위젯 찾기"""
-        # 속도 인디케이터 레이블 중 하나를 기준으로 부모 위젯 찾기
-        if self.speed_indicator_labels and len(self.speed_indicator_labels) > 0:
-            parent = self.speed_indicator_labels[0].parent()
-            while parent:
-                if hasattr(parent, 'auto_mode_button'):
-                    return parent
-                parent = parent.parent()
-        
-        return None
-    
-    def set_auto_mode_active(self, is_active):
-        """AUTO 모드 활성화/비활성화"""
-        command = f"{CMD_PREFIX},{AUTO_CMD},{ON_STATE}{TERMINATOR}" if is_active else f"{CMD_PREFIX},{AUTO_CMD},{OFF_STATE}{TERMINATOR}"
-        
+
+    def send_command(self, command):
+        """시리얼 명령어 전송 및 로그 기록"""
+        full_command = f"{command}{TERMINATOR}"
+
         if self.serial_manager.is_connected():
-            # 시리얼 전송
-            self.serial_manager.shinho_serial_connection.write(command.encode())
-            print(f"AUTO 모드 명령 전송: {command}")
-            
-            # 로깅
-            if self.SendData_textEdit:
-                self.SendData_textEdit.append(f"{command}")
-                self.SendData_textEdit.verticalScrollBar().setValue(
-                    self.SendData_textEdit.verticalScrollBar().maximum()
-                )
-            
-            # AUTO 모드 시작 시 모든 값 초기화
-            self.auto_mode_active = is_active
-            
+            self.serial_manager.shinho_serial_connection.write(full_command.encode())
+            self.log_message(f"TX: {command}")
             return True
         else:
-            print("시리얼 포트 연결되지 않음 - AUTO 모드 전환 실패")
-            if self.SendData_textEdit:
-                self.SendData_textEdit.append("시리얼 포트 연결되지 않음 - AUTO 모드 전환 실패")
-                self.SendData_textEdit.verticalScrollBar().setValue(
-                    self.SendData_textEdit.verticalScrollBar().maximum()
-                )
-            
+            self.log_message(f"TX 실패 (연결 안됨): {command}")
             return False
-    
-    def set_temperature(self, temperature):
-        """온도 설정"""
-        if temperature < 16 or temperature > 30:
-            print(f"온도 값 범위 오류: {temperature}")
+
+    def connect_auto_controls(self, auto_widget):
+        """AUTO 탭의 컨트롤을 연결"""
+        self.auto_widget = auto_widget
+
+        # AUTO 모드 버튼 연결
+        if hasattr(auto_widget, 'auto_mode_button'):
+            self.auto_mode_button = auto_widget.auto_mode_button
+            self._connect_auto_mode_button()
+
+        # 상태 레이블 참조
+        if hasattr(auto_widget, 'auto_status_label'):
+            self.status_label = auto_widget.auto_status_label
+
+        # 설정 버튼들 연결
+        if hasattr(auto_widget, 'temp_buttons'):
+            self.temp_buttons = auto_widget.temp_buttons
+            self._connect_setting_buttons('temp', self.temp_buttons, 0.5, 18.0, 35.0, 0.5, 0.5, 5.0)
+
+        if hasattr(auto_widget, 'co2_buttons'):
+            self.co2_buttons = auto_widget.co2_buttons
+            self._connect_setting_buttons('co2', self.co2_buttons, 50, 400, 2000, 10, 10, 500)
+
+        if hasattr(auto_widget, 'pm25_buttons'):
+            self.pm25_buttons = auto_widget.pm25_buttons
+            self._connect_setting_buttons('pm25', self.pm25_buttons, 5, 10, 100, 1, 1, 50)
+
+        if hasattr(auto_widget, 'time_buttons'):
+            self.time_buttons = auto_widget.time_buttons
+            self._connect_time_buttons()
+
+        # Refresh / SAVE 버튼 연결
+        if hasattr(auto_widget, 'refresh_button'):
+            auto_widget.refresh_button.clicked.connect(self.handle_refresh)
+
+        if hasattr(auto_widget, 'save_button'):
+            auto_widget.save_button.clicked.connect(self.handle_save)
+
+        self.log_message("AUTO 탭 컨트롤 연결 완료")
+
+    def _connect_auto_mode_button(self):
+        """AUTO 모드 버튼 이벤트 연결"""
+        if not self.auto_mode_button:
             return
-            
-        command = f"{CMD_PREFIX},{TEMP_CMD},{temperature}{TERMINATOR}"
-        
-        if self.serial_manager.is_connected():
-            # 시리얼 전송
-            self.serial_manager.shinho_serial_connection.write(command.encode())
-            print(f"온도 설정 명령 전송: {command}")
-            
-            # 로깅
-            if self.SendData_textEdit:
-                self.SendData_textEdit.append(f"{command}")
-                self.SendData_textEdit.verticalScrollBar().setValue(
-                    self.SendData_textEdit.verticalScrollBar().maximum()
-                )
+
+        try:
+            self.auto_mode_button.clicked.disconnect()
+        except (TypeError, RuntimeError):
+            pass
+
+        self.auto_mode_button.clicked.connect(self._toggle_auto_mode)
+
+    def _toggle_auto_mode(self):
+        """AUTO 모드 토글"""
+        self.auto_mode_active = not self.auto_mode_active
+
+        if self.auto_mode_active:
+            # AUTO ON 명령 전송
+            command = f"{CMD_PREFIX},{AIR_SYSTEM},AUTOMODE,ON"
+            success = self.send_command(command)
+
+            if success:
+                self._update_auto_button_style(True)
+                self._update_status_label("동작중", "#4CAF50")
         else:
-            print("시리얼 포트 연결되지 않음 - 온도 설정 실패")
-            if self.SendData_textEdit:
-                self.SendData_textEdit.append("시리얼 포트 연결되지 않음 - 온도 설정 실패")
-                self.SendData_textEdit.verticalScrollBar().setValue(
-                    self.SendData_textEdit.verticalScrollBar().maximum()
-                )
+            # AUTO OFF 명령 전송
+            command = f"{CMD_PREFIX},{AIR_SYSTEM},AUTOMODE,OFF"
+            success = self.send_command(command)
+
+            if success:
+                self._update_auto_button_style(False)
+                self._update_status_label("대기중", "#666")
+
+    def _update_auto_button_style(self, is_active):
+        """AUTO 버튼 스타일 업데이트"""
+        if not self.auto_mode_button:
+            return
+
+        if is_active:
+            self.auto_mode_button.setText("AUTO STOP")
+            self.auto_mode_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #f44336;
+                    color: white;
+                    font-size: 16px;
+                    font-weight: bold;
+                    border-radius: 5px;
+                }
+                QPushButton:hover {
+                    background-color: #d32f2f;
+                }
+            """)
+        else:
+            self.auto_mode_button.setText("AUTO START")
+            self.auto_mode_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #2979ff;
+                    color: white;
+                    font-size: 16px;
+                    font-weight: bold;
+                    border-radius: 5px;
+                }
+                QPushButton:hover {
+                    background-color: #2962ff;
+                }
+            """)
+
+    def _update_status_label(self, text, color):
+        """상태 레이블 업데이트"""
+        if self.status_label:
+            self.status_label.setText(text)
+            self.status_label.setStyleSheet(f"""
+                font-size: 14px;
+                font-weight: bold;
+                color: white;
+                padding: 5px 10px;
+                background-color: {color};
+                border-radius: 3px;
+            """)
+
+    def _connect_setting_buttons(self, setting_type, buttons, step, min_val, max_val, hyst_step, hyst_min, hyst_max):
+        """설정 버튼들 연결 (연속 클릭 지원)"""
+        if not buttons:
+            return
+
+        # 값 감소 버튼
+        if 'minus' in buttons:
+            self._setup_repeat_button(buttons['minus'], lambda: self._adjust_value(setting_type, 'value', -step, min_val, max_val))
+
+        # 값 증가 버튼
+        if 'plus' in buttons:
+            self._setup_repeat_button(buttons['plus'], lambda: self._adjust_value(setting_type, 'value', step, min_val, max_val))
+
+        # 히스테리시스 감소 버튼
+        if 'hyst_minus' in buttons:
+            self._setup_repeat_button(buttons['hyst_minus'], lambda: self._adjust_value(setting_type, 'hyst', -hyst_step, hyst_min, hyst_max))
+
+        # 히스테리시스 증가 버튼
+        if 'hyst_plus' in buttons:
+            self._setup_repeat_button(buttons['hyst_plus'], lambda: self._adjust_value(setting_type, 'hyst', hyst_step, hyst_min, hyst_max))
+
+    def _connect_time_buttons(self):
+        """시간 설정 버튼 연결"""
+        if not self.time_buttons:
+            return
+
+        # 값 감소 버튼
+        if 'minus' in self.time_buttons:
+            self._setup_repeat_button(self.time_buttons['minus'], lambda: self._adjust_time(-10, 10, 9999))
+
+        # 값 증가 버튼
+        if 'plus' in self.time_buttons:
+            self._setup_repeat_button(self.time_buttons['plus'], lambda: self._adjust_time(10, 10, 9999))
+
+    def _setup_repeat_button(self, button, callback):
+        """연속 클릭 지원 버튼 설정"""
+        timer_key = id(button)
+
+        def on_pressed():
+            callback()
+            # 연속 클릭 타이머 시작
+            if timer_key not in self.repeat_timers:
+                self.repeat_timers[timer_key] = QTimer()
+                self.repeat_timers[timer_key].timeout.connect(callback)
+            self.repeat_timers[timer_key].start(150)  # 150ms 간격
+
+        def on_released():
+            if timer_key in self.repeat_timers:
+                self.repeat_timers[timer_key].stop()
+
+        button.pressed.connect(on_pressed)
+        button.released.connect(on_released)
+
+    def _adjust_value(self, setting_type, value_type, delta, min_val, max_val):
+        """설정값 조정"""
+        if setting_type == 'temp':
+            if value_type == 'value':
+                self.temp_value = max(min_val, min(max_val, self.temp_value + delta))
+                self._update_button_text(self.temp_buttons, 'value', f"{self.temp_value:.1f}")
+            else:
+                self.temp_hyst = max(min_val, min(max_val, self.temp_hyst + delta))
+                self._update_button_text(self.temp_buttons, 'hyst_value', f"{self.temp_hyst:.1f}")
+
+        elif setting_type == 'co2':
+            if value_type == 'value':
+                self.co2_value = int(max(min_val, min(max_val, self.co2_value + delta)))
+                self._update_button_text(self.co2_buttons, 'value', str(self.co2_value))
+            else:
+                self.co2_hyst = int(max(min_val, min(max_val, self.co2_hyst + delta)))
+                self._update_button_text(self.co2_buttons, 'hyst_value', str(self.co2_hyst))
+
+        elif setting_type == 'pm25':
+            if value_type == 'value':
+                self.pm25_value = int(max(min_val, min(max_val, self.pm25_value + delta)))
+                self._update_button_text(self.pm25_buttons, 'value', str(self.pm25_value))
+            else:
+                self.pm25_hyst = int(max(min_val, min(max_val, self.pm25_hyst + delta)))
+                self._update_button_text(self.pm25_buttons, 'hyst_value', str(self.pm25_hyst))
+
+    def _adjust_time(self, delta, min_val, max_val):
+        """시간 설정값 조정"""
+        self.semi_time = int(max(min_val, min(max_val, self.semi_time + delta)))
+        self._update_button_text(self.time_buttons, 'value', str(self.semi_time))
+
+    def _update_button_text(self, buttons, key, text):
+        """버튼 텍스트 업데이트"""
+        if buttons and key in buttons:
+            buttons[key].setText(text)
+
+    def handle_refresh(self):
+        """Refresh 버튼 클릭 - 현재 설정값 조회"""
+        command = f"{CMD_PREFIX},{AIR_SYSTEM},GETSET"
+        self.send_command(command)
+        self.log_message("설정값 조회 요청")
+
+    def handle_save(self):
+        """SAVE 버튼 클릭 - 모든 설정값 전송"""
+        self.log_message("설정값 저장 시작...")
+
+        # 1. 온도 설정 (값 * 10으로 전송)
+        temp_val_int = int(self.temp_value * 10)
+        temp_hyst_int = int(self.temp_hyst * 10)
+        cmd_temp = f"{CMD_PREFIX},{AIR_SYSTEM},TEMPSET,{temp_val_int},{temp_hyst_int}"
+        self.send_command(cmd_temp)
+
+        # 2. CO2 설정
+        cmd_co2 = f"{CMD_PREFIX},{AIR_SYSTEM},CO2SET,{self.co2_value},{self.co2_hyst}"
+        self.send_command(cmd_co2)
+
+        # 3. PM2.5 설정
+        cmd_pm25 = f"{CMD_PREFIX},{AIR_SYSTEM},PM25SET,{self.pm25_value},{self.pm25_hyst}"
+        self.send_command(cmd_pm25)
+
+        # 4. SEMI 동작시간 설정
+        cmd_time = f"{CMD_PREFIX},{AIR_SYSTEM},SEMITIME,{self.semi_time}"
+        self.send_command(cmd_time)
+
+        self.log_message("설정값 저장 완료")
+
+    def update_pt02_sensor_display(self, temp=None, co2=None, pm25=None):
+        """PT02 센서 데이터 UI 업데이트"""
+        if not self.auto_widget:
+            return
+
+        if temp is not None:
+            self.pt02_temp = temp
+            if hasattr(self.auto_widget, 'pt02_temp_display'):
+                self.auto_widget.pt02_temp_display.setText(f"{temp:.1f}°C")
+
+        if co2 is not None:
+            self.pt02_co2 = co2
+            if hasattr(self.auto_widget, 'pt02_co2_display'):
+                self.auto_widget.pt02_co2_display.setText(f"{co2} ppm")
+
+        if pm25 is not None:
+            self.pt02_pm25 = pm25
+            if hasattr(self.auto_widget, 'pt02_pm25_display'):
+                self.auto_widget.pt02_pm25_display.setText(f"{pm25} µg/m³")
+
+    def update_mode_indicators(self, auto_active=False, vent_active=False, circ_active=False):
+        """모드 동작 상태 인디케이터 업데이트"""
+        if not self.auto_widget:
+            return
+
+        # 자동(온도) 인디케이터
+        if hasattr(self.auto_widget, 'auto_temp_indicator'):
+            style = "font-size: 12px; padding: 2px 5px; border-radius: 3px; "
+            if auto_active:
+                style += "color: white; background-color: #4CAF50;"
+            else:
+                style += "color: #888; background-color: transparent;"
+            self.auto_widget.auto_temp_indicator.setStyleSheet(style)
+
+        # 환기(CO2) 인디케이터
+        if hasattr(self.auto_widget, 'vent_indicator'):
+            style = "font-size: 12px; padding: 2px 5px; border-radius: 3px; "
+            if vent_active:
+                style += "color: white; background-color: #2196F3;"
+            else:
+                style += "color: #888; background-color: transparent;"
+            self.auto_widget.vent_indicator.setStyleSheet(style)
+
+        # 순환(PM2.5) 인디케이터
+        if hasattr(self.auto_widget, 'circulation_indicator'):
+            style = "font-size: 12px; padding: 2px 5px; border-radius: 3px; "
+            if circ_active:
+                style += "color: white; background-color: #9C27B0;"
+            else:
+                style += "color: #888; background-color: transparent;"
+            self.auto_widget.circulation_indicator.setStyleSheet(style)
+
+    def parse_pt02_response(self, data):
+        """PT02 센서 응답 데이터 파싱
+        형식: [AIRCON] CO2,PM2.5,TEMP (예: [AIRCON] 850,35,253)
+        """
+        try:
+            if "[AIRCON]" in data:
+                # [AIRCON] 이후 데이터 추출
+                parts = data.split("[AIRCON]")[1].strip()
+                values = parts.split(",")
+
+                if len(values) >= 3:
+                    co2 = int(values[0].strip())
+                    pm25 = int(values[1].strip())
+                    temp = float(values[2].strip()) / 10.0  # 온도는 10으로 나눔
+
+                    self.update_pt02_sensor_display(temp=temp, co2=co2, pm25=pm25)
+                    self.log_message(f"PT02 센서: 온도={temp}°C, CO2={co2}ppm, PM2.5={pm25}µg/m³")
+                    return True
+        except Exception as e:
+            self.log_message(f"PT02 응답 파싱 오류: {e}")
+
+        return False
+
+    def parse_getset_response(self, data):
+        """GETSET 응답 데이터 파싱
+        형식: AIRCON,TEMPSET,250,20 / AIRCON,CO2SET,1000,100 등
+        """
+        try:
+            if "AIRCON,TEMPSET," in data:
+                parts = data.split(",")
+                if len(parts) >= 4:
+                    self.temp_value = float(parts[2]) / 10.0
+                    self.temp_hyst = float(parts[3]) / 10.0
+                    self._update_button_text(self.temp_buttons, 'value', f"{self.temp_value:.1f}")
+                    self._update_button_text(self.temp_buttons, 'hyst_value', f"{self.temp_hyst:.1f}")
+                    self.log_message(f"온도 설정 수신: {self.temp_value}±{self.temp_hyst}°C")
+                    return True
+
+            elif "AIRCON,CO2SET," in data:
+                parts = data.split(",")
+                if len(parts) >= 4:
+                    self.co2_value = int(parts[2])
+                    self.co2_hyst = int(parts[3])
+                    self._update_button_text(self.co2_buttons, 'value', str(self.co2_value))
+                    self._update_button_text(self.co2_buttons, 'hyst_value', str(self.co2_hyst))
+                    self.log_message(f"CO2 설정 수신: {self.co2_value}±{self.co2_hyst}ppm")
+                    return True
+
+            elif "AIRCON,PM25SET," in data:
+                parts = data.split(",")
+                if len(parts) >= 4:
+                    self.pm25_value = int(parts[2])
+                    self.pm25_hyst = int(parts[3])
+                    self._update_button_text(self.pm25_buttons, 'value', str(self.pm25_value))
+                    self._update_button_text(self.pm25_buttons, 'hyst_value', str(self.pm25_hyst))
+                    self.log_message(f"PM2.5 설정 수신: {self.pm25_value}±{self.pm25_hyst}µg/m³")
+                    return True
+
+            elif "AIRCON,SEMITIME," in data:
+                parts = data.split(",")
+                if len(parts) >= 3:
+                    self.semi_time = int(parts[2])
+                    self._update_button_text(self.time_buttons, 'value', str(self.semi_time))
+                    self.log_message(f"SEMI 시간 수신: {self.semi_time}초")
+                    return True
+
+        except Exception as e:
+            self.log_message(f"GETSET 응답 파싱 오류: {e}")
+
+        return False
+
+
+    # ============================================
+    # 기존 코드와의 호환성을 위한 메서드들
+    # ============================================
+    def set_speed_button_manager(self, speed_manager):
+        """기존 코드 호환성 - SpeedButtonManager 참조 (현재 사용 안함)"""
+        pass
+
+    def update_from_manual(self, fan_speed):
+        """기존 코드 호환성 - MANUAL 탭에서 호출 (현재 사용 안함)"""
+        pass
+
+
+# 기존 AutoSpeedManager와의 호환성을 위한 별칭
+AutoSpeedManager = AutoModeManager
