@@ -32,27 +32,65 @@ class SerialManager(QObject):
         # 읽기 스레드 (지연 초기화)
         self.reader_thread = None
 
-    def get_available_ports(self) -> List[Dict[str, str]]:
-        """연결 가능한 시리얼 포트 목록을 반환하는 함수"""
+    def get_available_ports(self, usb_only: bool = True) -> List[Dict[str, str]]:
+        """연결 가능한 시리얼 포트 목록을 반환하는 함수
+
+        Args:
+            usb_only: True면 USB 시리얼 포트만 반환 (기본값),
+                      False면 모든 포트 반환
+
+        Returns:
+            포트 정보 리스트 [{"device": "/dev/ttyUSB0", "description": "..."}]
+        """
         ports = serial.tools.list_ports.comports()
-        return [{ 
-            "device": port.device, #포트 이름, COM2
-            "description": port.description, #포트 설명, USB Serial Port
-        } for port in ports]
+
+        if usb_only:
+            # USB 시리얼 포트만 필터링 (/dev/ttyUSB*, /dev/ttyACM*, COM* 등)
+            filtered_ports = []
+            for port in ports:
+                device = port.device
+                # Linux: ttyUSB*, ttyACM* (USB-시리얼 어댑터)
+                # Windows: COM* (모두 USB일 가능성 높음)
+                if ('ttyUSB' in device or 'ttyACM' in device or
+                    device.startswith('COM')):
+                    filtered_ports.append({
+                        "device": port.device,
+                        "description": port.description,
+                    })
+            return filtered_ports
+        else:
+            # 모든 포트 반환
+            return [{
+                "device": port.device,
+                "description": port.description,
+            } for port in ports]
         
     def connect_serial(self, port: str, baudrate: int = 115200) -> bool:
         """지정된 포트와 보레이트로 시리얼 연결 시도하는 함수"""
         try:
             # 기존 연결 해제
             self.disconnect_serial()
-            
-            # 새 연결 시도 
+
+            # USB 시리얼 포트 존재 여부 확인
+            available_ports = [p["device"] for p in self.get_available_ports(usb_only=True)]
+            if port not in available_ports:
+                print(f"[SERIAL] 오류: USB 시리얼 포트 '{port}'가 존재하지 않습니다.")
+                print(f"[SERIAL] 사용 가능한 USB 포트: {available_ports if available_ports else '없음'}")
+                return False
+
+            # 새 연결 시도
             self.shinho_serial_connection = serial.Serial(
                 port=port,
                 baudrate=baudrate,
                 timeout=0.1  # 논블로킹에 가까운 타임아웃
             )
-            
+
+            # 연결 후 실제로 포트가 열렸는지 확인
+            if not self.shinho_serial_connection.is_open:
+                print(f"[SERIAL] 오류: 포트 '{port}' 열기 실패")
+                self.shinho_serial_connection = None
+                return False
+
             # 인터럽트 방식 설정 (현재 비활성화)
             if self.use_interrupt_mode and hasattr(self.shinho_serial_connection, 'fileno'):
                 try:
@@ -65,15 +103,20 @@ class SerialManager(QObject):
                     print(f"[SERIAL] 인터럽트 방식 설정 실패, 폴링 방식 유지: {e}")
             else:
                 print("[SERIAL] 인터럽트 방식 비활성화됨, 폴링 방식 사용")
-            
-            print("Serial port connected to", port)
-            
+
+            print(f"[SERIAL] 연결 성공: {port} @ {baudrate}bps")
+
             # 읽기 스레드 시작
             self._start_reader_thread()
-            
+
             return True
+        except serial.SerialException as e:
+            print(f"[SERIAL] 시리얼 연결 오류: {e}")
+            self.shinho_serial_connection = None
+            return False
         except Exception as e:
-            print("Connection error:", e)
+            print(f"[SERIAL] 연결 오류: {e}")
+            self.shinho_serial_connection = None
             return False
         
     def is_connected(self) -> bool:
@@ -196,23 +239,36 @@ class SerialManager(QObject):
 
     def disconnect_serial(self) -> None:
         """시리얼 포트 닫기 함수, 연결 종료"""
+        # 읽기 스레드 중지 (예외 발생해도 계속 진행)
         try:
-            # 읽기 스레드 중지
             self._stop_reader_thread()
-            
-            # 소켓 알림자 해제
+        except Exception as e:
+            print(f"[SERIAL] 읽기 스레드 중지 중 오류 (무시됨): {e}")
+
+        # 소켓 알림자 해제 (예외 발생해도 계속 진행)
+        try:
             if self.socket_notifier:
                 self.socket_notifier.setEnabled(False)
                 self.socket_notifier.deleteLater()
                 self.socket_notifier = None
                 print("[SERIAL] 인터럽트 방식 해제")
-                
-            # 시리얼 연결 해제
-            if self.shinho_serial_connection and self.shinho_serial_connection.is_open:
-                self.shinho_serial_connection.close()
-                print("Serial port closed.")
         except Exception as e:
-            print("Disconnect error:", e)
+            print(f"[SERIAL] 소켓 알림자 해제 중 오류 (무시됨): {e}")
+            self.socket_notifier = None
+
+        # 시리얼 연결 해제
+        try:
+            if self.shinho_serial_connection:
+                if self.shinho_serial_connection.is_open:
+                    self.shinho_serial_connection.close()
+                    print("[SERIAL] 포트 연결 해제 완료")
+                else:
+                    print("[SERIAL] 포트가 이미 닫혀있음")
+        except Exception as e:
+            print(f"[SERIAL] 포트 닫기 중 오류 (무시됨): {e}")
+        finally:
+            # 연결 객체 초기화 (항상 실행)
+            self.shinho_serial_connection = None
     
     def is_connection_healthy(self) -> bool:
         """연결 상태가 건강한지 확인 (포트 열림 상태만 체크)"""

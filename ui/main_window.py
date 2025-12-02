@@ -1135,31 +1135,44 @@ class ControlWindow(QtWidgets.QMainWindow):
     def disconnect_serial(self):
         """시리얼 연결 해제"""
         try:
-            if self.serial_manager.is_connected():
-                # [비활성화] 센서 스케줄러 중지 (T/H 탭 비활성화로 이미 중지됨)
-                # self.sensor_scheduler.stop_scheduling()
+            # 연결 상태 확인
+            if not self.serial_manager.is_connected():
+                QMessageBox.information(self, "알림", "현재 연결된 포트가 없습니다.")
+                return
 
-                # [비활성화] UI 상태 초기화 (T/H 탭 비활성화)
-                # self.sensors_tab.set_auto_refresh_status(False)
-                # self.sensors_tab.reset_all_sensors()
-                # self.aircon_sensors_tab.set_auto_refresh_status(False)
-                # self.aircon_sensors_tab.reset_all_sensors()
+            # 시리얼 연결 해제
+            self.serial_manager.disconnect_serial()
 
-                self.serial_manager.disconnect_serial()
-                # 연결 상태 초기화
-                self.was_connected = False
-                self.connection_error_count = 0
-                self.last_connection_check = 0
-                self.last_error_log_time = 0
-                self.update_status_indicator("disconnected")
-                self.update_connect_button("disconnected")
-                # 시리얼 연결 해제 시 버튼 상태 업데이트
-                self.update_button_states()
-                # 센서 탭들의 상태 표시 업데이트
-                self.sensors_tab.update_status_indicator("disconnected")
-                self.aircon_sensors_tab.update_status_indicator("disconnected")
-                QMessageBox.information(self, "연결 해제", "시리얼 포트 연결이 해제되었습니다.")
+            # 연결 상태 초기화
+            self.was_connected = False
+            self.connection_error_count = 0
+            self.last_connection_check = 0
+            self.last_error_log_time = 0
+
+            # UI 상태 업데이트
+            self.update_status_indicator("disconnected")
+            self.update_connect_button("disconnected")
+            self.update_button_states()
+
+            # 센서 탭들의 상태 표시 업데이트 (안전하게 처리)
+            try:
+                if hasattr(self, 'sensors_tab') and self.sensors_tab:
+                    self.sensors_tab.update_status_indicator("disconnected")
+            except Exception as e:
+                print(f"[DISCONNECT] sensors_tab 상태 업데이트 실패: {e}")
+
+            try:
+                if hasattr(self, 'aircon_sensors_tab') and self.aircon_sensors_tab:
+                    self.aircon_sensors_tab.update_status_indicator("disconnected")
+            except Exception as e:
+                print(f"[DISCONNECT] aircon_sensors_tab 상태 업데이트 실패: {e}")
+
+            QMessageBox.information(self, "연결 해제", "시리얼 포트 연결이 해제되었습니다.")
+
         except Exception as e:
+            print(f"[DISCONNECT] 예외 발생: {e}")
+            import traceback
+            traceback.print_exc()
             QMessageBox.critical(self, "오류 발생", f"연결 해제 중 예외 발생:\n{e}")
     
     def update_connect_button(self, status):
