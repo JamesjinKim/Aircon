@@ -8,10 +8,11 @@ from ui.constants import CMD_PREFIX, TERMINATOR, AIR_SYSTEM
 class AutoModeManager:
     """AUTO 모드 제어 매니저 - AUTOMODE 명령어 처리"""
 
-    def __init__(self, serial_manager, SendData_textEdit):
+    def __init__(self, serial_manager, SendData_textEdit, test_mode=False):
         """초기화"""
         self.serial_manager = serial_manager
         self.SendData_textEdit = SendData_textEdit
+        self.test_mode = test_mode
 
         # AUTO 모드 상태
         self.auto_mode_active = False
@@ -24,6 +25,9 @@ class AutoModeManager:
         self.pm25_value = 35         # PM2.5 기준값 (µg/m³)
         self.pm25_hyst = 5           # PM2.5 히스테리시스 (±µg/m³)
         self.semi_time = 300         # SEMI AUTO 동작 시간 (초)
+
+        # PT02 센서 매니저 연동
+        self.pt02_sensor_manager = None
 
         # PT02 센서 데이터 (수신된 값)
         self.pt02_temp = None
@@ -355,6 +359,11 @@ class AutoModeManager:
                 style += "color: #888; background-color: transparent;"
             self.auto_widget.circulation_indicator.setStyleSheet(style)
 
+    def set_pt02_sensor_manager(self, pt02_manager):
+        """PT02 센서 매니저 설정"""
+        self.pt02_sensor_manager = pt02_manager
+        self.log_message("PT02 센서 매니저 연결됨")
+
     def parse_pt02_response(self, data):
         """PT02 센서 응답 데이터 파싱
         형식: [AIRCON] CO2,PM2.5,TEMP (예: [AIRCON] 850,35,253)
@@ -370,7 +379,13 @@ class AutoModeManager:
                     pm25 = int(values[1].strip())
                     temp = float(values[2].strip()) / 10.0  # 온도는 10으로 나눔
 
+                    # UI 업데이트
                     self.update_pt02_sensor_display(temp=temp, co2=co2, pm25=pm25)
+
+                    # PT02 센서 매니저를 통해 CSV 저장
+                    if self.pt02_sensor_manager:
+                        self.pt02_sensor_manager.save_sensor_data(temp, co2, pm25)
+
                     self.log_message(f"PT02 센서: 온도={temp}°C, CO2={co2}ppm, PM2.5={pm25}µg/m³")
                     return True
         except Exception as e:

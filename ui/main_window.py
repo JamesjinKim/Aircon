@@ -15,6 +15,7 @@ from managers.speed_manager import SpeedButtonManager
 from managers.auto_manager import AutoSpeedManager
 from managers.sensor_manager import SensorManager
 from managers.air_sensor_manager import AirSensorManager
+from managers.pt02_sensor_manager import PT02SensorManager
 from managers.sensor_scheduler import SensorScheduler
 from managers.command_queue_manager import CommandQueueManager, CommandPriority
 
@@ -54,16 +55,24 @@ class ControlWindow(QtWidgets.QMainWindow):
         # AIR 센서 매니저 초기화
         self.air_sensor_manager = AirSensorManager(self.serial_manager, test_mode=self.test_mode)
         print(f"[MAIN] 센서 매니저 초기화 완료")
-        
+
+        # PT02 센서 매니저 초기화 (1분 주기 온도/CO2/PM2.5 CSV 저장)
+        self.pt02_sensor_manager = PT02SensorManager(test_mode=self.test_mode)
+        print(f"[MAIN] PT02 센서 매니저 초기화 완료")
+
         # 센서 스케줄러 초기화 (중앙 관리)
         self.sensor_scheduler = SensorScheduler(self.serial_manager, test_mode=self.test_mode)
         self.sensor_scheduler.set_sensor_managers(self.air_sensor_manager, self.sensor_manager)
-        
+
         # AUTO 스피드 매니저 초기화 (UI 요소 생성 전에 초기화)
         self.auto_speed_manager = AutoSpeedManager(
             serial_manager=self.serial_manager,
-            SendData_textEdit=None  # UI 요소가 아직 생성되지 않아 None으로 초기화
+            SendData_textEdit=None,  # UI 요소가 아직 생성되지 않아 None으로 초기화
+            test_mode=self.test_mode
         )
+
+        # PT02 센서 매니저를 AUTO 매니저에 연결
+        self.auto_speed_manager.set_pt02_sensor_manager(self.pt02_sensor_manager)
         
         # UI 요소 생성
         self.setup_ui()
