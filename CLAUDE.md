@@ -58,14 +58,15 @@ python -c "import serial.tools.list_ports; print([p.device for p in serial.tools
 ### Module Organization
 
 **managers/** - Business logic and state management
-- `serial_manager.py` - Serial communication with hardware (pyserial wrapper)
+- `serial_manager.py` - Serial communication with hardware (pyserial wrapper, USB port filtering)
 - `command_queue_manager.py` - Async command queue system to prevent UI blocking
 - `button_manager.py` - Button state and toggle logic
 - `speed_manager.py` - Fan/pump speed control logic (large file: ~1800 lines)
-- `auto_manager.py` - Automatic temperature/airflow control
+- `auto_manager.py` - Automatic temperature/airflow control, PT02 sensor integration
 - `sensor_scheduler.py` - Central scheduler for AIRCON and DSCT sensor polling
 - `sensor_manager.py` - DSCT sensor data parsing and CSV logging
 - `air_sensor_manager.py` - AIRCON sensor data parsing and CSV logging
+- `pt02_sensor_manager.py` - PT02 sensor (temp/CO2/PM2.5) data management and CSV logging
 
 **ui/** - User interface components
 - `main_window.py` - Main application window with tab structure (large file: ~2400 lines)
@@ -88,6 +89,7 @@ python -c "import serial.tools.list_ports; print([p.device for p in serial.tools
 **test/** - Test mode utilities
 - `dummy_sensor_generator.py` - DSCT sensor dummy data generation
 - `dummy_air_sensor_generator.py` - AIRCON sensor dummy data generation
+- `dummy_pt02_generator.py` - PT02 sensor (temp/CO2/PM2.5) dummy data generation
 
 ### Key Design Patterns
 
@@ -133,9 +135,12 @@ Commands follow format: `$CMD,<DEVICE>,<FUNCTION>,<VALUE>\r`
 Sensor data automatically saved to `data/` directory:
 - DSCT sensors: `DSCT_2025-01-31.csv`
 - AIRCON sensors: `AIRCON_2025-01-31.csv`
+- PT02 sensors: `PT02_2025-12-02.csv` (1분 주기 온도/CO2/PM2.5)
 - Auto-split at 10MB with sequence numbers: `DSCT_2025-01-31_001.csv`
 - New file created daily at midnight
-- CSV headers: Timestamp, ID, Temperature (°C), Humidity (%), Status
+- CSV headers:
+  - DSCT/AIRCON: Timestamp, ID, Temperature (°C), Humidity (%), Status
+  - PT02: Timestamp, Temperature (°C), CO2 (ppm), PM2.5 (µg/m³)
 
 ## UI Tab Structure
 
@@ -169,6 +174,9 @@ The codebase uses a structured naming convention documented in [BUTTON_NAMING_GU
 - All button handlers must check `serial_manager.is_connected()` before sending commands
 - Connection loss automatically resets all buttons via `reset_all_buttons()` in managers
 - 5 consecutive serial errors trigger automatic disconnection to prevent infinite error loops
+- **USB 포트 필터링**: `get_available_ports(usb_only=True)`로 내장 UART 제외
+  - 허용 포트: `ttyUSB*`, `ttyACM*`, `COM*`
+  - 제외 포트: `ttyAMA*` (라즈베리파이 내장 UART)
 
 ### Speed Button Logic (Fans/Pumps)
 - OFF state: speed shows 0, speed buttons disabled
@@ -214,7 +222,18 @@ The codebase uses a structured naming convention documented in [BUTTON_NAMING_GU
 
 ## Recent Changes
 
-See [CHANGELOG.md](CHANGELOG.md) for full version history. Most recent version is v3.9 (2025-11-26) with:
+See [CHANGELOG.md](CHANGELOG.md) for full version history. Most recent version is v3.11 (2025-12-02) with:
+
+### v3.11 (2025-12-02)
+- 시리얼 연결 안정성 개선 (USB 포트 필터링)
+- 연결 해제 예외 처리 개선
+
+### v3.10 (2025-12-02)
+- PT02 센서 CSV 저장 시스템 추가
+- 1분 주기 온도/CO2/PM2.5 데이터 로깅
+- PT02SensorManager 클래스 추가
+
+### v3.9 (2025-11-26)
 - AUTO 탭 전면 개편 (AUTOMODE 시스템)
 - 2컬럼 컴팩트 레이아웃 (800×480 최적화)
 - 히스테리시스 제어 (온도/CO2/PM2.5)

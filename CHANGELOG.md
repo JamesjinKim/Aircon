@@ -1,5 +1,83 @@
 # CHANGELOG
 
+## v3.11 (2025-12-02) 🔧
+
+### 🐛 **버그 수정**
+
+#### **시리얼 연결 안정성 개선**
+- **문제**: 시리얼 장비 없이도 내장 UART 포트(ttyAMA*)로 연결되는 문제
+- **해결**: USB 시리얼 포트만 표시하도록 필터링 추가
+
+#### **연결 해제 예외 처리 개선**
+- **문제**: 연결 안된 상태에서 해제 버튼 클릭 시 에러 발생
+- **해결**: 안전한 예외 처리 및 사용자 알림 메시지 추가
+
+### 🔧 **변경 사항**
+
+#### **serial_manager.py**
+- `get_available_ports(usb_only=True)`: USB 포트 필터링 파라미터 추가
+- USB 시리얼 포트만 표시: `ttyUSB*`, `ttyACM*`, `COM*`
+- 내장 UART 포트 제외: `ttyAMA*` (라즈베리파이 내장)
+- `connect_serial()`: USB 포트 검증 강화
+- `disconnect_serial()`: 단계별 예외 처리 개선
+
+#### **main_window.py**
+- `disconnect_serial()`: 연결 안된 상태 체크 추가
+- 센서 탭 업데이트 개별 try-except 처리
+- 디버깅용 traceback 출력 추가
+
+### 📁 **수정된 파일**
+- `managers/serial_manager.py`
+- `ui/main_window.py`
+
+---
+
+## v3.10 (2025-12-02) 📊
+
+### ✨ **새로운 기능**
+
+#### **PT02 센서 CSV 저장 시스템**
+- **PT02 센서 전용 매니저 추가**: 1분 주기 온도/CO2/PM2.5 데이터 관리
+- **일일 CSV 파일 자동 생성**: `PT02_YYYY-MM-DD.csv` 형식
+- **10MB 초과 시 자동 분할**: `_001`, `_002` 인덱스 추가
+- **30일치 파일 유지**: 오래된 파일 자동 정리
+
+#### **CSV 구조**
+```csv
+timestamp,temperature,co2,pm25
+2025-12-02 11:30:55,25.3,850,35
+```
+
+#### **테스트 모드 지원**
+- `DummyPT02Generator`: 더미 데이터 생성기 추가
+- 트렌드 시뮬레이션으로 자연스러운 데이터 변화
+
+### 🛠️ **기술적 세부사항**
+
+#### **새로운 클래스: PT02SensorManager**
+**파일**: `managers/pt02_sensor_manager.py`
+
+**주요 메서드**:
+- `save_sensor_data(temp, co2, pm25)`: 데이터 저장 및 CSV 기록
+- `parse_pt02_response(data)`: 시리얼 응답 파싱
+- `_get_csv_filename()`: 날짜/크기 기반 파일명 생성
+- `_save_to_csv()`: CSV append 저장
+- `_cleanup_pt02_files()`: 오래된 파일 정리
+
+#### **AutoModeManager 연동**
+- `set_pt02_sensor_manager()`: PT02 매니저 연결
+- `parse_pt02_response()`: 파싱 후 CSV 저장 호출
+
+### 📁 **추가된 파일**
+- `managers/pt02_sensor_manager.py` (신규)
+- `test/dummy_pt02_generator.py` (신규)
+
+### 📁 **수정된 파일**
+- `managers/auto_manager.py`: PT02 매니저 연동 추가
+- `ui/main_window.py`: PT02SensorManager 초기화
+
+---
+
 ## v3.9 (2025-11-26) 🎛️
 
 ### ✨ **새로운 기능**
