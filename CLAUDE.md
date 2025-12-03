@@ -222,7 +222,12 @@ The codebase uses a structured naming convention documented in [BUTTON_NAMING_GU
 
 ## Recent Changes
 
-See [CHANGELOG.md](CHANGELOG.md) for full version history. Most recent version is v3.11 (2025-12-02) with:
+See [CHANGELOG.md](CHANGELOG.md) for full version history. Most recent version is v3.12 (2025-12-03) with:
+
+### v3.12 (2025-12-03)
+- AUTO 설정 저장 시 PM25SET 응답 누락 버그 수정
+- 명령어 간 200ms 딜레이 적용 (응답 잼 방지)
+- **시리얼 통신 주의**: 여러 명령어 연속 전송 시 최소 200ms 간격 유지 필요
 
 ### v3.11 (2025-12-02)
 - 시리얼 연결 안정성 개선 (USB 포트 필터링)

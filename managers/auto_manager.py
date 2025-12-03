@@ -284,28 +284,46 @@ class AutoModeManager:
         self.log_message("설정값 조회 요청")
 
     def handle_save(self):
-        """SAVE 버튼 클릭 - 모든 설정값 전송"""
+        """SAVE 버튼 클릭 - 모든 설정값 전송 (딜레이 적용)"""
         self.log_message("설정값 저장 시작...")
+
+        # 명령어 대기열 생성
+        self._save_command_queue = []
 
         # 1. 온도 설정 (값 * 10으로 전송)
         temp_val_int = int(self.temp_value * 10)
         temp_hyst_int = int(self.temp_hyst * 10)
         cmd_temp = f"{CMD_PREFIX},{AIR_SYSTEM},TEMPSET,{temp_val_int},{temp_hyst_int}"
-        self.send_command(cmd_temp)
+        self._save_command_queue.append(cmd_temp)
 
         # 2. CO2 설정
         cmd_co2 = f"{CMD_PREFIX},{AIR_SYSTEM},CO2SET,{self.co2_value},{self.co2_hyst}"
-        self.send_command(cmd_co2)
+        self._save_command_queue.append(cmd_co2)
 
         # 3. PM2.5 설정
         cmd_pm25 = f"{CMD_PREFIX},{AIR_SYSTEM},PM25SET,{self.pm25_value},{self.pm25_hyst}"
-        self.send_command(cmd_pm25)
+        self._save_command_queue.append(cmd_pm25)
 
         # 4. SEMI 동작시간 설정
         cmd_time = f"{CMD_PREFIX},{AIR_SYSTEM},SEMITIME,{self.semi_time}"
-        self.send_command(cmd_time)
+        self._save_command_queue.append(cmd_time)
 
-        self.log_message("설정값 저장 완료")
+        # 명령어 인덱스 초기화 후 순차 전송 시작
+        self._save_command_index = 0
+        self._send_next_save_command()
+
+    def _send_next_save_command(self):
+        """대기열에서 다음 명령어 전송 (200ms 딜레이)"""
+        if self._save_command_index < len(self._save_command_queue):
+            cmd = self._save_command_queue[self._save_command_index]
+            self.send_command(cmd)
+            self._save_command_index += 1
+
+            # 다음 명령어는 200ms 후 전송
+            QTimer.singleShot(200, self._send_next_save_command)
+        else:
+            # 모든 명령어 전송 완료
+            self.log_message("설정값 저장 완료")
 
     def update_pt02_sensor_display(self, temp=None, co2=None, pm25=None):
         """PT02 센서 데이터 UI 업데이트"""
