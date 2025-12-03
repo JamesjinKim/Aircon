@@ -10,7 +10,7 @@ class PT02SensorManager(QObject):
     """PT02 센서 데이터를 관리하고 CSV로 저장하는 매니저 클래스"""
 
     # 센서 데이터 업데이트 시그널
-    sensor_data_updated = pyqtSignal(dict)  # {temp, co2, pm25, timestamp}
+    sensor_data_updated = pyqtSignal(dict)  # {temp, co2, pm25, humidity, timestamp}
 
     def __init__(self, test_mode=False):
         super().__init__()
@@ -22,6 +22,7 @@ class PT02SensorManager(QObject):
             'temp': None,      # 온도 (°C)
             'co2': None,       # CO2 (ppm)
             'pm25': None,      # PM2.5 (µg/m³)
+            'humidity': None,  # 습도 (%)
             'status': 'unknown',
             'last_update': None
         }
@@ -76,13 +77,14 @@ class PT02SensorManager(QObject):
             # 10MB 이상이면 다음 인덱스로
             file_index += 1
 
-    def save_sensor_data(self, temp, co2, pm25):
+    def save_sensor_data(self, temp, co2, pm25, humidity=None):
         """센서 데이터를 내부 저장소에 저장하고 CSV에 기록
 
         Args:
             temp: 온도 (°C)
             co2: CO2 농도 (ppm)
             pm25: PM2.5 농도 (µg/m³)
+            humidity: 습도 (%) - 선택적
         """
         timestamp = datetime.now()
 
@@ -91,12 +93,13 @@ class PT02SensorManager(QObject):
             'temp': temp,
             'co2': co2,
             'pm25': pm25,
+            'humidity': humidity,
             'status': 'active',
             'last_update': timestamp
         }
 
         # CSV 파일에 저장
-        self._save_to_csv(temp, co2, pm25, timestamp)
+        self._save_to_csv(temp, co2, pm25, humidity, timestamp)
 
         # 주기적 CSV 정리 (50회 저장마다, 약 50분)
         self.save_count += 1
@@ -107,9 +110,12 @@ class PT02SensorManager(QObject):
         # 시그널 발생
         self.sensor_data_updated.emit(self.sensor_data.copy())
 
-        print(f"[PT02] 데이터 저장: 온도={temp}°C, CO2={co2}ppm, PM2.5={pm25}µg/m³")
+        if humidity is not None:
+            print(f"[PT02] 데이터 저장: 온도={temp}°C, CO2={co2}ppm, PM2.5={pm25}µg/m³, 습도={humidity}%")
+        else:
+            print(f"[PT02] 데이터 저장: 온도={temp}°C, CO2={co2}ppm, PM2.5={pm25}µg/m³")
 
-    def _save_to_csv(self, temp, co2, pm25, timestamp):
+    def _save_to_csv(self, temp, co2, pm25, humidity, timestamp):
         """센서 데이터를 CSV 파일로 저장"""
         if not self.csv_enabled:
             return
@@ -122,7 +128,7 @@ class PT02SensorManager(QObject):
 
         try:
             with open(filename, 'a', newline='', encoding='utf-8') as csvfile:
-                fieldnames = ['timestamp', 'temperature', 'co2', 'pm25']
+                fieldnames = ['timestamp', 'temperature', 'co2', 'pm25', 'humidity']
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
                 if not file_exists:
@@ -133,7 +139,8 @@ class PT02SensorManager(QObject):
                     'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S'),
                     'temperature': temp,
                     'co2': co2,
-                    'pm25': pm25
+                    'pm25': pm25,
+                    'humidity': humidity if humidity is not None else ''
                 })
         except Exception as e:
             print(f"[PT02] CSV 저장 오류: {e}")
@@ -176,10 +183,11 @@ class PT02SensorManager(QObject):
         return deleted
 
     def parse_pt02_response(self, data):
-        """PT02 센서 응답 데이터 파싱
+        """PT02 센서 응답 데이터 파싱 (통합)
 
-        형식: [AIRCON] CO2,PM2.5,TEMP (예: [AIRCON] 850,35,253)
-        온도는 10배 값으로 수신 (253 → 25.3°C)
+        지원 형식:
+        1. PT02 CO2,PM2.5,온도,습도 (예: PT02 587,0,13.3,10.9)
+        2. [AIRCON] CO2,PM2.5,TEMP (예: [AIRCON] 850,35,253) - 레거시
 
         Args:
             data: 시리얼로 수신된 원시 데이터
@@ -188,9 +196,50 @@ class PT02SensorManager(QObject):
             bool: 파싱 성공 여부
         """
         try:
-            if "[AIRCON]" not in data:
-                return False
+            # 형식 1: PT02 CO2,PM2.5,온도,습도 (1분 주기 데이터)
+            if data.startswith("PT02 ") or data.startswith("PT02\t"):
+                return self._parse_pt02_format(data)
 
+            # 형식 2: [AIRCON] CO2,PM2.5,TEMP (레거시)
+            if "[AIRCON]" in data:
+                return self._parse_aircon_format(data)
+
+        except Exception as e:
+            print(f"[PT02] 응답 파싱 오류: {e}")
+
+        return False
+
+    def _parse_pt02_format(self, data):
+        """PT02 형식 파싱: PT02 CO2,PM2.5,온도,습도
+
+        예시: PT02 587,0,13.3,10.9
+        """
+        try:
+            # "PT02 " 이후 데이터 추출
+            parts = data.split("PT02")[1].strip()
+            values = parts.split(",")
+
+            if len(values) >= 3:
+                co2 = int(values[0].strip())
+                pm25 = int(values[1].strip())
+                temp = float(values[2].strip())
+                humidity = float(values[3].strip()) if len(values) >= 4 else None
+
+                # 데이터 저장 및 CSV 기록
+                self.save_sensor_data(temp, co2, pm25, humidity)
+                return True
+
+        except Exception as e:
+            print(f"[PT02] PT02 형식 파싱 오류: {e}, data='{data}'")
+
+        return False
+
+    def _parse_aircon_format(self, data):
+        """[AIRCON] 형식 파싱 (레거시): [AIRCON] CO2,PM2.5,TEMP
+
+        예시: [AIRCON] 850,35,253 (온도는 10배 값)
+        """
+        try:
             # [AIRCON] 이후 데이터 추출
             parts = data.split("[AIRCON]")[1].strip()
             values = parts.split(",")
@@ -200,12 +249,12 @@ class PT02SensorManager(QObject):
                 pm25 = int(values[1].strip())
                 temp = float(values[2].strip()) / 10.0  # 온도는 10으로 나눔
 
-                # 데이터 저장 및 CSV 기록
-                self.save_sensor_data(temp, co2, pm25)
+                # 데이터 저장 및 CSV 기록 (습도 없음)
+                self.save_sensor_data(temp, co2, pm25, None)
                 return True
 
         except Exception as e:
-            print(f"[PT02] 응답 파싱 오류: {e}")
+            print(f"[PT02] AIRCON 형식 파싱 오류: {e}")
 
         return False
 

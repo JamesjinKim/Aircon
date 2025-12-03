@@ -97,6 +97,9 @@ class ControlWindow(QtWidgets.QMainWindow):
         # RELOAD 기능을 위한 시그널 연결
         self.serial_manager.data_received.connect(self.button_manager.parse_reload_response)
 
+        # PT02 센서 데이터 수신 핸들러 연결 (AUTO 모드와 관계없이 항상 CSV 저장)
+        self.serial_manager.data_received.connect(self._handle_pt02_data)
+
         # 스피드 버튼 매니저 초기화
         self.speed_button_manager = SpeedButtonManager(
             serial_manager=self.serial_manager,
@@ -1554,3 +1557,26 @@ class ControlWindow(QtWidgets.QMainWindow):
         if current_value < 999:
             new_value = current_value + 1
             self.semi_auto_period_value_button.setText(str(new_value))
+
+    def _handle_pt02_data(self, data):
+        """PT02 센서 데이터 수신 핸들러 (AUTO 모드와 관계없이 항상 CSV 저장)
+
+        수신 형식: PT02 CO2,PM2.5,온도,습도 (예: PT02 587,0,13.3,10.9)
+        """
+        try:
+            # PT02 형식 데이터만 처리
+            if data.startswith("PT02 ") or data.startswith("PT02\t"):
+                # PT02 센서 매니저를 통해 파싱 및 CSV 저장
+                if self.pt02_sensor_manager:
+                    self.pt02_sensor_manager.parse_pt02_response(data)
+
+                    # AUTO 탭 UI 업데이트 (연결되어 있다면)
+                    sensor_data = self.pt02_sensor_manager.get_sensor_data()
+                    if sensor_data and self.auto_speed_manager:
+                        self.auto_speed_manager.update_pt02_sensor_display(
+                            temp=sensor_data.get('temp'),
+                            co2=sensor_data.get('co2'),
+                            pm25=sensor_data.get('pm25')
+                        )
+        except Exception as e:
+            print(f"[MAIN] PT02 데이터 처리 오류: {e}")
