@@ -575,7 +575,7 @@ def create_auto_control_tab(parent):
     right_layout.addLayout(temp_row)
 
     # CO2 설정 (ppm)
-    co2_row, co2_buttons = create_setting_row("CO2", "ppm", "1000", "100", "co2_set")
+    co2_row, co2_buttons = create_setting_row("CO2", "ppm", "1500", "800", "co2_set")
     right_layout.addLayout(co2_row)
 
     # PM2.5 설정 (µg/m³)
