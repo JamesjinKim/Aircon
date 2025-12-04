@@ -89,7 +89,7 @@ class AutoModeManager:
 
         if hasattr(auto_widget, 'co2_buttons'):
             self.co2_buttons = auto_widget.co2_buttons
-            self._connect_setting_buttons('co2', self.co2_buttons, 50, 400, 2000, 10, 10, 500)
+            self._connect_setting_buttons('co2', self.co2_buttons, 50, 400, 2000, 10, 1, 9999)
 
         if hasattr(auto_widget, 'pm25_buttons'):
             self.pm25_buttons = auto_widget.pm25_buttons
